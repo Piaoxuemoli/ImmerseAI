@@ -2,6 +2,7 @@ import { app, BrowserWindow, session } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers } from './ipc-handlers'
+import { McpManager } from './mcp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -93,3 +94,9 @@ if (!gotTheLock) {
     }
   })
 }
+
+// 应用退出时清理 MCP 连接
+app.on('quit', async () => {
+  const mcpManager = McpManager.getInstance()
+  await mcpManager.disconnect()
+})
