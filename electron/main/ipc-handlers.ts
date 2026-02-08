@@ -8,6 +8,8 @@
 
 import { ipcMain, dialog } from 'electron'
 import type { BookFile, Message, LlmConfig } from '@/shared/types'
+import { handleLlmChat } from './llm-handler'
+import { getSafeStorageValue, setSafeStorageValue } from './safe-storage'
 
 /**
  * 注册所有 IPC handlers
@@ -62,21 +64,7 @@ export function registerIpcHandlers(): void {
   // ========================================
 
   ipcMain.handle('llm:chat', async (event, messages: Message[], config: LlmConfig): Promise<void> => {
-    console.log(`[IPC] llm:chat called with ${messages.length} messages, config:`, config)
-    // TODO: Phase 4 将实现真实的 LLM API 调用
-
-    // Mock 流式响应
-    const mockResponse = '这是一个 mock 响应。Phase 4 将集成真实的 LLM API。'
-    const chunks = mockResponse.split('')
-
-    for (const chunk of chunks) {
-      // 模拟流式输出
-      await new Promise((resolve) => setTimeout(resolve, 50))
-      event.sender.send('llm:chat-chunk', chunk)
-    }
-
-    // 发送完成信号
-    event.sender.send('llm:chat-chunk', '[DONE]')
+    await handleLlmChat(event, messages, config)
   })
 
   // ========================================
@@ -98,15 +86,11 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('app:get-safe-storage', async (_event, key: string): Promise<string> => {
-    console.log(`[IPC] app:get-safe-storage called with key: ${key}`)
-    // TODO: 实现 safeStorage 读取
-    return '' // 返回空字符串而非 null，符合 Promise<string> 类型
+    return getSafeStorageValue(key)
   })
 
-  ipcMain.handle('app:set-safe-storage', async (_event, key: string, value: string): Promise<void> => {
-    console.log(`[IPC] app:set-safe-storage called with key: ${key}`)
-    // TODO: 实现 safeStorage 写入
-    return
+  ipcMain.handle('app:set-safe-storage', async (_event, key: string, value: string): Promise<boolean> => {
+    return setSafeStorageValue(key, value)
   })
 
   console.log('[IPC] All handlers registered successfully')

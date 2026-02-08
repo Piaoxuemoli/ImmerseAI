@@ -34,7 +34,7 @@ export interface ElectronAPI {
   app: {
     selectDirectory: () => Promise<string | null>
     getSafeStorage: (key: string) => Promise<string>
-    setSafeStorage: (key: string, value: string) => Promise<void>
+    setSafeStorage: (key: string, value: string) => Promise<boolean>
   }
 }
 

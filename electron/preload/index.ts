@@ -27,27 +27,57 @@ const electronAPI: ElectronAPI = {
   llm: {
     chat: (messages: Message[], config: LlmConfig): Promise<ReadableStream<string>> => {
       return new Promise((resolve, reject) => {
+        // 流状态标记，防止 error 后再处理 [DONE]
+        let streamClosed = false
+
         // 创建 ReadableStream 封装 IPC 事件流
         const stream = new ReadableStream<string>({
           start(controller) {
-            const listener = (_: any, chunk: string) => {
+            // 清理两个监听器的辅助函数
+            const cleanup = (): void => {
+              ipcRenderer.removeListener('llm:chat-chunk', chunkListener)
+              ipcRenderer.removeListener('llm:chat-error', errorListener)
+            }
+
+            // chunk 监听器：接收流式文本或 [DONE] 终止信号
+            const chunkListener = (_: unknown, chunk: string): void => {
+              if (streamClosed) return
               if (chunk === '[DONE]') {
+                streamClosed = true
+                cleanup()
                 controller.close()
-                ipcRenderer.removeListener('llm:chat-chunk', listener)
               } else {
                 controller.enqueue(chunk)
               }
             }
 
-            ipcRenderer.on('llm:chat-chunk', listener)
+            // error 监听器：接收流中错误事件
+            const errorListener = (_: unknown, errorPayload: { code: string; message: string }): void => {
+              if (streamClosed) return
+              streamClosed = true
+              cleanup()
+              controller.error(new Error(errorPayload.message))
+            }
+
+            ipcRenderer.on('llm:chat-chunk', chunkListener)
+            ipcRenderer.on('llm:chat-error', errorListener)
 
             // 发起 IPC 调用
             ipcRenderer.invoke('llm:chat', messages, config)
-              .catch((err) => {
-                controller.error(err)
-                ipcRenderer.removeListener('llm:chat-chunk', listener)
+              .catch((err: Error) => {
+                if (!streamClosed) {
+                  streamClosed = true
+                  cleanup()
+                  controller.error(err)
+                }
                 reject(err)
               })
+          },
+          cancel() {
+            // 用户主动取消流时清理监听器
+            streamClosed = true
+            ipcRenderer.removeAllListeners('llm:chat-chunk')
+            ipcRenderer.removeAllListeners('llm:chat-error')
           }
         })
 
@@ -61,7 +91,7 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('app:select-directory'),
     getSafeStorage: (key: string): Promise<string> => 
       ipcRenderer.invoke('app:get-safe-storage', key),
-    setSafeStorage: (key: string, value: string): Promise<void> =>
+    setSafeStorage: (key: string, value: string): Promise<boolean> =>
       ipcRenderer.invoke('app:set-safe-storage', key, value)
   }
 }
