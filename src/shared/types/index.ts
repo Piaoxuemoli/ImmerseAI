@@ -64,6 +64,17 @@ export interface ChatSession {
 }
 
 // ============================================
+// LLM 配置
+// ============================================
+export interface LlmConfig {
+  provider?: 'deepseek' | 'kimi' | 'moonshot' | 'openai' | 'custom'
+  model?: string
+  temperature?: number // 0.0 - 1.0
+  maxTokens?: number
+  stream?: boolean // 是否启用流式响应，默认 true
+}
+
+// ============================================
 // 应用配置
 // ============================================
 export interface AppConfig {

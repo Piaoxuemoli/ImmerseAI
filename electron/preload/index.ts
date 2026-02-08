@@ -1,58 +1,67 @@
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
-
-// 定义 IPC 通信接口类型
-export interface ElectronAPI {
-  // MCP 文件操作
-  mcp: {
-    listFiles: (path: string) => Promise<unknown>
-    readFile: (path: string) => Promise<unknown>
-    writeFile: (path: string, content: string) => Promise<void>
-    moveFile: (source: string, destination: string) => Promise<void>
-  }
-
-  // LLM 聊天
-  llm: {
-    chat: (messages: unknown[], onChunk: (chunk: string) => void) => Promise<void>
-  }
-
-  // 应用工具
-  app: {
-    selectDirectory: () => Promise<string | null>
-    getSafeStorage: (key: string) => Promise<string | null>
-    setSafeStorage: (key: string, value: string) => Promise<void>
-  }
-}
+/**
+ * Preload Script - Type-Safe IPC Bridge
+ * 
+ * 类型安全约束：
+ * - 所有类型从 @/shared/types/index.ts 导入，禁止使用 unknown/any
+ * - 类型签名必须与 electron/main/ipc-handlers.ts 完全一致
+ * - 类型定义必须与 src/shared/types/electron.d.ts 同步
+ */
+ 
+import { contextBridge, ipcRenderer } from 'electron'
+import type { BookFile, Message, LlmConfig } from '@/shared/types'
+import type { ElectronAPI } from '@/shared/types/electron'
 
 // 通过 contextBridge 暴露安全的 API 给渲染进程
 const electronAPI: ElectronAPI = {
   mcp: {
-    listFiles: (path: string) => ipcRenderer.invoke('mcp:list-files', path),
-    readFile: (path: string) => ipcRenderer.invoke('mcp:read-file', path),
-    writeFile: (path: string, content: string) =>
+    listFiles: (path: string): Promise<BookFile[]> => 
+      ipcRenderer.invoke('mcp:list-files', path),
+    readFile: (path: string): Promise<ArrayBuffer> => 
+      ipcRenderer.invoke('mcp:read-file', path),
+    writeFile: (path: string, content: string): Promise<void> =>
       ipcRenderer.invoke('mcp:write-file', path, content),
-    moveFile: (source: string, destination: string) =>
+    moveFile: (source: string, destination: string): Promise<void> =>
       ipcRenderer.invoke('mcp:move-file', source, destination)
   },
 
   llm: {
-    chat: (messages: unknown[], onChunk: (chunk: string) => void) => {
-      // 先移除可能存在的旧监听器
-      ipcRenderer.removeAllListeners('llm:chat-chunk')
+    chat: (messages: Message[], config: LlmConfig): Promise<ReadableStream<string>> => {
+      return new Promise((resolve, reject) => {
+        // 创建 ReadableStream 封装 IPC 事件流
+        const stream = new ReadableStream<string>({
+          start(controller) {
+            const listener = (_: any, chunk: string) => {
+              if (chunk === '[DONE]') {
+                controller.close()
+                ipcRenderer.removeListener('llm:chat-chunk', listener)
+              } else {
+                controller.enqueue(chunk)
+              }
+            }
 
-      // 监听流式响应
-      ipcRenderer.on('llm:chat-chunk', (_event: IpcRendererEvent, chunk: string) => {
-        onChunk(chunk)
+            ipcRenderer.on('llm:chat-chunk', listener)
+
+            // 发起 IPC 调用
+            ipcRenderer.invoke('llm:chat', messages, config)
+              .catch((err) => {
+                controller.error(err)
+                ipcRenderer.removeListener('llm:chat-chunk', listener)
+                reject(err)
+              })
+          }
+        })
+
+        resolve(stream)
       })
-
-      // 发起请求
-      return ipcRenderer.invoke('llm:chat', messages)
     }
   },
 
   app: {
-    selectDirectory: () => ipcRenderer.invoke('app:select-directory'),
-    getSafeStorage: (key: string) => ipcRenderer.invoke('app:get-safe-storage', key),
-    setSafeStorage: (key: string, value: string) =>
+    selectDirectory: (): Promise<string | null> => 
+      ipcRenderer.invoke('app:select-directory'),
+    getSafeStorage: (key: string): Promise<string> => 
+      ipcRenderer.invoke('app:get-safe-storage', key),
+    setSafeStorage: (key: string, value: string): Promise<void> =>
       ipcRenderer.invoke('app:set-safe-storage', key, value)
   }
 }
