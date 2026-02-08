@@ -62,12 +62,15 @@ Worker 入口文件 `src/workers/rag.worker.ts` SHALL 通过 `self.onmessage` �
 
 #### Scenario: status 消息处理
 - **WHEN** Worker 接收 `{ type: 'status', bookId }` 消息
-- **THEN** Worker 回复 `{ type: 'status:result', bookId, isIndexed: false }`
-- **AND** 本阶段 isIndexed 始终为 false（Orama 未集成）
+- **THEN** Worker 先检查内存 Map 中是否存在该 bookId 的 Orama 实例
+- **AND** 若内存中不存在，检查 IndexedDB 中是否存在 `book_{bookId}` key
+- **AND** 回复 `{ type: 'status:result', bookId, isIndexed }` 其中 isIndexed 为任一存在即 true
 
-#### Scenario: ingest 消息处理（placeholder）
-- **WHEN** Worker 接收 `{ type: 'ingest' }` 消息
-- **THEN** Worker 回复 `{ type: 'error', message: 'ingest not implemented' }`
+#### Scenario: ingest 消息处理
+- **WHEN** Worker 接收 `{ type: 'ingest', bookId, chapters }` 消息
+- **THEN** Worker 调用完整 ingest pipeline（切分 → 向量化 → Orama 存储 → 持久化）
+- **AND** 过程中通过 `ingest:progress` 上报进度
+- **AND** 完成后回复 `{ type: 'ingest:complete', bookId, chunkCount }`
 
 #### Scenario: search 消息处理（placeholder）
 - **WHEN** Worker 接收 `{ type: 'search' }` 消息
