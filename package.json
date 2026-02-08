@@ -33,7 +33,7 @@
     "tailwind-merge": "^2.2.0",
     "tailwindcss": "^3.4.0",
     "uuid": "^10.0.0",
-    "zustand": "^4.5.0"
+    "zustand": "^4.5.7"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

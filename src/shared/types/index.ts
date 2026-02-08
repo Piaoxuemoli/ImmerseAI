@@ -106,3 +106,49 @@ export interface BookFile {
   type: 'epub' | 'pdf' | 'txt' | 'unknown'
   lastModified: number // 最后修改时间
 }
+
+// ============================================
+// 全局状态接口 (Zustand Store)
+// ============================================
+export interface ImmerseStore {
+  // === 书架状态 ===
+  books: Book[]
+  selectedBookId: string | null
+  connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error'
+
+  // === 阅读器状态 ===
+  currentCfi: string | null
+  readerMode: 'read' | 'chat'
+
+  // === 角色状态 ===
+  personas: Persona[]
+  activePersonaId: string | null
+
+  // === 对话状态 ===
+  currentSession: ChatSession | null
+  isGenerating: boolean
+
+  // === RAG 状态 ===
+  indexingProgress: Record<string, number> // bookId -> 0-100
+
+  // === Actions ===
+  setBooks: (books: Book[]) => void
+  selectBook: (bookId: string) => void
+  setConnectionStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void
+
+  setCurrentCfi: (cfi: string | null) => void
+  toggleMode: () => void
+  setReaderMode: (mode: 'read' | 'chat') => void
+
+  setPersonas: (personas: Persona[]) => void
+  setPersona: (persona: Persona) => void
+  setActivePersona: (personaId: string | null) => void
+  removePersona: (personaId: string) => void
+
+  setCurrentSession: (session: ChatSession | null) => void
+  addMessage: (message: Message) => void
+  setIsGenerating: (generating: boolean) => void
+
+  setIndexingProgress: (bookId: string, progress: number) => void
+  clearIndexingProgress: (bookId: string) => void
+}
