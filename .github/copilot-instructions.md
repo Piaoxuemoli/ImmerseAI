@@ -1228,6 +1228,102 @@ let result = await search(query);               // NO implicit type
 
 ---
 
+## 第十一章：Git 规范 (Git Conventions)
+
+### 11.1 分支策略
+
+```
+main          ← 稳定版本，每个 Phase 完成后合并
+├── dev       ← 日常开发主分支
+│   ├── feat/init-scaffold       ← Phase 1 各 Change
+│   ├── feat/mcp-manager         ← Phase 2
+│   ├── feat/rag-worker-setup    ← Phase 3
+│   └── ...
+```
+
+**规则**：
+- `main` 分支仅接收来自 `dev` 的合并，保持稳定
+- `dev` 是日常开发主分支，所有 feature 分支从 `dev` 创建
+- Feature 分支命名：`feat/<change-id>`（与 OpenSpec change 名称一致）
+- Bugfix 分支命名：`fix/<issue-description>`
+- 禁止直接在 `main` 或 `dev` 上提交
+
+### 11.2 提交格式（Conventional Commits）
+
+```
+<type>(<scope>): <description>
+
+feat(bookshelf): implement BookGrid component with 2:3 covers
+fix(rag): resolve SharedArrayBuffer error in Electron
+refactor(mcp): extract McpManager as singleton class
+docs(spike): add MCP client connection example
+chore(deps): add @orama/orama and persistence plugin
+```
+
+**Type 类型**：
+- `feat`: 新功能
+- `fix`: Bug 修复
+- `refactor`: 重构（不改变功能）
+- `docs`: 文档更新
+- `chore`: 构建/工具/依赖更新
+- `style`: 代码格式（不影响逻辑）
+- `test`: 测试相关
+- `perf`: 性能优化
+
+**Scope 范围**：
+- 功能模块：`bookshelf`, `reader`, `chat`, `persona`
+- 技术模块：`mcp`, `rag`, `llm`, `electron`, `ui`
+- 基础设施：`build`, `config`, `deps`
+
+### 11.3 每个 OpenSpec Change 的 Git 流程
+
+```bash
+# 1. 从 dev 创建分支
+git checkout dev
+git checkout -b feat/<change-id>
+
+# 2. 开发（多次小提交）
+git add . && git commit -m "feat(scope): description"
+
+# 3. Change 完成后
+git checkout dev
+git merge feat/<change-id>
+
+# 4. OpenSpec archive 后删除分支
+git branch -d feat/<change-id>
+```
+
+**规则**：
+- 每个 OpenSpec Change 对应一个 feature 分支
+- 分支名必须与 Change ID 一致
+- 小步提交，每个 task 完成后提交一次
+- 合并前确保代码通过 TypeScript 检查和 ESLint
+- Archive 后立即删除分支（保持分支清洁）
+
+### 11.4 提交消息最佳实践
+
+**Good ✅**：
+```
+feat(bookshelf): add book import via drag and drop
+fix(rag): prevent worker crash on large epub files
+refactor(mcp): extract connection retry logic
+```
+
+**Bad ❌**：
+```
+update code                    # 太模糊
+fix bug                        # 缺少 scope
+feat: new feature for books    # 描述不清晰
+WIP                            # 不应提交 WIP
+```
+
+**多文件变更时**：
+- 优先按功能逻辑拆分提交，而非按文件
+- 一个提交应该是一个完整的逻辑单元
+- 避免"大杂烩"提交（混合多个不相关改动）
+
+---
+
 ## 附录 A：术语表
 
 | 术语      | 全称                           | 定义                                  |
