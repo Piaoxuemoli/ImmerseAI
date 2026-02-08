@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    /* 语言和环境 */
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+
+    /* 模块解析 */
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+
+    /* 输出配置 */
+    "isolatedModules": true,
+
+    /* 类型检查 - 启用所有严格检查 */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+
+    /* 互操作性 */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    /* Node.js 和 Electron 类型 */
+    "types": ["node", "electron", "electron-vite/node"]
+  },
+  "include": [
+    "electron/**/*",
+    "electron.vite.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist-electron",
+    "out"
+  ]
+}
