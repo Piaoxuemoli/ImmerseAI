@@ -48,7 +48,7 @@
 - **AND** 参数类型必须显式声明为 (source: string, dest: string)
 
 ### Requirement: LLM API 接口
-系统 SHALL 暴露 LLM 聊天 API 的 IPC 接口，支持流式响应。
+preload 脚本 SHALL 通过 `contextBridge` 暴露 `window.electronAPI.llm.chat()` 方法，该方法返回 `ReadableStream<string>` 用于接收流式 LLM 响应，并处理流中错误事件。
 
 #### Scenario: 流式聊天
 - **WHEN** 渲染进程调用 window.electronAPI.llm.chat(messages, config)
@@ -68,11 +68,22 @@
   - `stream?: boolean` (默认 true)
 - **AND** 所有字段必须为可选，支持默认值合并
 
-#### Scenario: ReadableStream 创建
-- **WHEN** preload 脚本接收 LLM streaming 响应
-- **THEN** 必须在 preload 端创建 ReadableStream<string> 对象
-- **AND** 通过封装 ipcRenderer.on('llm:chat-chunk') 事件实现
-- **AND** 当接收到 '[DONE]' 标记时调用 controller.close()
+#### Scenario: 正常流式接收
+- **WHEN** 渲染进程调用 `window.electronAPI.llm.chat(messages, config)`
+- **THEN** 返回一个 `ReadableStream<string>`
+- **AND** 对每个通过 `llm:chat-chunk` IPC event 接收到的 chunk 执行 `controller.enqueue(chunk)`
+- **AND** 当收到 `'[DONE]'` 时执行 `controller.close()`
+
+#### Scenario: 流中错误处理
+- **WHEN** 主进程通过 `event.sender.send('llm:chat-error', errorPayload)` 发送错误
+- **THEN** preload 脚本中注册的 `ipcRenderer.on('llm:chat-error', ...)` 监听器被触发
+- **AND** 监听器调用 `controller.error(new Error(errorPayload.message))` 终止 ReadableStream
+- **AND** 渲染进程可通过 ReadableStream 的 `.catch()` 或 `try/catch` 在 reader 层捕获此错误
+
+#### Scenario: 事件监听器清理
+- **WHEN** ReadableStream 完成（`[DONE]`）或出错（`llm:chat-error`）
+- **THEN** preload 脚本 SHALL 在 `cancel()` 回调和正常结束路径中移除 `llm:chat-chunk` 和 `llm:chat-error` 两个监听器
+- **AND** 避免因监听器泄漏导致的内存问题
 
 ### Requirement: 应用工具接口
 系统 SHALL 暴露应用级别的工具方法。
@@ -91,8 +102,8 @@
 
 #### Scenario: 安全存储写入
 - **WHEN** 渲染进程调用 window.electronAPI.app.setSafeStorage(key, value)
-- **THEN** 主进程将数据加密存入 Electron safeStorage
-- **AND** 返回 void 表示成功
+- **THEN** 通过 `ipcRenderer.invoke('app:set-safe-storage', { key, value })` 调用主进程
+- **AND** 返回 `Promise<boolean>`（成功为 `true`，失败为 `false`）
 - **AND** 参数类型必须显式声明为 (key: string, value: string)
 
 ### Requirement: 主进程 Handler 类型注解
@@ -128,6 +139,12 @@
 
 ### Requirement: IPC 白名单限制
 系统 SHALL 仅暴露预定义的 IPC channel，禁止动态 channel 或通配符。
+
+#### Scenario: 允许的 on 事件通道
+- **THEN** 允许的 IPC on 事件通道 SHALL 包含：
+  - `llm:chat-chunk`
+  - `llm:chat-error`
+- **AND** 其他未列出的 on 通道 SHALL 被拒绝
 
 #### Scenario: 非法 channel 拦截
 - **WHEN** 渲染进程尝试调用未在 preload 中暴露的 channel
