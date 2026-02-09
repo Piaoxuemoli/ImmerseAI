@@ -16,6 +16,9 @@ export function useReader(bookId: string) {
   const setBooks = useStore((s) => s.setBooks)
   const setCurrentCfi = useStore((s) => s.setCurrentCfi)
   const setReaderMode = useStore((s) => s.setReaderMode)
+  const pendingCitationCfi = useStore((s) => s.pendingCitationCfi)
+  const setPendingCitationCfi = useStore((s) => s.setPendingCitationCfi)
+  const readerMode = useStore((s) => s.readerMode)
 
   const book = books.find((b) => b.id === bookId)
 
@@ -30,6 +33,9 @@ export function useReader(bookId: string) {
   )
 
   const renditionRef = useRef<Rendition | null>(null)
+
+  // 用于追踪上一次高亮的 CFI，便于清除
+  const lastHighlightCfiRef = useRef<string | null>(null)
 
   // --- EPUB 加载 ---
   useEffect(() => {
@@ -101,11 +107,48 @@ export function useReader(bookId: string) {
       setReaderMode('read')
 
       if (renditionRef.current) {
-        void renditionRef.current.display(cfi)
+        // 清除旧高亮
+        if (lastHighlightCfiRef.current) {
+          try {
+            renditionRef.current.annotations.remove(lastHighlightCfiRef.current, 'highlight')
+          } catch {
+            // 静默忽略清除错误
+          }
+          lastHighlightCfiRef.current = null
+        }
+
+        // 跳转到目标位置
+        void renditionRef.current.display(cfi).then(() => {
+          // 跳转完成后添加高亮（降级处理）
+          try {
+            renditionRef.current?.annotations.highlight(
+              cfi,
+              {},
+              undefined,
+              'immerse-citation-highlight',
+              { fill: 'rgba(251, 191, 36, 0.3)', 'fill-opacity': '0.3' },
+            )
+            lastHighlightCfiRef.current = cfi
+          } catch {
+            // CFI 非 range 格式，降级为仅跳转不高亮
+          }
+        })
       }
     },
     [setReaderMode],
   )
+
+  // --- 监听 pendingCitationCfi 变化触发跳转 ---
+  useEffect(() => {
+    if (
+      pendingCitationCfi &&
+      readerMode === 'read' &&
+      renditionRef.current
+    ) {
+      goToCfi(pendingCitationCfi)
+      setPendingCitationCfi(null)
+    }
+  }, [pendingCitationCfi, readerMode, goToCfi, setPendingCitationCfi])
 
   return {
     blobUrl,

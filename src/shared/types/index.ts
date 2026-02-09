@@ -147,6 +147,9 @@ export interface ImmerseStore {
   llmConfig: StoreLlmConfig
   bookshelfRootPath: string
 
+  // === 引用跳转状态 ===
+  pendingCitationCfi: string | null
+
   // === Actions ===
   setBooks: (books: Book[]) => void
   selectBook: (bookId: string) => void
@@ -170,4 +173,6 @@ export interface ImmerseStore {
 
   setLlmConfig: (config: Partial<StoreLlmConfig>) => void
   setBookshelfRootPath: (path: string) => void
+
+  setPendingCitationCfi: (cfi: string | null) => void
 }

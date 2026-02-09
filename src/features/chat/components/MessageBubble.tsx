@@ -6,9 +6,10 @@ import type { Message } from '@/shared/types'
 interface MessageBubbleProps {
   message: Message
   personaName?: string | undefined
+  onCitationClick?: (cfi: string) => void
 }
 
-export function MessageBubble({ message, personaName }: MessageBubbleProps) {
+export function MessageBubble({ message, personaName, onCitationClick }: MessageBubbleProps) {
   const isUser = message.role === 'user'
   const avatarText = personaName ? personaName.charAt(0) : 'AI'
 
@@ -46,7 +47,11 @@ export function MessageBubble({ message, personaName }: MessageBubbleProps) {
         {message.citations && message.citations.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {message.citations.map((citation, index) => (
-              <CitationBadge key={index} citation={citation} />
+              <CitationBadge
+                key={index}
+                citation={citation}
+                onClick={onCitationClick ? () => onCitationClick(citation.cfi) : undefined}
+              />
             ))}
           </div>
         )}

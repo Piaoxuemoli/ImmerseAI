@@ -54,6 +54,7 @@ export const useStore = create<ImmerseStore>()(
 
       // === 设置状态 ===
       llmConfig: {
+
         provider: 'deepseek',
         baseUrl: 'https://api.deepseek.com/v1',
         model: 'deepseek-chat',
@@ -61,6 +62,9 @@ export const useStore = create<ImmerseStore>()(
         maxTokens: 2048,
       },
       bookshelfRootPath: '',
+
+      // === 引用跳转状态 ===
+      pendingCitationCfi: null,
 
       // === 书架 Actions ===
       setBooks: (books) => set({ books }),
@@ -135,6 +139,9 @@ export const useStore = create<ImmerseStore>()(
           llmConfig: { ...state.llmConfig, ...config },
         })),
       setBookshelfRootPath: (path) => set({ bookshelfRootPath: path }),
+
+      // === 引用跳转 Actions ===
+      setPendingCitationCfi: (cfi) => set({ pendingCitationCfi: cfi }),
     }),
     {
       name: 'immerse-store', // localStorage key
