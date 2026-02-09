@@ -21,7 +21,11 @@ const electronAPI: ElectronAPI = {
     writeFile: (path: string, content: string): Promise<void> =>
       ipcRenderer.invoke('mcp:write-file', path, content),
     moveFile: (source: string, destination: string): Promise<void> =>
-      ipcRenderer.invoke('mcp:move-file', source, destination)
+      ipcRenderer.invoke('mcp:move-file', source, destination),
+    createDirectory: (path: string): Promise<void> =>
+      ipcRenderer.invoke('mcp:create-directory', path),
+    deleteFile: (path: string): Promise<void> =>
+      ipcRenderer.invoke('mcp:delete-file', path)
   },
 
   llm: {

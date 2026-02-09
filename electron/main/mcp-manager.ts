@@ -483,6 +483,84 @@ export class McpManager {
     }
   }
 
+  /**
+   * 创建目录
+   * 
+   * @param directoryPath - 目录路径 (相对于挂载点)
+   * @throws {Error} 未连接或 MCP 调用失败时抛出
+   */
+  public async createDirectory(directoryPath: string): Promise<void> {
+    // 检查连接状态
+    if (this.status !== 'connected' || !this.client) {
+      throw new Error('Not connected to MCP server');
+    }
+
+    // 规范化路径
+    const normalizedPath = path.normalize(directoryPath);
+
+    // 记录日志
+    console.log(`[McpManager] createDirectory: ${sanitizePath(normalizedPath)}`);
+
+    try {
+      // 调用 MCP Tool
+      await this.client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_directory',
+            arguments: { path: normalizedPath },
+          },
+        },
+        CallToolResultSchema
+      );
+
+      // 操作完成
+      console.log(`[McpManager] createDirectory completed`);
+    } catch (error) {
+      // 包装 MCP 错误
+      throw this._wrapMcpError(error, 'createDirectory');
+    }
+  }
+
+  /**
+   * 删除文件
+   * 
+   * @param filePath - 文件路径 (相对于挂载点)
+   * @throws {Error} 未连接或 MCP 调用失败时抛出
+   */
+  public async deleteFile(filePath: string): Promise<void> {
+    // 检查连接状态
+    if (this.status !== 'connected' || !this.client) {
+      throw new Error('Not connected to MCP server');
+    }
+
+    // 规范化路径
+    const normalizedPath = path.normalize(filePath);
+
+    // 记录日志
+    console.log(`[McpManager] deleteFile: ${sanitizePath(normalizedPath)}`);
+
+    try {
+      // 调用 MCP Tool - 注意: @modelcontextprotocol/server-filesystem 使用 delete_file 或类似命名
+      await this.client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'delete_file',
+            arguments: { path: normalizedPath },
+          },
+        },
+        CallToolResultSchema
+      );
+
+      // 操作完成
+      console.log(`[McpManager] deleteFile completed`);
+    } catch (error) {
+      // 包装 MCP 错误
+      throw this._wrapMcpError(error, 'deleteFile');
+    }
+  }
+
   // ============================================
   // 私有辅助方法
   // ============================================
@@ -501,6 +579,10 @@ export class McpManager {
         return new Error('File not found: 文件不存在');
       } else if (operation === 'moveFile') {
         return new Error('Source file not found: 源文件不存在');
+      } else if (operation === 'deleteFile') {
+        return new Error('File not found: 要删除的文件不存在');
+      } else if (operation === 'createDirectory') {
+        return new Error('Parent directory not found: 父目录不存在');
       }
     }
 
@@ -509,11 +591,18 @@ export class McpManager {
     }
 
     if (errorMessage.includes('exists') || errorMessage.includes('EEXIST')) {
+      if (operation === 'createDirectory') {
+        return new Error('Directory already exists: 目录已存在');
+      }
       return new Error('Destination exists: 目标文件已存在');
     }
 
     if (errorMessage.includes('too large')) {
       return new Error('File too large: 文件过大,无法读取');
+    }
+
+    if (errorMessage.includes('not empty') || errorMessage.includes('ENOTEMPTY')) {
+      return new Error('Directory not empty: 目录非空,无法删除');
     }
 
     // 默认错误

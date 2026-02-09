@@ -69,6 +69,9 @@ export const useStore = create<ImmerseStore>()(
       // === 引用跳转状态 ===
       pendingCitationCfi: null,
 
+      // === Librarian Agent 状态 ===
+      agentHistory: [],
+
       // === 书架 Actions ===
       setBooks: (books) => set({ books }),
       selectBook: (bookId) => set({ selectedBookId: bookId, lastNotePath: null }),
@@ -148,6 +151,18 @@ export const useStore = create<ImmerseStore>()(
 
       // === 笔记 Actions ===
       setLastNotePath: (path) => set({ lastNotePath: path }),
+
+      // === Librarian Agent Actions ===
+      addAgentOperation: (operation) =>
+        set((state) => {
+          const newHistory = [...state.agentHistory, operation]
+          // 保留最多 10 条记录，移除最早的
+          if (newHistory.length > 10) {
+            newHistory.shift()
+          }
+          return { agentHistory: newHistory }
+        }),
+      clearAgentHistory: () => set({ agentHistory: [] }),
     }),
     {
       name: 'immerse-store', // localStorage key
@@ -158,6 +173,7 @@ export const useStore = create<ImmerseStore>()(
         llmConfig: state.llmConfig,
         bookshelfRootPath: state.bookshelfRootPath,
         lastNotePath: state.lastNotePath,
+        agentHistory: state.agentHistory,
       }),
     }
   )

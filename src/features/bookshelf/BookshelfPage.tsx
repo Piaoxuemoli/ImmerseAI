@@ -1,5 +1,7 @@
-import type { Book } from '@/shared/types'
+import { useMemo } from 'react'
+import type { Book, BookFile } from '@/shared/types'
 import { ScrollArea } from '@/shared/components/ui/scroll-area'
+import { useStore } from '@/shared/store'
 import { TopBar } from './components/TopBar'
 import { BookGrid } from './components/BookGrid'
 import { LibrarianBar } from './components/LibrarianBar'
@@ -14,15 +16,30 @@ const MOCK_BOOKS: Book[] = [
 ]
 
 export function BookshelfPage() {
+  const books = useStore((state) => state.books)
+
+  // 将 books 转换为 BookFile 格式供 LibrarianBar 使用
+  const bookFiles: BookFile[] = useMemo(() => {
+    // 优先使用 store 中的实际书籍，fallback 到 mock 数据
+    const sourceBooks = books.length > 0 ? books : MOCK_BOOKS
+    return sourceBooks.map((book) => ({
+      name: book.path.split('/').pop() || book.title,
+      path: book.path,
+      size: 0,
+      type: 'epub' as const,
+      lastModified: Date.now(),
+    }))
+  }, [books])
+
   return (
     <div className="min-h-screen bg-white">
       <TopBar />
       <ScrollArea className="h-[calc(100vh-52px)]">
         <div className="mx-auto max-w-7xl pb-20">
-          <BookGrid books={MOCK_BOOKS} />
+          <BookGrid books={books.length > 0 ? books : MOCK_BOOKS} />
         </div>
       </ScrollArea>
-      <LibrarianBar />
+      <LibrarianBar files={bookFiles} />
     </div>
   )
 }

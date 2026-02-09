@@ -128,6 +128,37 @@ export interface BookFile {
 }
 
 // ============================================
+// Librarian Agent 类型
+// ============================================
+
+/**
+ * Agent 意图类型
+ */
+export type AgentIntent = 'list_files' | 'move_file' | 'create_directory' | 'delete_file' | 'unknown'
+
+/**
+ * Agent 操作历史记录
+ */
+export interface AgentOperation {
+  id: string // UUID v4
+  timestamp: number // 操作时间戳
+  intent: AgentIntent // 识别到的意图
+  input: string // 用户原始输入
+  params: Record<string, string> // 操作参数
+  result: 'success' | 'error' // 操作结果
+  message: string // 结果消息
+  duration: number // 操作耗时 (ms)
+}
+
+/**
+ * 意图识别结果
+ */
+export interface IntentRecognitionResult {
+  intent: AgentIntent
+  params: Record<string, string>
+}
+
+// ============================================
 // 全局状态接口 (Zustand Store)
 // ============================================
 export interface ImmerseStore {
@@ -161,6 +192,9 @@ export interface ImmerseStore {
   // === 引用跳转状态 ===
   pendingCitationCfi: string | null
 
+  // === Librarian Agent 状态 ===
+  agentHistory: AgentOperation[] // 最多 10 条操作历史
+
   // === Actions ===
   setBooks: (books: Book[]) => void
   selectBook: (bookId: string) => void
@@ -188,4 +222,8 @@ export interface ImmerseStore {
   setPendingCitationCfi: (cfi: string | null) => void
 
   setLastNotePath: (path: string | null) => void
+
+  // === Librarian Agent Actions ===
+  addAgentOperation: (operation: AgentOperation) => void
+  clearAgentHistory: () => void
 }

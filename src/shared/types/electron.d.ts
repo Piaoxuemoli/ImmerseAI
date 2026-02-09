@@ -23,6 +23,8 @@ export interface ElectronAPI {
     readFile: (path: string) => Promise<ArrayBuffer>
     writeFile: (path: string, content: string) => Promise<void>
     moveFile: (source: string, destination: string) => Promise<void>
+    createDirectory: (path: string) => Promise<void>
+    deleteFile: (path: string) => Promise<void>
   }
 
   // LLM 聊天
