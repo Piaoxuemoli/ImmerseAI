@@ -1,6 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useStore } from '@/shared/store'
 import type { Message, ChatSession } from '@/shared/types'
+import { detectNoteIntent } from '../utils/note-intent'
+import { generateNoteContent } from '../services/note-generator'
+import { writeNote } from '../services/note-writer'
 
 function generateId(): string {
   return crypto.randomUUID()
@@ -12,6 +15,7 @@ interface UseChatReturn {
   isGenerating: boolean
   sendMessage: (content: string) => Promise<void>
   stopGenerating: () => void
+  lastNotePath: string | null
 }
 
 export function useChat(): UseChatReturn {
@@ -23,11 +27,13 @@ export function useChat(): UseChatReturn {
   const activePersonaId = useStore((s) => s.activePersonaId)
   const selectedBookId = useStore((s) => s.selectedBookId)
   const personas = useStore((s) => s.personas)
+  const lastNotePath = useStore((s) => s.lastNotePath)
 
   // Store actions
   const setCurrentSession = useStore((s) => s.setCurrentSession)
   const addMessage = useStore((s) => s.addMessage)
   const setIsGenerating = useStore((s) => s.setIsGenerating)
+  const setLastNotePath = useStore((s) => s.setLastNotePath)
 
   // 活跃 reader 引用（用于 cancel）
   const readerRef = useRef<ReadableStreamDefaultReader<string> | null>(null)
@@ -63,6 +69,131 @@ export function useChat(): UseChatReturn {
   }, [addMessage, activePersonaId])
 
   /**
+   * 处理笔记生成与写入流程
+   */
+  const handleNoteFlow = useCallback(async (isAppend: boolean, topic?: string) => {
+    setIsGenerating(true)
+
+    // 检查 MCP 连接状态
+    const currentConnectionStatus = useStore.getState().connectionStatus
+    if (currentConnectionStatus !== 'connected') {
+      const errorMsg: Message = {
+        id: generateId(),
+        role: 'assistant',
+        content: '请先在设置中配置书架路径并连接 MCP',
+        timestamp: Date.now(),
+        metadata: { type: 'note-error', error: '请先在设置中配置书架路径并连接 MCP' },
+      }
+      addMessage(errorMsg)
+      setIsGenerating(false)
+      return
+    }
+
+    // 获取当前书籍信息
+    const state = useStore.getState()
+    const currentBook = state.books.find((b) => b.id === state.selectedBookId)
+    const bookTitle = currentBook?.title ?? '未知书籍'
+    const currentMessages = state.currentSession?.messages ?? []
+    const currentBookshelfPath = state.bookshelfRootPath
+    const currentLastNotePath = state.lastNotePath
+
+    // 插入 "正在生成笔记..." 临时消息
+    const loadingMsg: Message = {
+      id: generateId(),
+      role: 'assistant',
+      content: '正在生成笔记...',
+      timestamp: Date.now(),
+    }
+    addMessage(loadingMsg)
+
+    try {
+      // 1. 生成笔记内容
+      const noteContent = await generateNoteContent(currentMessages, bookTitle, topic)
+
+      // 从笔记内容中提取标题（第一个 # 标题行）
+      const titleMatch = noteContent.match(/^#\s+(.+)$/m)
+      const noteTitle = titleMatch?.[1] ?? topic ?? '阅读笔记'
+
+      // 2. 写入文件
+      const isAppendMode = isAppend && !!currentLastNotePath
+      const result = await writeNote(
+        currentBookshelfPath,
+        bookTitle,
+        noteTitle,
+        noteContent,
+        isAppendMode,
+        isAppendMode ? currentLastNotePath! : undefined,
+      )
+
+      // 3. 移除临时 loading 消息并插入确认消息
+      // 通过直接操作 Store 替换最后一条消息
+      const latestSession = useStore.getState().currentSession
+      if (latestSession) {
+        const updatedMessages = latestSession.messages.filter((m) => m.id !== loadingMsg.id)
+        useStore.getState().setCurrentSession({
+          ...latestSession,
+          messages: updatedMessages,
+          updatedAt: Date.now(),
+        })
+      }
+
+      if (result.success) {
+        const confirmMsg: Message = {
+          id: generateId(),
+          role: 'assistant',
+          content: noteContent,
+          timestamp: Date.now(),
+          metadata: {
+            type: 'note-confirmation',
+            filePath: result.filePath,
+            noteTitle,
+          },
+        }
+        addMessage(confirmMsg)
+        setLastNotePath(result.filePath)
+      } else {
+        const errorMsg: Message = {
+          id: generateId(),
+          role: 'assistant',
+          content: `[笔记错误] ${result.error}`,
+          timestamp: Date.now(),
+          metadata: {
+            type: 'note-error',
+            error: result.error,
+          },
+        }
+        addMessage(errorMsg)
+      }
+    } catch (error) {
+      // 移除临时 loading 消息
+      const latestSession = useStore.getState().currentSession
+      if (latestSession) {
+        const updatedMessages = latestSession.messages.filter((m) => m.id !== loadingMsg.id)
+        useStore.getState().setCurrentSession({
+          ...latestSession,
+          messages: updatedMessages,
+          updatedAt: Date.now(),
+        })
+      }
+
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
+      const errorMsg: Message = {
+        id: generateId(),
+        role: 'assistant',
+        content: `[笔记错误] ${errorMessage}`,
+        timestamp: Date.now(),
+        metadata: {
+          type: 'note-error',
+          error: errorMessage,
+        },
+      }
+      addMessage(errorMsg)
+    } finally {
+      setIsGenerating(false)
+    }
+  }, [addMessage, setIsGenerating, setLastNotePath])
+
+  /**
    * 发送消息并触发 LLM 流式调用
    */
   const sendMessage = useCallback(async (content: string) => {
@@ -92,7 +223,17 @@ export function useChat(): UseChatReturn {
     }
     addMessage(userMessage)
 
-    // 3. 构建 LLM messages 数组
+    // 3. 笔记意图检测
+    const noteIntent = detectNoteIntent(content)
+
+    if (noteIntent.isNote) {
+      // ── 笔记流程 ──
+      await handleNoteFlow(noteIntent.isAppend, noteIntent.topic)
+      return
+    }
+
+    // ── 常规对话流程 ──
+    // 4. 构建 LLM messages 数组
     const updatedSession = useStore.getState().currentSession!
     const llmMessages: Message[] = []
 
@@ -109,7 +250,7 @@ export function useChat(): UseChatReturn {
     // 加入完整消息历史
     llmMessages.push(...updatedSession.messages)
 
-    // 4. 调用 LLM API
+    // 5. 调用 LLM API
     setIsGenerating(true)
     setStreamingContent('')
     streamingContentRef.current = ''
@@ -121,7 +262,7 @@ export function useChat(): UseChatReturn {
       const reader = stream.getReader()
       readerRef.current = reader
 
-      // 5. 逐 chunk 读取
+      // 6. 逐 chunk 读取
       let fullContent = ''
       try {
         while (true) {
@@ -134,7 +275,7 @@ export function useChat(): UseChatReturn {
           }
         }
 
-        // 6. 流式完成 → 保存完整 assistant 消息
+        // 7. 流式完成 → 保存完整 assistant 消息
         const assistantMsg: Message = {
           id: generateId(),
           role: 'assistant',
@@ -174,6 +315,7 @@ export function useChat(): UseChatReturn {
     addMessage,
     setIsGenerating,
     savePartialMessage,
+    handleNoteFlow,
   ])
 
   /**
@@ -209,5 +351,6 @@ export function useChat(): UseChatReturn {
     isGenerating,
     sendMessage,
     stopGenerating,
+    lastNotePath,
   }
 }

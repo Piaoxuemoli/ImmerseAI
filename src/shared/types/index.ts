@@ -35,6 +35,13 @@ export interface Persona {
 // ============================================
 // 聊天消息
 // ============================================
+export interface MessageMetadata {
+  type: 'note-confirmation' | 'note-error'
+  filePath?: string | undefined // 笔记文件路径
+  noteTitle?: string | undefined // 笔记标题
+  error?: string | undefined // 错误信息
+}
+
 export interface Message {
   id: string // UUID v4
   role: 'user' | 'assistant' | 'system'
@@ -42,6 +49,7 @@ export interface Message {
   timestamp: number // 发送时间戳
   personaId?: string // 关联的角色 ID (assistant 消息)
   citations?: Citation[] // 引用来源 (用于点击跳转到原文)
+  metadata?: MessageMetadata // 笔记等特殊消息元数据
 }
 
 export interface Citation {
@@ -147,6 +155,9 @@ export interface ImmerseStore {
   llmConfig: StoreLlmConfig
   bookshelfRootPath: string
 
+  // === 笔记状态 ===
+  lastNotePath: string | null
+
   // === 引用跳转状态 ===
   pendingCitationCfi: string | null
 
@@ -175,4 +186,6 @@ export interface ImmerseStore {
   setBookshelfRootPath: (path: string) => void
 
   setPendingCitationCfi: (cfi: string | null) => void
+
+  setLastNotePath: (path: string | null) => void
 }

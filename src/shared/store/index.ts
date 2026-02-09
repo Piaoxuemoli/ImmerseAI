@@ -63,12 +63,15 @@ export const useStore = create<ImmerseStore>()(
       },
       bookshelfRootPath: '',
 
+      // === 笔记状态 ===
+      lastNotePath: null,
+
       // === 引用跳转状态 ===
       pendingCitationCfi: null,
 
       // === 书架 Actions ===
       setBooks: (books) => set({ books }),
-      selectBook: (bookId) => set({ selectedBookId: bookId }),
+      selectBook: (bookId) => set({ selectedBookId: bookId, lastNotePath: null }),
       setConnectionStatus: (status) => set({ connectionStatus: status }),
 
       // === 阅读器 Actions ===
@@ -142,6 +145,9 @@ export const useStore = create<ImmerseStore>()(
 
       // === 引用跳转 Actions ===
       setPendingCitationCfi: (cfi) => set({ pendingCitationCfi: cfi }),
+
+      // === 笔记 Actions ===
+      setLastNotePath: (path) => set({ lastNotePath: path }),
     }),
     {
       name: 'immerse-store', // localStorage key
@@ -151,6 +157,7 @@ export const useStore = create<ImmerseStore>()(
         currentSession: state.currentSession,
         llmConfig: state.llmConfig,
         bookshelfRootPath: state.bookshelfRootPath,
+        lastNotePath: state.lastNotePath,
       }),
     }
   )
