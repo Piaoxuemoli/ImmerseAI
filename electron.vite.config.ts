@@ -20,7 +20,7 @@ export default defineConfig({
     }
   },
 
-  // Preload 脚本配置
+  // Preload 脚本配置（注意：ESM 产物为 .mjs，主进程需匹配引用路径）
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {

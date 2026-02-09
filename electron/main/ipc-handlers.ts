@@ -90,7 +90,7 @@ export function registerIpcHandlers(): void {
     try {
       const entries = await McpManager.getInstance().listFiles(filePath)
       return entries
-        .filter((e) => e.type === 'file')
+        .filter((e) => e.type !== 'unknown')
         .map(convertToBookFile)
     } catch (error) {
       throw wrapMcpError(error)

@@ -8,10 +8,46 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "lint": "eslint . --ext .ts,.tsx"
+    "lint": "eslint . --ext .ts,.tsx",
+    "pack": "npm run build && electron-builder",
+    "pack:clean": "npm run build && electron-builder --config.directories.output=release-new"
+  },
+  "build": {
+    "appId": "com.immerseai.app",
+    "productName": "ImmerseAI",
+    "directories": {
+      "output": "release"
+    },
+    "asar": true,
+    "files": [
+      "dist-electron/**/*",
+      "dist/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/@modelcontextprotocol/server-filesystem/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "favicon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@modelcontextprotocol/server-filesystem": "^0.6.0",
     "@orama/orama": "^2.1.1",
     "@orama/plugin-data-persistence": "^2.1.1",
     "@radix-ui/react-avatar": "^1.1.0",

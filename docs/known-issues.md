@@ -139,6 +139,12 @@ const handleScroll = (e: React.UIEvent) => {
 
 ## 📋 已知限制（暂不修复）
 
+### 应用图标待替换
+
+- 当前 Windows 打包图标使用根目录 `favicon.ico`
+- 若需要更高质量与跨平台一致图标，建议补充 `build/icon.png`（512x512 或 1024x1024）
+- 若缺失图标，electron-builder 将使用默认 Electron 图标
+
 ### Phase 2 IPC-MCP 桥接未完成
 
 - `ipc-handlers.ts` 中的 MCP 相关 handlers 使用 placeholder 响应

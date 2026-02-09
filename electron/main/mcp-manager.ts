@@ -11,9 +11,58 @@
  */
 
 import path from 'node:path';
+import { app } from 'electron';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
+
+// ============================================
+// MCP Server 启动配置
+// ============================================
+
+/**
+ * 获取 MCP server-filesystem 的启动配置
+ * 
+ * 开发模式: 使用 npx 启动
+ * 打包模式: 使用 Electron 作为 Node.js 运行 (ELECTRON_RUN_AS_NODE=1)
+ * 
+ * @param localPath - 要挂载的本地目录路径
+ * @returns StdioClientTransport 所需的 command, args, env
+ */
+function getMcpServerConfig(localPath: string): { 
+  command: string; 
+  args: string[]; 
+  env?: Record<string, string>;
+} {
+  if (app.isPackaged) {
+    // 打包模式: server-filesystem 在 asar.unpacked/node_modules 中
+    // 使用 ELECTRON_RUN_AS_NODE=1 让 Electron 作为 Node.js 运行
+    const serverPath = path.join(
+      process.resourcesPath,
+      'app.asar.unpacked',
+      'node_modules',
+      '@modelcontextprotocol',
+      'server-filesystem',
+      'dist',
+      'index.js'
+    );
+    console.log(`[McpManager] Packaged mode - server path: ${serverPath}`);
+    return {
+      command: process.execPath,
+      args: [serverPath, localPath],
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1',
+      } as Record<string, string>,
+    };
+  } else {
+    // 开发模式: 使用 npx
+    return {
+      command: 'npx',
+      args: ['-y', '@modelcontextprotocol/server-filesystem', localPath],
+    };
+  }
+}
 
 // ============================================
 // TypeScript 类型定义
@@ -50,7 +99,7 @@ export interface FileEntry {
   name: string;
   path: string;
   size: number;
-  type: 'file' | 'directory' | 'unknown';
+  type: 'epub' | 'pdf' | 'txt' | 'unknown';
   lastModified: number;
 }
 
@@ -96,6 +145,41 @@ function sanitizePath(filePath: string): string {
   }
 
   return filePath;
+}
+
+function getFileTypeFromName(name: string): FileEntry['type'] {
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.epub')) return 'epub';
+  if (lower.endsWith('.pdf')) return 'pdf';
+  if (lower.endsWith('.txt')) return 'txt';
+  return 'unknown';
+}
+
+function parseListDirectoryText(text: string, _basePath: string): FileEntry[] {
+  const entries: FileEntry[] = [];
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && line !== '---');
+
+  for (const line of lines) {
+    if (line.startsWith('[DIR]')) {
+      continue;
+    }
+    if (line.startsWith('[FILE]')) {
+      const name = line.replace('[FILE]', '').trim();
+      if (!name) continue;
+      entries.push({
+        name,
+        path: name, // MCP 操作都是相对于挂载点，直接用文件名
+        size: 0,
+        type: getFileTypeFromName(name),
+        lastModified: Date.now(),
+      });
+    }
+  }
+
+  return entries;
 }
 
 // ============================================
@@ -190,9 +274,11 @@ export class McpManager {
   private async _attemptConnection(localPath: string, retryCount = 0): Promise<void> {
     try {
       // 6.1: 创建 StdioClientTransport 实例
+      const mcpConfig = getMcpServerConfig(localPath);
       this.transport = new StdioClientTransport({
-        command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-filesystem', localPath],
+        command: mcpConfig.command,
+        args: mcpConfig.args,
+        env: mcpConfig.env,
       });
 
       // 6.2: 创建 Client 实例
@@ -323,15 +409,18 @@ export class McpManager {
       if (result.content && Array.isArray(result.content)) {
         for (const item of result.content) {
           if (item.type === 'text' && typeof item.text === 'string') {
-            // 解析文本内容 (假设为 JSON 格式)
+            // 解析文本内容 (可能是 JSON 或纯文本列表)
             try {
               const parsed = JSON.parse(item.text);
               if (Array.isArray(parsed)) {
-                entries.push(...parsed.map(this._convertToFileEntry));
+                for (const item of parsed) {
+                  const entry = this._convertToFileEntry(item);
+                  if (entry) entries.push(entry);
+                }
               }
             } catch {
-              // 解析失败,尝试直接使用
-              console.warn('[McpManager] Failed to parse list_directory result as JSON');
+              // 解析失败时按纯文本格式解析
+              entries.push(...parseListDirectoryText(item.text, normalizedPath));
             }
           }
         }
@@ -612,13 +701,18 @@ export class McpManager {
   /**
    * 转换 MCP 返回的文件条目为 FileEntry 格式
    */
-  private _convertToFileEntry(item: unknown): FileEntry {
+  private _convertToFileEntry(item: unknown): FileEntry | null {
     const record = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
+    if (record.type === 'directory') {
+      return null;
+    }
+
+    const name = typeof record.name === 'string' ? record.name : '';
     return {
-      name: typeof record.name === 'string' ? record.name : '',
+      name,
       path: typeof record.path === 'string' ? record.path : '',
       size: typeof record.size === 'number' ? record.size : 0,
-      type: record.type === 'directory' ? 'directory' : record.type === 'file' ? 'file' : 'unknown',
+      type: getFileTypeFromName(name),
       lastModified: typeof record.lastModified === 'number' ? record.lastModified : Date.now(),
     };
   }

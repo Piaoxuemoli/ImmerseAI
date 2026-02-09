@@ -6,6 +6,14 @@ import { McpManager } from './mcp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+/** 打包后渲染进程入口（与 electron-builder files 布局一致） */
+function getRendererPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'app.asar', 'dist-electron', 'renderer', 'index.html')
+  }
+  return path.join(__dirname, '../renderer/index.html')
+}
+
 // 保持对窗口对象的全局引用，防止被垃圾回收
 let mainWindow: BrowserWindow | null = null
 
@@ -21,7 +29,7 @@ function createWindow(): void {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false, // Electron 的沙箱在 Windows 上可能有兼容性问题
-      preload: path.join(__dirname, '../preload/index.js')
+      preload: path.join(__dirname, '../preload/index.mjs')
     }
   })
 
@@ -43,8 +51,8 @@ function createWindow(): void {
     // 自动打开 DevTools
     mainWindow.webContents.openDevTools()
   } else {
-    // 生产模式：加载打包后的文件
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
+    // 生产模式：加载打包后的文件（显式路径以兼容 electron-builder 打包）
+    mainWindow.loadFile(getRendererPath())
   }
 
   // 优化体验：窗口内容加载完成后再显示

@@ -6,7 +6,11 @@ package-lock.json
 dist-electron/
 out/
 build/
+release/
+release-new/
+test_book/
 *.log
+!build/icon.png
 
 # OS files
 .DS_Store
