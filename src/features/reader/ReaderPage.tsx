@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '@/shared/store'
 import { ChatInterface } from '@/features/chat/components/ChatInterface'
+import { PersonaConfigDialog } from '@/features/persona/components/PersonaConfigDialog'
 import { useReader } from './hooks/useReader'
 import { ReaderHeader } from './components/ReaderHeader'
 import { EpubViewer } from './components/EpubViewer'
@@ -18,6 +20,13 @@ export function ReaderPage() {
   const { id } = useParams<{ id: string }>()
   const bookId = id ?? ''
   const readerMode = useStore((s) => s.readerMode)
+  const activePersonaId = useStore((s) => s.activePersonaId)
+  const personas = useStore((s) => s.personas)
+  const [personaDialogOpen, setPersonaDialogOpen] = useState(false)
+
+  const activePersona = activePersonaId
+    ? personas.find((p) => p.id === activePersonaId)
+    : undefined
 
   const {
     blobUrl,
@@ -30,7 +39,7 @@ export function ReaderPage() {
 
   return (
     <div className="flex h-screen flex-col bg-slate-50">
-      <ReaderHeader bookId={bookId} />
+      <ReaderHeader bookId={bookId} onPersonaClick={() => setPersonaDialogOpen(true)} />
 
       {/* 错误状态 */}
       {error && (
@@ -80,6 +89,13 @@ export function ReaderPage() {
           </AnimatePresence>
         </div>
       )}
+      {/* 角色配置弹窗 */}
+      <PersonaConfigDialog
+        open={personaDialogOpen}
+        onOpenChange={setPersonaDialogOpen}
+        bookId={bookId}
+        existingPersona={activePersona}
+      />
     </div>
   )
 }
