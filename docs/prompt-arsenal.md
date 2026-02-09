@@ -244,129 +244,179 @@ UI 参考宪法第六章 6.4 节的角色配置弹窗设计。
 
 ---
 
-## 测试 Prompt 集
+## Phase 2 补全：IPC→MCP 真实桥接 + 书架交互逻辑
 
-> 以下 Prompt 用于验证各模块功能是否正常工作。
-> 在对应 Change 实现完成后使用。
+> Phase 2 的 McpManager 实现 (536行) 已经完成，但 ipc-handlers.ts 中 mcp:* 全是 mock 数据，
+> BookCard 点击无路由跳转，TopBar 按钮 onClick 全空，BookshelfPage 使用硬编码 MOCK_BOOKS。
+> 以下 Change 将这些"断裂的管道"全部接通。
 
-### Test: IPC 通信验证
-```
-在 DevTools Console 中执行以下测试：
-1. await window.api.selectDirectory() — 应弹出目录选择对话框
-2. await window.api.setSafeStorage('test-key', 'hello') — 应返回 true
-3. await window.api.getSafeStorage('test-key') — 应返回 'hello'
-验证 IPC 通道工作正常。
-```
+### Change: ipc-mcp-bridge
+将 electron/main/ipc-handlers.ts 中的 MCP mock handlers 替换为真实 McpManager 调用。
 
-### Test: MCP 连接验证
-```
-测试 MCP 文件系统连接：
-1. 在书架页点击"挂载书架"，选择一个包含 .epub 文件的目录
-2. 验证 BookGrid 中出现对应的书籍卡片
-3. 检查 McpManager 连接状态为 'connected'
-4. 在 DevTools 中通过 IPC 调用 mcp:listFiles 验证文件列表
-```
+当前状态：
+- mcp-manager.ts (536行) 已完整实现 McpManager 单例，包含 connectLocal / listFiles / readFile / writeFile / moveFile
+- ipc-handlers.ts 中 mcp:list-files / mcp:read-file / mcp:write-file / mcp:move-file 全部返回硬编码 mock 数据
+- preload/index.ts 已暴露 mcp.listFiles / readFile / writeFile / moveFile
+- 但 preload 缺少 mcp.connect / mcp.disconnect / mcp.getStatus 方法
+- electron.d.ts 缺少对应的连接管理类型
 
-### Test: RAG Ingest 验证
-```
-测试 RAG 索引流程：
-1. 点击一本未索引的书籍
-2. 观察 indexingProgress 从 0 → 100 的进度变化
-3. 验证 IndexedDB 中存在 key="book_{id}" 的数据
-4. 关闭并重启应用，确认相同书籍无需重新索引（秒级加载）
-5. 在 DevTools 中检查 Worker 消息：ingest:progress 和 ingest:complete
-```
+要求：
+1. **ipc-handlers.ts**：
+   - `import { McpManager } from './mcp-manager'`
+   - 新增 `mcp:connect` handler：调用 `McpManager.getInstance().connectLocal(path)`
+   - 新增 `mcp:disconnect` handler：调用 `McpManager.getInstance().disconnect()`
+   - 新增 `mcp:get-status` handler：调用 `McpManager.getInstance().getStatus()`
+   - `mcp:list-files` → 调用 `McpManager.getInstance().listFiles(path)`
+   - `mcp:read-file` → 调用 `McpManager.getInstance().readFile(path)`，返回 ArrayBuffer
+   - `mcp:write-file` → 调用 `McpManager.getInstance().writeFile(path, content)`
+   - `mcp:move-file` → 调用 `McpManager.getInstance().moveFile(source, destination)`
+   - 每个 handler 都有 try-catch，捕获 McpConnectionError 并返回有意义的错误信息
+2. **preload/index.ts**：
+   - 新增 `mcp.connect(path: string): Promise<void>`
+   - 新增 `mcp.disconnect(): Promise<void>`
+   - 新增 `mcp.getStatus(): Promise<{ status: string; connectedPath: string | null }>`
+3. **src/shared/types/electron.d.ts**：
+   - ElectronAPI.mcp 新增 connect / disconnect / getStatus 方法签名
+4. 所有改动必须通过 TypeScript 编译检查
+5. 删除所有 TODO 注释和 mock 数据
 
-### Test: RAG Search 验证
-```
-测试语义检索功能：
-1. 确保一本书已完成索引
-2. 通过 useRagWorker hook 发送 search 请求
-3. 查询："主角的性格特征" — 应返回相关文本片段
-4. 验证返回结果包含 text, cfi, chapter, score 字段
-5. score 应在 0-1 范围内，且按降序排列
-6. 测试未索引书籍的查询 — 应返回友好错误
-```
+### Change: bookshelf-hook
+创建 src/features/bookshelf/hooks/useBookshelf.ts，实现书架的完整业务逻辑。
 
-### Test: LLM 流式输出验证
-```
-测试 LLM API 流式通信：
-1. 在设置页配置 API Key（推荐 DeepSeek）
-2. 通过 IPC 发送 llm:chat 请求，messages: [{ role: 'user', content: '你好' }]
-3. 验证 ReadableStream 能逐 chunk 接收响应
-4. 检查完整响应内容有意义
-5. 测试错误场景：无效 API Key — 应收到 'auth_error' 类型错误
-6. 测试错误场景：空 messages — 应收到参数校验错误
-```
+当前状态：
+- src/features/bookshelf/hooks/ 是空文件夹
+- BookshelfPage.tsx 使用硬编码的 MOCK_BOOKS 数组
+- Zustand store 已有 books / setBooks / connectionStatus / setConnectionStatus
+- window.electronAPI.mcp 已暴露 listFiles（将在 ipc-mcp-bridge 中补充 connect/disconnect）
 
-### Test: 对话界面验证
-```
-测试 Chat UI 功能：
-1. 进入阅读页，切换到对话模式
-2. 输入消息，验证 MessageBubble 正确渲染（用户右对齐、AI 左对齐）
-3. 验证 AI 回复有流式打字机效果
-4. AI 头像显示角色名首字
-5. 多条消息后 ScrollArea 自动滚动到底部
-6. 切换回阅读模式再返回，聊天记录保持
-```
+要求：
+1. 创建 useBookshelf() hook，返回：
+   ```typescript
+   {
+     books: Book[]                     // 从 Zustand store 读取
+     connectionStatus: string          // 'disconnected' | 'connecting' | 'connected' | 'error'
+     isLoading: boolean                // 书籍列表加载中
+     error: string | null              // 错误信息
+     mountBookshelf: () => Promise<void>   // 挂载书架完整流程
+     unmountBookshelf: () => Promise<void> // 卸载书架
+     refreshBooks: () => Promise<void>     // 刷新书籍列表
+   }
+   ```
+2. `mountBookshelf()` 实现完整流程：
+   - 调用 `window.electronAPI.app.selectDirectory()` 弹出目录选择
+   - 用户取消则直接返回
+   - 设置 `connectionStatus = 'connecting'`
+   - 调用 `window.electronAPI.mcp.connect(selectedPath)` 连接 MCP
+   - 调用 `window.electronAPI.mcp.listFiles(selectedPath)` 获取文件列表
+   - 将 BookFile[] 过滤出 .epub 文件，转换为 Book[] 对象（生成 UUID、提取 title/author）
+   - 写入 Zustand store（setBooks / setConnectionStatus='connected'）
+   - 错误时设置 connectionStatus='error' 并记录 error 信息
+3. `refreshBooks()` 复用已有连接重新获取文件列表
+4. Book 对象的 title 从文件名中提取（去掉 .epub 后缀），author 默认 "未知作者"
+5. 所有异步操作都有 try-catch
 
-### Test: 角色生成验证
-```
-测试 Persona 自动生成：
-1. 确保一本书已完成 RAG 索引
-2. 打开 PersonaConfigDialog，输入角色名（如"章北海"）
-3. 点击"✨ 一键生成人设"
-4. 验证生成结果包含：性格特征、说话风格、代表台词、背景故事
-5. 验证 systemPrompt 字段已自动组装
-6. 修改某个字段后保存，确认 Zustand Store 正确更新
-7. 创建对话，验证 AI 以角色身份回复
-```
+### Change: bookshelf-wiring
+将 BookshelfPage 及其子组件从 mock 数据切换到真实业务逻辑。
 
-### Test: EPUB 阅读器验证
-```
-测试 EPUB 渲染功能：
-1. 从书架点击一本 EPUB 书籍
-2. ReaderPage 应正确加载并渲染 EPUB 内容
-3. 翻页功能正常
-4. 关闭后重新打开，阅读进度恢复到上次位置（CFI）
-5. 模式切换按钮在阅读模式和对话模式间平滑过渡
-6. goToCfi() 调用能正确跳转到指定位置
-```
+当前状态：
+- BookshelfPage.tsx 顶部硬编码了 MOCK_BOOKS 数组
+- BookGrid 接收 books prop 但 BookCard onClick 全空
+- TopBar 三个按钮 onClick 全空
+- LibrarianBar onKeyDown / onClick 全空
+- 无导航逻辑（未使用 react-router-dom 的 useNavigate）
 
-### Test: 引用跳转验证
-```
-测试 Citation 跳转功能：
-1. 在对话模式中发送一个与书籍内容相关的问题
-2. AI 回复中包含 citations 数组
-3. 点击 CitationBadge 应：
-   a. 平滑切换到阅读模式
-   b. 自动跳转到引用位置（CFI）
-   c. 高亮对应文本
-4. 返回对话模式，聊天上下文完整保留
-```
+要求：
+1. **BookshelfPage.tsx**：
+   - 删除 MOCK_BOOKS 硬编码
+   - 使用 useBookshelf() hook 获取 books / connectionStatus / mountBookshelf
+   - books 来自 hook 而非 mock
+   - 处理三种状态：未连接（引导挂载）、加载中（Skeleton）、已加载（BookGrid）
+   - 空书架状态展示宪法 6.2 节的 Empty state（"拖入 EPUB 文件" + Add 卡片）
+2. **BookGrid.tsx**：
+   - 接收 `onBookClick: (bookId: string) => void` 回调 prop
+   - 传递给每个 BookCard 的 onClick
+3. **BookCard.tsx**：
+   - 保持接收 `onClick` prop 不变（已有）
+4. **BookshelfPage.tsx 中的导航逻辑**：
+   - `import { useNavigate } from 'react-router-dom'`
+   - `onBookClick` 回调：`store.selectBook(bookId)` + `navigate(\`/reader/${bookId}\`)`
+5. **TopBar.tsx**：
+   - 接收 `onSettingsClick` / `onImportClick` 回调 props
+   - Settings 按钮：`navigate('/settings')`（设置页创建前可先注册路由并放占位页面）
+   - Import/Download 按钮：调用 `mountBookshelf()`
+   - GitHub 按钮：可暂时 `window.open('https://github.com/...')`
+6. **LibrarianBar.tsx**：
+   - 添加 `const [input, setInput] = useState('')` 管理输入值
+   - onKeyDown: Enter 键触发发送（Phase 5 librarian-agent 再实现 Agent 逻辑，当前先做 UI 交互基础）
+   - onClick: 同上
+   - 发送后清空输入框
+   - 暂不实现 Agent 调用，仅完成 UI 交互骨架
+7. 所有修改通过 TypeScript 编译检查
 
-### Test: 设置页验证
-```
-测试设置功能：
-1. 导航到 /settings 页面
-2. 选择 LLM Provider (DeepSeek)
-3. 输入 API Key — 验证加密存储（safeStorage）
-4. 点击"测试连接" — 应显示连接成功/失败
-5. 调整 Temperature 滑块 — 值应实时更新
-6. 返回书架页，发起对话 — 应使用新配置的 LLM
-7. 重启应用 — 所有配置持久化保留
-```
+---
 
-### Test: 端到端完整流程
-```
-测试完整用户流程：
-1. 首次启动 → 配置 API Key → 挂载书架目录
-2. 书架展示 EPUB 书籍 → 点击进入阅读页
-3. 首次打开 → 自动触发 RAG 索引 → 进度条展示
-4. 索引完成 → 创建角色（一键生成人设）
-5. 切换到对话模式 → 以角色身份对话
-6. AI 回复包含引用 → 点击引用跳转到原文
-7. 对话中说"帮我记个笔记" → Agent 生成 Markdown 写入本地
-8. 返回书架页 → 通过 LibrarianBar 整理文件
-9. 所有操作流畅，无 UI 卡顿
-```
+## Phase 4 补全：设置页（API Key 配置入口）
+
+> Phase 4 的 LLM Handler / Chat UI / Persona / Reader 全部实现完成，
+> 但缺少设置页面导致用户无法通过 UI 配置 API Key，整条 AI 链路无法在界面上激活。
+> 此 Change 原属 Phase 5 的 settings-page，但因为它是 Phase 4 功能可用的前置条件，提前到此处。
+
+### Change: settings-page-essential
+创建最小可用的设置页面，确保 LLM API 链路可通过 UI 配置。
+
+当前状态：
+- electron/main/safe-storage.ts 已实现加密存储，暴露 getSafeStorageValue / setSafeStorageValue
+- ipc-handlers.ts 已注册 app:get-safe-storage / app:set-safe-storage
+- preload 已暴露 window.electronAPI.app.getSafeStorage / setSafeStorage
+- llm-handler.ts 已实现流式调用，从 safeStorage 读取 Key（key 名为 `llm_api_key`）
+- Zustand store 中无 LLM 配置相关 state（需要新增）
+- src/features/settings/ 目录不存在
+- router.tsx 无 /settings 路由
+- shadcn/ui 已有 button, dialog, input, label, scroll-area, textarea, avatar
+- 缺少 separator 组件
+
+要求：
+1. **Zustand Store 扩展** — 在 src/shared/store/index.ts 中新增：
+   ```typescript
+   // 新增 state
+   llmConfig: {
+     provider: 'deepseek' | 'kimi' | 'moonshot' | 'openai' | 'custom'
+     baseUrl: string
+     model: string
+     temperature: number
+     maxTokens: number
+   }
+   bookshelfPath: string | null  // 当前挂载的书架路径
+   
+   // 新增 actions
+   setLlmConfig: (config: Partial<ImmerseStore['llmConfig']>) => void
+   setBookshelfPath: (path: string | null) => void
+   ```
+   - llmConfig 需要 persist 到 localStorage
+   - 默认值：provider='deepseek', baseUrl='https://api.deepseek.com', model='deepseek-chat', temperature=0.7, maxTokens=2048
+2. **SettingsPage 组件** — 创建 src/features/settings/SettingsPage.tsx：
+   - **LLM 配置区**：
+     - Provider 选择（原生 select 即可，暂不需要 shadcn Select）：deepseek / kimi / moonshot / openai / custom
+     - 切换 Provider 自动更新 baseUrl 和 model 的默认值：
+       - deepseek → `https://api.deepseek.com` / `deepseek-chat`
+       - kimi → `https://api.moonshot.cn/v1` / `moonshot-v1-8k`
+       - moonshot → `https://api.moonshot.cn/v1` / `moonshot-v1-8k`
+       - openai → `https://api.openai.com/v1` / `gpt-4o-mini`
+       - custom → 用户自填
+     - API Key 输入框（type="password"），onChange 时调用 `window.electronAPI.app.setSafeStorage('llm_api_key', value)`
+     - 页面初始化时调用 `window.electronAPI.app.getSafeStorage('llm_api_key')` 回填（用 '••••••' 掩码显示已有 Key）
+     - Base URL 输入框
+     - Model 名称输入框
+     - Temperature 滑块 (`<input type="range">` 即可) 0.0 - 1.0，步进 0.1
+     - MaxTokens 滑块 256 - 8192
+   - **书架配置区**：
+     - 当前路径显示（从 store.bookshelfPath 读取，无则显示"未挂载"）
+     - "更换目录"按钮：调用 selectDirectory
+   - **测试连接按钮**：
+     - 点击后通过 IPC 调用 llm:chat 发送一条简单消息 `[{role:'user', content:'ping'}]`
+     - 成功显示 "✅ 连接成功"，失败显示 "❌ 连接失败: {错误原因}"
+   - **返回按钮**：navigate(-1) 或 navigate('/bookshelf')
+   - 风格：Notion 极简，slate 色板，与书架页一致
+3. **路由注册** — 在 src/app/router.tsx 中添加 `/settings` → `<SettingsPage />`
+4. **TopBar 联动** — 确保 TopBar Settings 按钮已绑定 `navigate('/settings')`（在 bookshelf-wiring 中处理）
+5. 所有修改通过 TypeScript 编译检查
