@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { useStore } from '@/shared/store'
 import type { Persona } from '@/shared/types'
-import { generatePersonaStub } from '@/features/chat/services/persona-generator'
+import { generatePersona as generatePersonaService } from '@/features/chat/services/persona-generator'
 
 // ============================================
 // Form 状态类型
@@ -37,6 +37,9 @@ export function usePersona(bookId: string) {
   // 编辑模式：保留原角色的 id 和 createdAt
   const editingRef = useRef<{ id: string; createdAt: number } | null>(null)
 
+  // 保存最近一次生成返回的 systemPrompt
+  const lastSystemPromptRef = useRef<string>('')
+
   const setPersona = useStore((s) => s.setPersona)
   const setActivePersona = useStore((s) => s.setActivePersona)
 
@@ -57,7 +60,8 @@ export function usePersona(bookId: string) {
 
     setIsGenerating(true)
     try {
-      const result = await generatePersonaStub(bookId, form.name.trim())
+      const result = await generatePersonaService(bookId, form.name.trim())
+      lastSystemPromptRef.current = result.systemPrompt
       setForm((prev) => ({
         ...prev,
         personality: result.personality,
@@ -96,7 +100,7 @@ export function usePersona(bookId: string) {
         .split('\n')
         .map((line) => line.trim())
         .filter((line) => line !== ''),
-      systemPrompt: '', // 后续 change 生成
+      systemPrompt: lastSystemPromptRef.current,
       createdAt: isEditing ? editingRef.current!.createdAt : now,
       updatedAt: now,
     }
@@ -125,6 +129,7 @@ export function usePersona(bookId: string) {
     setForm({ ...INITIAL_FORM })
     setNameError(false)
     editingRef.current = null
+    lastSystemPromptRef.current = ''
   }, [])
 
   return {

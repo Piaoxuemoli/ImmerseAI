@@ -1,38 +1,4 @@
-# usePersona Hook 规范
-
-## 目的
-定义 usePersona hook 的状态管理、表单操作和 Store 交互逻辑。
-
-## Requirements
-
-### Requirement: usePersona hook 接口
-usePersona(bookId) hook SHALL 返回 PersonaConfigDialog 所需的全部状态和操作。
-
-#### Scenario: hook 返回值
-- **WHEN** 调用 `usePersona(bookId)`
-- **THEN** 返回以下字段和方法：
-  - `form`: 包含 name, description, personality, speechStyle, background, keyQuotesText 的表单对象
-  - `setField(field, value)`: 更新单个表单字段
-  - `isGenerating`: 生成状态布尔值
-  - `nameError`: 名称验证错误布尔值
-  - `generatePersona()`: 触发异步生成
-  - `savePersona()`: 验证并保存角色
-  - `resetForm()`: 重置表单为初始值
-  - `loadPersona(persona)`: 加载已有角色数据到表单
-
-### Requirement: 表单状态管理
-usePersona hook SHALL 管理所有表单字段的状态。
-
-#### Scenario: 初始状态
-- **WHEN** hook 初始化
-- **THEN** 所有表单字段为空字符串
-- **AND** isGenerating 为 false
-- **AND** nameError 为 false
-
-#### Scenario: 字段更新
-- **WHEN** 调用 `setField('name', '章北海')`
-- **THEN** `form.name` 更新为 '章北海'
-- **AND** 如果字段为 name 且之前有 nameError，清除错误
+## MODIFIED Requirements
 
 ### Requirement: 生成逻辑
 usePersona hook SHALL 提供 generatePersona 方法调用真实的 persona-generator 服务。
@@ -74,12 +40,3 @@ usePersona hook SHALL 提供 savePersona 方法构建 Persona 并写入 Store，
 - **WHEN** 调用 `savePersona()` 且 form.name 为空
 - **THEN** 设置 nameError 为 true
 - **AND** 返回 false 表示保存失败
-
-### Requirement: 加载已有角色
-usePersona hook SHALL 提供 loadPersona 方法将已有 Persona 数据填充到表单。
-
-#### Scenario: 加载角色数据
-- **WHEN** 调用 `loadPersona(persona)`
-- **THEN** 填充所有表单字段为该角色的值
-- **AND** keyQuotes 数组以 `\n` 连接为 keyQuotesText
-- **AND** 记录该角色的 id 和 createdAt 用于编辑保存
