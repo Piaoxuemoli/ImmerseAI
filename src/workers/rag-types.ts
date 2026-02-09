@@ -33,11 +33,13 @@ export interface SearchMessage {
   bookId: string
   query: string
   topK?: number
+  requestId?: string
 }
 
 export interface StatusMessage {
   type: 'status'
   bookId: string
+  requestId?: string
 }
 
 export interface PingMessage {
@@ -68,12 +70,14 @@ export interface IngestCompleteResponse {
 export interface SearchResultResponse {
   type: 'search:result'
   results: SearchResult[]
+  requestId?: string
 }
 
 export interface StatusResultResponse {
   type: 'status:result'
   bookId: string
   isIndexed: boolean
+  requestId?: string
 }
 
 export interface PongResponse {

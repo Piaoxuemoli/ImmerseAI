@@ -56,13 +56,16 @@ const MIN_SCORE_THRESHOLD = 0.3
 
 /**
  * 封装 Worker postMessage/onmessage 为 Promise 的 RAG 搜索调用
+ * 使用 requestId 防止并发调用时的消息混淆
  */
+let _requestCounter = 0
 function searchRag(
   worker: Worker,
   bookId: string,
   query: string,
   topK: number = 5
 ): Promise<SearchResult[]> {
+  const requestId = `search_${++_requestCounter}_${Date.now()}`
   return new Promise<SearchResult[]>((resolve, reject) => {
     const timer = setTimeout(() => {
       cleanup()
@@ -72,8 +75,12 @@ function searchRag(
     function handler(event: MessageEvent<WorkerResponse>): void {
       const data = event.data
       if (data.type === 'search:result') {
-        cleanup()
-        resolve((data as SearchResultResponse).results)
+        const result = data as SearchResultResponse
+        // 仅匹配当前 requestId 的响应（向后兼容：无 requestId 时也接受）
+        if (!result.requestId || result.requestId === requestId) {
+          cleanup()
+          resolve(result.results)
+        }
       } else if (data.type === 'error') {
         cleanup()
         reject(new Error((data as ErrorResponse).message))
@@ -87,7 +94,7 @@ function searchRag(
 
     worker.addEventListener('message', handler)
 
-    const msg: SearchMessage = { type: 'search', bookId, query, topK }
+    const msg: SearchMessage = { type: 'search', bookId, query, topK, requestId }
     worker.postMessage(msg)
   })
 }
@@ -96,6 +103,7 @@ function searchRag(
  * 通过 StatusMessage 检查书籍是否已完成向量化索引
  */
 function checkBookIndexed(worker: Worker, bookId: string): Promise<boolean> {
+  const requestId = `status_${++_requestCounter}_${Date.now()}`
   return new Promise<boolean>((resolve, reject) => {
     const timer = setTimeout(() => {
       cleanup()
@@ -104,9 +112,12 @@ function checkBookIndexed(worker: Worker, bookId: string): Promise<boolean> {
 
     function handler(event: MessageEvent<WorkerResponse>): void {
       const data = event.data
-      if (data.type === 'status:result' && (data as StatusResultResponse).bookId === bookId) {
-        cleanup()
-        resolve((data as StatusResultResponse).isIndexed)
+      if (data.type === 'status:result') {
+        const result = data as StatusResultResponse
+        if (result.bookId === bookId && (!result.requestId || result.requestId === requestId)) {
+          cleanup()
+          resolve(result.isIndexed)
+        }
       } else if (data.type === 'error') {
         cleanup()
         reject(new Error((data as ErrorResponse).message))
@@ -120,7 +131,7 @@ function checkBookIndexed(worker: Worker, bookId: string): Promise<boolean> {
 
     worker.addEventListener('message', handler)
 
-    const msg: StatusMessage = { type: 'status', bookId }
+    const msg: StatusMessage = { type: 'status', bookId, requestId }
     worker.postMessage(msg)
   })
 }

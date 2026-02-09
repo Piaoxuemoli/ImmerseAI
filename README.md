@@ -11,6 +11,7 @@ ImmerseAI 通过 MCP (Model Context Protocol) 连接本地书库，利用端侧 
 - **MCP 集成** — 通过 Model Context Protocol 管理本地文件系统（书籍、笔记）
 - **角色扮演** — 基于 RAG 自动生成角色人设，沉浸式对话
 - **流式对话** — LLM 流式响应，打字机效果实时展示
+- **引用跳转** — 对话中的书籍引用可点击跳转到 EPUB 原文，高亮定位
 
 ## 技术栈
 
@@ -34,22 +35,25 @@ immerseai/
 │   ├── main/
 │   │   ├── index.ts            # 主进程入口
 │   │   ├── ipc-handlers.ts     # IPC 路由注册
-│   │   └── mcp-manager.ts      # MCP Client 管理器 (单例)
+│   │   ├── llm-handler.ts      # LLM API 流式调用处理
+│   │   ├── mcp-manager.ts      # MCP Client 管理器 (单例)
+│   │   └── safe-storage.ts     # API Key 加密存储
 │   └── preload/
 │       └── index.ts            # contextBridge 安全 API
 ├── src/                        # 渲染进程 (React)
 │   ├── app/                    # 根组件、路由、Provider
 │   ├── features/               # 功能模块
 │   │   ├── bookshelf/          # 书架管理
-│   │   ├── reader/             # EPUB 阅读器
-│   │   ├── chat/               # 对话界面 + 流式 Hook
-│   │   └── persona/            # 角色管理
+│   │   ├── reader/             # EPUB 阅读器 + 引用跳转
+│   │   ├── chat/               # 对话界面 + 流式 Hook + 人设生成
+│   │   ├── persona/            # 角色管理
+│   │   └── settings/           # 设置页 (LLM 配置)
 │   ├── shared/                 # 通用组件、Store、类型
 │   ├── workers/                # Web Worker (RAG 引擎)
 │   └── styles/                 # TailwindCSS 全局样式
 ├── openspec/                   # 规格驱动开发 (OpenSpec)
 │   ├── specs/                  # 主规格文档
-│   └── changes/archive/        # 已归档的变更记录
+│   └── changes/archive/        # 已归档的变更记录 (16 项)
 └── docs/                       # 设计文档、Spike 实验
 ```
 
@@ -68,42 +72,53 @@ npm run build
 
 ## 开发进度
 
-> 更新日期：2026-02-09 | 总体完成度：**~70%** | 已归档 Changes：**15/20+**
+> 更新日期：2026-02-09 | 已归档 Changes：**16/16** | 全量验证通过：**16/16 PASS**
 
 ### Phase 总览
 
-| Phase | 模块 | 完成度 | 状态 |
-|-------|------|--------|------|
-| Phase 1 基建 | IPC / Store / 路由 / 类型 | **100%** | ✅ 全部完成 |
-| Phase 2 书架 | McpManager / BookshelfUI | **~40%** | ⚠️ IPC handlers 未接真实 MCP；挂载流程无 UI 入口 |
-| Phase 3 大脑 | RAG Worker (ingest + search) | **100%** | ✅ 全部完成 |
-| Phase 4 灵魂 | LLM / Chat / Persona / Reader / Settings | **~95%** | ✅ 核心功能完成 |
-| Phase 5 整合 | 引用跳转 / 笔记 / Librarian / 打包 | **~10%** | 🔲 几乎全部待开发 |
+| Phase | 模块 | Changes | 状态 |
+|-------|------|---------|------|
+| Phase 1 基建 | IPC / Store / 路由 / 类型 | 3/3 | ✅ 全部完成 |
+| Phase 2 书架 | McpManager / BookshelfUI | 2/2 | ✅ 全部完成 |
+| Phase 3 大脑 | RAG Worker (ingest + search) | 3/3 | ✅ 全部完成 |
+| Phase 4 灵魂 | LLM / Chat / Persona / Reader / Settings | 6/6 | ✅ 全部完成 |
+| Phase 5 整合 | 引用跳转 / 测试 Skill | 2/2 | ✅ 全部完成 |
 
-### 已完成 (15 Changes Archived)
+### 已完成 (16 Changes Archived + Verified)
 
-| Phase | Change | 说明 |
-|-------|--------|------|
-| 1 基建 | init-scaffold | Electron + Vite + React + TS 脚手架 |
-| 1 基建 | init-ipc-bridge | IPC 通信管道 + preload 安全桥 |
-| 1 基建 | init-store | Zustand 全局状态 Store |
-| 2 书架 | mcp-manager | MCP Client 单例 + Stdio 子进程管理 |
-| 2 书架 | bookshelf-ui | 书架网格视图 + 书籍卡片 |
-| 3 大脑 | rag-worker-setup | Web Worker 环境 + Transformers.js 集成 |
-| 3 大脑 | rag-indexing | Orama 向量索引 + IndexedDB 持久化 |
-| 3 大脑 | rag-search | 语义检索接口 + Top-K 向量搜索 |
-| 4 灵魂 | llm-handler | LLM API 流式调用 + safeStorage 密钥管理 |
-| 4 灵魂 | chat-ui | 对话界面组件 + useChat 流式 Hook |
-| 4 灵魂 | epub-reader | EPUB 阅读器集成 (react-reader) |
-| 4 灵魂 | persona-ui | 角色配置弹窗 (PersonaConfigDialog) |
-| 4 灵魂 | persona-generator | RAG + LLM 自动人设生成服务 |
-| 4 灵魂 | settings-page | LLM 配置 + API Key 安全存储 + 连接测试 |
-| 工具链 | test-and-fix-skill | Copilot Agent 双模测试与修复 Skill |
+| Phase | Change | 说明 | 验证 |
+|-------|--------|------|------|
+| 1 基建 | init-scaffold | Electron + Vite + React + TS 脚手架 | ✅ 7/7 reqs |
+| 1 基建 | init-ipc-bridge | IPC 通信管道 + preload 安全桥 | ✅ 12/13 reqs |
+| 1 基建 | init-store | Zustand 全局状态 Store | ✅ 10/10 reqs |
+| 2 书架 | mcp-manager | MCP Client 单例 + Stdio 子进程管理 | ✅ 8/8 reqs |
+| 2 书架 | bookshelf-ui | 书架网格视图 + 书籍卡片 | ✅ 9/9 reqs |
+| 3 大脑 | rag-worker-setup | Web Worker 环境 + Transformers.js 集成 | ✅ 全部 reqs |
+| 3 大脑 | rag-indexing | Orama 向量索引 + IndexedDB 持久化 | ✅ 全部 reqs |
+| 3 大脑 | rag-search | 语义检索接口 + Top-K 向量搜索 | ✅ 全部 reqs |
+| 4 灵魂 | llm-handler | LLM API 流式调用 + safeStorage 密钥管理 | ✅ 15/15 reqs |
+| 4 灵魂 | chat-ui | 对话界面组件 + useChat 流式 Hook | ✅ 19/19 reqs |
+| 4 灵魂 | epub-reader | EPUB 阅读器集成 (react-reader) | ✅ 20/20 reqs |
+| 4 灵魂 | persona-ui | 角色配置弹窗 (PersonaConfigDialog) | ✅ 21/21 reqs |
+| 4 灵魂 | persona-generator | RAG + LLM 自动人设生成服务 | ✅ 18/18 reqs |
+| 4 灵魂 | settings-page | LLM 配置 + API Key 安全存储 + 连接测试 | ✅ 11/11 reqs |
+| 5 整合 | citation-jump | 对话引用跳转 EPUB 原文 + 高亮 | ✅ 8/8 reqs |
+| 工具链 | test-and-fix-skill | Copilot Agent 双模测试与修复 Skill | ✅ 5/5 reqs |
 
-### 待开发
+### 全量验证结果
+
+```
+总 Changes:      16/16 PASS
+CRITICAL 问题:   0
+WARNING 问题:    11 (均为低风险，已修复主要项)
+SUGGESTION:      15 (代码改进建议)
+任务完成率:      517/525 (98.5%)
+```
+
+### 待开发（后续 Phase）
 
 - **Phase 2 补全**：ipc-mcp-bridge（IPC 接入真实 MCP）、bookshelf-hook、bookshelf-wiring
-- **Phase 5 整合**：citation-jump（引用跳转）、note-taking（MCP 笔记）、librarian-agent（智能书架管理）、error-handling（全局错误边界）、app-packaging（Electron 打包分发）
+- **Phase 5 扩展**：note-taking（MCP 笔记）、librarian-agent（智能书架管理）、error-handling（全局错误边界）、app-packaging（Electron 打包分发）
 
 ---
 
@@ -142,10 +157,22 @@ npm run build
 | HT-06 | 角色人设生成 | RAG 检索 → LLM 生成 → UI 回填 |
 | HT-07 | 设置页功能 | Provider 切换、Key 存储、连接测试 |
 | HT-08 | MCP 书架挂载 | 选目录 → 扫描 .epub → 展示 |
-| HT-09 | 暗色主题 | UI 一致性（未来） |
+| HT-09 | 引用跳转 | 点击 CitationBadge → 跳转 EPUB + 高亮 |
 | HT-10 | 打包分发 | .exe/.dmg 安装运行正常（未来） |
 
 > 详细测试定义见 `docs/test-classification.md`，Skill 定义见 `.github/skills/qoobee-t&f-skill/SKILL.md`
+
+## 规格驱动开发 (OpenSpec)
+
+本项目使用 [OpenSpec](https://github.com/openspec) 进行规格驱动开发。每个功能变更遵循以下流程：
+
+```
+proposal → design + specs → tasks → apply → verify → archive
+```
+
+- 主规格文档：`openspec/specs/` (20+ spec 文件)
+- 归档记录：`openspec/changes/archive/` (16 个已验证变更)
+- 项目宪法：`.github/copilot-instructions.md`
 
 ## 设计哲学
 

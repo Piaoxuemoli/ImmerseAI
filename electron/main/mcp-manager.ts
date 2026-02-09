@@ -523,13 +523,14 @@ export class McpManager {
   /**
    * 转换 MCP 返回的文件条目为 FileEntry 格式
    */
-  private _convertToFileEntry(item: any): FileEntry {
+  private _convertToFileEntry(item: unknown): FileEntry {
+    const record = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
     return {
-      name: item.name || '',
-      path: item.path || '',
-      size: item.size || 0,
-      type: item.type === 'directory' ? 'directory' : item.type === 'file' ? 'file' : 'unknown',
-      lastModified: item.lastModified || Date.now(),
+      name: typeof record.name === 'string' ? record.name : '',
+      path: typeof record.path === 'string' ? record.path : '',
+      size: typeof record.size === 'number' ? record.size : 0,
+      type: record.type === 'directory' ? 'directory' : record.type === 'file' ? 'file' : 'unknown',
+      lastModified: typeof record.lastModified === 'number' ? record.lastModified : Date.now(),
     };
   }
 }

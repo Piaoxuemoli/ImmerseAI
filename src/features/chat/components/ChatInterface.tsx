@@ -37,11 +37,12 @@ export function ChatInterface() {
 
   /**
    * 检测用户是否在底部附近（< 100px）
+   * 使用 onScrollCapture 捕获 Radix ScrollArea viewport 的滚动事件
    */
-  const handleScroll = useCallback(() => {
-    const container = scrollContainerRef.current
-    if (!container) return
-    const { scrollTop, scrollHeight, clientHeight } = container
+  const handleScroll = useCallback((e: React.UIEvent) => {
+    const target = e.target as HTMLElement
+    if (!target) return
+    const { scrollTop, scrollHeight, clientHeight } = target
     isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 100
   }, [])
 
@@ -59,12 +60,8 @@ export function ChatInterface() {
   return (
     <div className="flex h-full flex-col">
       {/* 消息列表区域 */}
-      <ScrollArea className="flex-1">
-        <div
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="h-full overflow-y-auto"
-        >
+      <ScrollArea className="flex-1" onScrollCapture={handleScroll}>
+        <div ref={scrollContainerRef}>
           {isEmpty ? (
             <div className="flex h-full items-center justify-center">
               <p className="text-sm text-slate-400">开始与角色对话...</p>

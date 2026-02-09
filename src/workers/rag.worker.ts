@@ -249,7 +249,7 @@ async function handleIngest(bookId: string, chapters: Chapter[]): Promise<void> 
 
 // ---- Search Pipeline ----
 
-async function handleSearch(bookId: string, query: string, topK: number): Promise<void> {
+async function handleSearch(bookId: string, query: string, topK: number, requestId?: string): Promise<void> {
   // Step 1: 获取索引 — 内存优先，IndexedDB 回退
   let db = bookIndexes.get(bookId)
   if (!db) {
@@ -284,7 +284,7 @@ async function handleSearch(bookId: string, query: string, topK: number): Promis
   }))
 
   // Step 5: 回复检索结果
-  reply({ type: 'search:result', results })
+  reply({ type: 'search:result', results, ...(requestId && { requestId }) })
 }
 
 // ---- 消息分发 ----
@@ -305,7 +305,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       }
 
       case 'status': {
-        const { bookId } = message
+        const { bookId, requestId } = message
         // 两级检查：先内存 Map，再 IndexedDB
         const inMemory = bookIndexes.has(bookId)
         const inDB = !inMemory ? await existsInIndexedDB(`book_${bookId}`) : false
@@ -313,6 +313,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
           type: 'status:result',
           bookId,
           isIndexed: inMemory || inDB,
+          ...(requestId && { requestId }),
         })
         break
       }
@@ -323,7 +324,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       }
 
       case 'search': {
-        await handleSearch(message.bookId, message.query, message.topK ?? 5)
+        await handleSearch(message.bookId, message.query, message.topK ?? 5, message.requestId)
         break
       }
 
