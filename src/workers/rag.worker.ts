@@ -4,11 +4,11 @@
 // ============================================
 
 import { pipeline, env } from '@xenova/transformers'
-import { create, insert } from '@orama/orama'
+import { create, insert, search } from '@orama/orama'
 import type { AnyOrama } from '@orama/orama'
 import { persist, restore } from '@orama/plugin-data-persistence'
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter'
-import type { WorkerMessage, WorkerResponse, Chapter } from './rag-types'
+import type { WorkerMessage, WorkerResponse, Chapter, SearchResult } from './rag-types'
 
 // 配置：允许本地模型缓存
 env.allowLocalModels = true
@@ -247,6 +247,46 @@ async function handleIngest(bookId: string, chapters: Chapter[]): Promise<void> 
   reply({ type: 'ingest:complete', bookId, chunkCount: totalChunks })
 }
 
+// ---- Search Pipeline ----
+
+async function handleSearch(bookId: string, query: string, topK: number): Promise<void> {
+  // Step 1: 获取索引 — 内存优先，IndexedDB 回退
+  let db = bookIndexes.get(bookId)
+  if (!db) {
+    const restored = await restoreBookIndex(bookId)
+    if (!restored) {
+      reply({ type: 'error', message: '该书籍尚未建立索引，请先打开书籍完成索引' })
+      return
+    }
+    db = bookIndexes.get(bookId)!
+  }
+
+  // Step 2: query 向量化
+  const queryVectors = await embed([query])
+  const queryVector = queryVectors[0]!
+
+  // Step 3: Orama 向量检索
+  const searchResult = await search(db, {
+    mode: 'vector',
+    vector: {
+      value: queryVector,
+      property: 'embedding',
+    },
+    limit: topK,
+  })
+
+  // Step 4: 结果映射为 SearchResult[]
+  const results: SearchResult[] = searchResult.hits.map((hit) => ({
+    text: hit.document.text as string,
+    cfi: hit.document.cfi as string,
+    chapter: hit.document.chapter as string,
+    score: hit.score,
+  }))
+
+  // Step 5: 回复检索结果
+  reply({ type: 'search:result', results })
+}
+
 // ---- 消息分发 ----
 
 function reply(response: WorkerResponse) {
@@ -283,8 +323,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       }
 
       case 'search': {
-        // Placeholder: 完整实现留待下一个 change
-        reply({ type: 'error', message: 'search not implemented' })
+        await handleSearch(message.bookId, message.query, message.topK ?? 5)
         break
       }
 

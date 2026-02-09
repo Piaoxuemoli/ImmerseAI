@@ -72,9 +72,10 @@ Worker 入口文件 `src/workers/rag.worker.ts` SHALL 通过 `self.onmessage` �
 - **AND** 过程中通过 `ingest:progress` 上报进度
 - **AND** 完成后回复 `{ type: 'ingest:complete', bookId, chunkCount }`
 
-#### Scenario: search 消息处理（placeholder）
-- **WHEN** Worker 接收 `{ type: 'search' }` 消息
-- **THEN** Worker 回复 `{ type: 'error', message: 'search not implemented' }`
+#### Scenario: search 消息处理
+- **WHEN** Worker 接收 `{ type: 'search', bookId, query, topK }` 消息
+- **THEN** Worker 调用 `handleSearch(bookId, query, topK ?? 5)` 执行完整语义检索
+- **AND** 回复 `{ type: 'search:result', results }` 包含 `SearchResult[]`
 
 #### Scenario: 未知消息类型
 - **WHEN** Worker 接收未识别的 type
