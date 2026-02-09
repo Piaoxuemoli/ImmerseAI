@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: React 应用入口
 系统 SHALL 在 src/main.tsx 创建 React 18 应用入口，使用 createRoot API。
@@ -20,6 +20,9 @@
 - WHEN 用户访问 /reader/:id
 - THEN 渲染 ReaderPage 组件
 - AND URL 参数 id 作为书籍标识符
+- AND ReaderPage 包含 ReaderHeader 顶栏组件
+- AND ReaderPage 根据 readerMode 状态渲染 EpubViewer 或 ChatInterface
+- AND 使用 framer-motion AnimatePresence 实现模式切换动画
 
 #### Scenario: 404 处理
 - WHEN 用户访问不存在的路由
