@@ -14,6 +14,14 @@ import type { ElectronAPI } from '@/shared/types/electron'
 // 通过 contextBridge 暴露安全的 API 给渲染进程
 const electronAPI: ElectronAPI = {
   mcp: {
+    // 连接生命周期
+    connect: (path: string): Promise<void> =>
+      ipcRenderer.invoke('mcp:connect', path),
+    disconnect: (): Promise<void> =>
+      ipcRenderer.invoke('mcp:disconnect'),
+    getStatus: (): Promise<{ status: string; currentPath: string | null }> =>
+      ipcRenderer.invoke('mcp:get-status'),
+    // 文件操作
     listFiles: (path: string): Promise<BookFile[]> => 
       ipcRenderer.invoke('mcp:list-files', path),
     readFile: (path: string): Promise<ArrayBuffer> => 

@@ -11,7 +11,20 @@ import { ipcMain, dialog } from 'electron'
 import type { BookFile, Message, LlmConfig } from '@/shared/types'
 import { handleLlmChat } from './llm-handler'
 import { getSafeStorageValue, setSafeStorageValue } from './safe-storage'
-import { McpManager, type FileEntry } from './mcp-manager'
+import { McpManager, McpConnectionError, type FileEntry, type McpStatus } from './mcp-manager'
+
+/**
+ * 将 MCP 错误包装为可读信息
+ */
+function wrapMcpError(error: unknown): Error {
+  if (error instanceof McpConnectionError) {
+    return new Error(`[${error.code}] ${error.message} (剩余重试: ${error.retriesLeft})`)
+  }
+  if (error instanceof Error) {
+    return error
+  }
+  return new Error(String(error))
+}
 
 /**
  * 将 FileEntry 转换为 BookFile 类型
@@ -38,47 +51,102 @@ function convertToBookFile(entry: FileEntry): BookFile {
  */
 export function registerIpcHandlers(): void {
   // ========================================
+  // MCP 连接生命周期 handlers
+  // ========================================
+
+  ipcMain.handle('mcp:connect', async (_event, dirPath: string): Promise<void> => {
+    console.log(`[IPC] mcp:connect called with path: ${dirPath}`)
+    try {
+      await McpManager.getInstance().connectLocal(dirPath)
+    } catch (error) {
+      throw wrapMcpError(error)
+    }
+  })
+
+  ipcMain.handle('mcp:disconnect', async (): Promise<void> => {
+    console.log(`[IPC] mcp:disconnect called`)
+    try {
+      await McpManager.getInstance().disconnect()
+    } catch (error) {
+      throw wrapMcpError(error)
+    }
+  })
+
+  ipcMain.handle('mcp:get-status', async (): Promise<{ status: string; currentPath: string | null }> => {
+    console.log(`[IPC] mcp:get-status called`)
+    const mcpStatus: McpStatus = McpManager.getInstance().getStatus()
+    return {
+      status: mcpStatus.status,
+      currentPath: mcpStatus.currentPath
+    }
+  })
+
+  // ========================================
   // MCP 文件操作 handlers (使用真实 MCP)
   // ========================================
 
   ipcMain.handle('mcp:list-files', async (_event, filePath: string): Promise<BookFile[]> => {
     console.log(`[IPC] mcp:list-files called with path: ${filePath}`)
-    const entries = await McpManager.getInstance().listFiles(filePath)
-    return entries
-      .filter((e) => e.type === 'file')
-      .map(convertToBookFile)
+    try {
+      const entries = await McpManager.getInstance().listFiles(filePath)
+      return entries
+        .filter((e) => e.type === 'file')
+        .map(convertToBookFile)
+    } catch (error) {
+      throw wrapMcpError(error)
+    }
   })
 
   ipcMain.handle('mcp:read-file', async (_event, filePath: string): Promise<ArrayBuffer> => {
     console.log(`[IPC] mcp:read-file called with path: ${filePath}`)
-    const result = await McpManager.getInstance().readFile(filePath)
-    if (typeof result === 'string') {
-      // 文本内容转为 ArrayBuffer
-      const encoder = new TextEncoder()
-      const uint8Array = encoder.encode(result)
-      return uint8Array.buffer as ArrayBuffer
+    try {
+      const result = await McpManager.getInstance().readFile(filePath)
+      if (typeof result === 'string') {
+        // 文本内容转为 ArrayBuffer
+        const encoder = new TextEncoder()
+        const uint8Array = encoder.encode(result)
+        return uint8Array.buffer as ArrayBuffer
+      }
+      return result
+    } catch (error) {
+      throw wrapMcpError(error)
     }
-    return result
   })
 
   ipcMain.handle('mcp:write-file', async (_event, filePath: string, content: string): Promise<void> => {
     console.log(`[IPC] mcp:write-file called with path: ${filePath}, content length: ${content.length}`)
-    await McpManager.getInstance().writeFile(filePath, content)
+    try {
+      await McpManager.getInstance().writeFile(filePath, content)
+    } catch (error) {
+      throw wrapMcpError(error)
+    }
   })
 
   ipcMain.handle('mcp:move-file', async (_event, source: string, destination: string): Promise<void> => {
     console.log(`[IPC] mcp:move-file called from ${source} to ${destination}`)
-    await McpManager.getInstance().moveFile(source, destination)
+    try {
+      await McpManager.getInstance().moveFile(source, destination)
+    } catch (error) {
+      throw wrapMcpError(error)
+    }
   })
 
   ipcMain.handle('mcp:create-directory', async (_event, directoryPath: string): Promise<void> => {
     console.log(`[IPC] mcp:create-directory called with path: ${directoryPath}`)
-    await McpManager.getInstance().createDirectory(directoryPath)
+    try {
+      await McpManager.getInstance().createDirectory(directoryPath)
+    } catch (error) {
+      throw wrapMcpError(error)
+    }
   })
 
   ipcMain.handle('mcp:delete-file', async (_event, filePath: string): Promise<void> => {
     console.log(`[IPC] mcp:delete-file called with path: ${filePath}`)
-    await McpManager.getInstance().deleteFile(filePath)
+    try {
+      await McpManager.getInstance().deleteFile(filePath)
+    } catch (error) {
+      throw wrapMcpError(error)
+    }
   })
 
   // ========================================

@@ -132,7 +132,7 @@ export async function handleLlmChat(
   const provider = mergedConfig.provider || 'deepseek'
 
   // 获取 API Key
-  const apiKey = getSafeStorageValue('llm-api-key')
+  const apiKey = getSafeStorageValue('llm_api_key')
   if (!apiKey) {
     throw new Error('API_KEY_NOT_CONFIGURED')
   }

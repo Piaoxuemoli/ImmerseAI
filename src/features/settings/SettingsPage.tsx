@@ -80,7 +80,7 @@ export function SettingsPage() {
   useEffect(() => {
     async function loadApiKey(): Promise<void> {
       try {
-        const key = await window.electronAPI.app.getSafeStorage('llm-api-key')
+        const key = await window.electronAPI.app.getSafeStorage('llm_api_key')
         if (key) {
           setApiKeyDisplay(maskApiKey(key))
         }
@@ -112,7 +112,7 @@ export function SettingsPage() {
   const handleSaveApiKey = useCallback(async () => {
     if (!apiKeyInput.trim()) return
     try {
-      const saved = await window.electronAPI.app.setSafeStorage('llm-api-key', apiKeyInput.trim())
+      const saved = await window.electronAPI.app.setSafeStorage('llm_api_key', apiKeyInput.trim())
       if (saved) {
         setApiKeyDisplay(maskApiKey(apiKeyInput.trim()))
         setApiKeyInput('')
@@ -291,7 +291,7 @@ export function SettingsPage() {
                 </div>
                 <Slider
                   value={[llmConfig.temperature]}
-                  onValueChange={([v]) => setLlmConfig({ temperature: v })}
+                  onValueChange={([v]) => { if (v !== undefined) setLlmConfig({ temperature: v }) }}
                   min={0}
                   max={1}
                   step={0.1}
@@ -312,7 +312,7 @@ export function SettingsPage() {
                 </div>
                 <Slider
                   value={[llmConfig.maxTokens]}
-                  onValueChange={([v]) => setLlmConfig({ maxTokens: v })}
+                  onValueChange={([v]) => { if (v !== undefined) setLlmConfig({ maxTokens: v }) }}
                   min={256}
                   max={8192}
                   step={256}

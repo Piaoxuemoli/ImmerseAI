@@ -17,8 +17,13 @@ declare global {
  * 此接口与 electron/preload/index.ts 中的 ElectronAPI 导出保持同步
  */
 export interface ElectronAPI {
-  // MCP 文件操作
+  // MCP 连接生命周期与文件操作
   mcp: {
+    // 连接生命周期
+    connect: (path: string) => Promise<void>
+    disconnect: () => Promise<void>
+    getStatus: () => Promise<{ status: string; currentPath: string | null }>
+    // 文件操作
     listFiles: (path: string) => Promise<BookFile[]>
     readFile: (path: string) => Promise<ArrayBuffer>
     writeFile: (path: string, content: string) => Promise<void>

@@ -1,28 +1,30 @@
-import { useMemo } from 'react'
-import type { Book, BookFile } from '@/shared/types'
+import { useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import type { BookFile } from '@/shared/types'
 import { ScrollArea } from '@/shared/components/ui/scroll-area'
+import { Button } from '@/shared/components/ui/button'
 import { useStore } from '@/shared/store'
+import { FolderOpen, BookOpen, Plus, Loader2 } from 'lucide-react'
 import { TopBar } from './components/TopBar'
 import { BookGrid } from './components/BookGrid'
 import { LibrarianBar } from './components/LibrarianBar'
-
-const MOCK_BOOKS: Book[] = [
-  { id: '1', title: '三体', author: '刘慈欣', path: '/books/santi.epub', isIndexed: false },
-  { id: '2', title: '活着', author: '余华', path: '/books/huozhe.epub', isIndexed: false },
-  { id: '3', title: '百年孤独', author: '加西亚·马尔克斯', path: '/books/bainian.epub', isIndexed: false },
-  { id: '4', title: '1984', author: 'George Orwell', path: '/books/1984.epub', isIndexed: false },
-  { id: '5', title: '小王子', author: 'Antoine de Saint-Exupéry', path: '/books/prince.epub', isIndexed: false },
-  { id: '6', title: '人类简史', author: '尤瓦尔·赫拉利', path: '/books/sapiens.epub', isIndexed: false },
-]
+import { useBookshelf } from './hooks/useBookshelf'
 
 export function BookshelfPage() {
-  const books = useStore((state) => state.books)
+  const navigate = useNavigate()
+  const selectBook = useStore((state) => state.selectBook)
+
+  const {
+    books,
+    connectionStatus,
+    isLoading,
+    error,
+    mountBookshelf,
+  } = useBookshelf()
 
   // 将 books 转换为 BookFile 格式供 LibrarianBar 使用
   const bookFiles: BookFile[] = useMemo(() => {
-    // 优先使用 store 中的实际书籍，fallback 到 mock 数据
-    const sourceBooks = books.length > 0 ? books : MOCK_BOOKS
-    return sourceBooks.map((book) => ({
+    return books.map((book) => ({
       name: book.path.split('/').pop() || book.title,
       path: book.path,
       size: 0,
@@ -31,15 +33,110 @@ export function BookshelfPage() {
     }))
   }, [books])
 
+  // 点击书籍卡片
+  const handleBookClick = useCallback((bookId: string) => {
+    selectBook(bookId)
+    navigate(`/reader/${bookId}`)
+  }, [selectBook, navigate])
+
+  // 导航到设置页
+  const handleSettingsClick = useCallback(() => {
+    navigate('/settings')
+  }, [navigate])
+
+  // 打开 GitHub
+  const handleGitHubClick = useCallback(() => {
+    window.open('https://github.com/ImmerseAI/ImmerseAI', '_blank')
+  }, [])
+
+  // 未连接状态 UI
+  const renderDisconnectedState = () => (
+    <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4">
+      <div className="w-20 h-20 rounded-full bg-zinc-100 flex items-center justify-center mb-6">
+        <FolderOpen className="w-10 h-10 text-zinc-400" />
+      </div>
+      <h2 className="text-xl font-semibold text-zinc-800 mb-2">选择书架目录</h2>
+      <p className="text-zinc-500 mb-6 max-w-md">
+        选择一个包含 EPUB 电子书的文件夹，ImmerseAI 将扫描并加载其中的书籍
+      </p>
+      <Button onClick={mountBookshelf} className="gap-2">
+        <FolderOpen className="w-4 h-4" />
+        选择目录
+      </Button>
+      {error && (
+        <p className="text-red-500 text-sm mt-4">{error}</p>
+      )}
+    </div>
+  )
+
+  // 加载中状态 UI
+  const renderLoadingState = () => (
+    <div className="flex flex-col items-center justify-center h-[60vh]">
+      <Loader2 className="w-10 h-10 text-zinc-400 animate-spin mb-4" />
+      <p className="text-zinc-500">正在加载书籍...</p>
+    </div>
+  )
+
+  // 空书架状态 UI
+  const renderEmptyState = () => (
+    <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4">
+      <div className="w-20 h-20 rounded-full bg-zinc-100 flex items-center justify-center mb-6">
+        <BookOpen className="w-10 h-10 text-zinc-400" />
+      </div>
+      <h2 className="text-xl font-semibold text-zinc-800 mb-2">书架是空的</h2>
+      <p className="text-zinc-500 mb-6 max-w-md">
+        当前目录中没有找到 EPUB 文件。请添加一些电子书，或选择其他目录。
+      </p>
+      <Button variant="outline" onClick={mountBookshelf} className="gap-2">
+        <Plus className="w-4 h-4" />
+        更换目录
+      </Button>
+    </div>
+  )
+
+  // 根据状态渲染内容
+  const renderContent = () => {
+    // 加载中
+    if (isLoading) {
+      return renderLoadingState()
+    }
+
+    // 未连接或连接中
+    if (connectionStatus === 'disconnected' || connectionStatus === 'connecting') {
+      return renderDisconnectedState()
+    }
+
+    // 错误状态
+    if (connectionStatus === 'error') {
+      return renderDisconnectedState()
+    }
+
+    // 已连接但书架为空
+    if (connectionStatus === 'connected' && books.length === 0) {
+      return renderEmptyState()
+    }
+
+    // 已连接且有书
+    return (
+      <div className="mx-auto max-w-7xl pb-20">
+        <BookGrid books={books} onBookClick={handleBookClick} />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white">
-      <TopBar />
+      <TopBar
+        onSettingsClick={handleSettingsClick}
+        onImportClick={mountBookshelf}
+        onGitHubClick={handleGitHubClick}
+      />
       <ScrollArea className="h-[calc(100vh-52px)]">
-        <div className="mx-auto max-w-7xl pb-20">
-          <BookGrid books={books.length > 0 ? books : MOCK_BOOKS} />
-        </div>
+        {renderContent()}
       </ScrollArea>
-      <LibrarianBar files={bookFiles} />
+      {connectionStatus === 'connected' && books.length > 0 && (
+        <LibrarianBar files={bookFiles} />
+      )}
     </div>
   )
 }
