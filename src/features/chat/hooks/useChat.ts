@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { toast } from 'sonner'
 import { useStore } from '@/shared/store'
 import type { Message, ChatSession } from '@/shared/types'
 import { detectNoteIntent } from '../utils/note-intent'
@@ -285,13 +286,22 @@ export function useChat(): UseChatReturn {
         }
         addMessage(assistantMsg)
       } catch (readError) {
-        // 流式读取中断
+        // 流式读取中断 - 可能是 LLM 错误
         try { reader.cancel() } catch { /* ignore */ }
+
+        // 如果有错误消息，展示 Toast
+        if (readError instanceof Error && readError.message) {
+          toast.error(readError.message)
+        }
+
         savePartialMessage(streamingContentRef.current)
       }
     } catch (apiError) {
-      // LLM API 调用失败
+      // LLM API 调用失败 - 展示 Toast 通知
       const errorMessage = apiError instanceof Error ? apiError.message : '未知错误'
+      toast.error(errorMessage)
+
+      // 同时在对话中插入错误消息（供用户回顾）
       const errorMsg: Message = {
         id: generateId(),
         role: 'assistant',

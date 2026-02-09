@@ -91,26 +91,76 @@ function getOrCreateClient(apiKey: string, provider: string, baseUrl: string): O
 // 错误分类
 // ========================================
 
+/** LLM 错误码 - 标准化分类 */
+export type LlmErrorCode =
+  | 'invalid_key'
+  | 'rate_limited'
+  | 'network_error'
+  | 'server_error'
+  | 'unknown'
+
+/** 错误码到中文消息的映射 */
+const ERROR_CODE_MESSAGES: Record<LlmErrorCode, string> = {
+  invalid_key: 'API 密钥无效，请检查设置中的密钥配置',
+  rate_limited: '请求过于频繁，请稍后再试',
+  network_error: '网络连接失败，请检查网络状态',
+  server_error: '服务器繁忙，请稍后重试',
+  unknown: '发生未知错误，请重试',
+}
+
 /**
  * 将 OpenAI SDK 异常分类为结构化错误
+ * 返回标准化 code 和用户可读中文 message
  */
 function classifyError(error: unknown): LlmChatError {
+  // 身份验证错误 → invalid_key
   if (error instanceof OpenAI.AuthenticationError) {
-    return { code: 'AUTH_FAILED', message: error.message }
+    return { code: 'invalid_key', message: ERROR_CODE_MESSAGES.invalid_key }
   }
+
+  // 速率限制 → rate_limited
   if (error instanceof OpenAI.RateLimitError) {
-    return { code: 'RATE_LIMITED', message: error.message }
+    return { code: 'rate_limited', message: ERROR_CODE_MESSAGES.rate_limited }
   }
+
+  // 连接错误 → network_error
   if (error instanceof OpenAI.APIConnectionError) {
-    return { code: 'NETWORK_ERROR', message: error.message }
+    return { code: 'network_error', message: ERROR_CODE_MESSAGES.network_error }
   }
+
+  // 其他 API 错误 → 根据 status 进一步区分
   if (error instanceof OpenAI.APIError) {
-    return { code: 'UNKNOWN_ERROR', message: error.message }
+    const status = error.status
+    // 5xx 服务器错误
+    if (status && status >= 500) {
+      return { code: 'server_error', message: ERROR_CODE_MESSAGES.server_error }
+    }
+    // 401/403 认证相关
+    if (status === 401 || status === 403) {
+      return { code: 'invalid_key', message: ERROR_CODE_MESSAGES.invalid_key }
+    }
+    // 429 速率限制（双重检查）
+    if (status === 429) {
+      return { code: 'rate_limited', message: ERROR_CODE_MESSAGES.rate_limited }
+    }
+    return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
   }
+
+  // 其他 Error 类型
   if (error instanceof Error) {
-    return { code: 'UNKNOWN_ERROR', message: error.message }
+    // 尝试识别网络错误
+    if (
+      error.message.includes('ECONNREFUSED') ||
+      error.message.includes('ETIMEDOUT') ||
+      error.message.includes('ENOTFOUND') ||
+      error.message.includes('network')
+    ) {
+      return { code: 'network_error', message: ERROR_CODE_MESSAGES.network_error }
+    }
+    return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
   }
-  return { code: 'UNKNOWN_ERROR', message: String(error) }
+
+  return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
 }
 
 // ========================================

@@ -92,6 +92,7 @@ export function useBookshelf() {
   /**
    * 刷新书籍列表
    * 当已连接且 bookshelfRootPath 非空时，重新扫描目录
+   * MCP 调用失败时设置 connectionStatus 为 'error'
    */
   const refreshBooks = useCallback(async () => {
     if (connectionStatus !== 'connected' || !bookshelfRootPath) {
@@ -109,11 +110,12 @@ export function useBookshelf() {
       setBooks(newBooks)
     } catch (err) {
       console.error('[useBookshelf] refreshBooks error:', err)
+      setConnectionStatus('error')
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setIsLoading(false)
     }
-  }, [connectionStatus, bookshelfRootPath, setBooks])
+  }, [connectionStatus, bookshelfRootPath, setBooks, setConnectionStatus])
 
   /**
    * 卸载书架

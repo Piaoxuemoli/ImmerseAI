@@ -1,5 +1,6 @@
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import type { BookFile } from '@/shared/types'
 import { ScrollArea } from '@/shared/components/ui/scroll-area'
 import { Button } from '@/shared/components/ui/button'
@@ -21,6 +22,18 @@ export function BookshelfPage() {
     error,
     mountBookshelf,
   } = useBookshelf()
+
+  // 用于跟踪上一次的 connectionStatus，避免初始 render 时误弹 Toast
+  const prevStatusRef = useRef(connectionStatus)
+
+  // 当 connectionStatus 变为 'error' 时显示 Toast（带节流）
+  useEffect(() => {
+    // 只在状态从非 error 变为 error 时触发
+    if (connectionStatus === 'error' && prevStatusRef.current !== 'error') {
+      toast.error('书架连接已断开，请重新选择目录')
+    }
+    prevStatusRef.current = connectionStatus
+  }, [connectionStatus])
 
   // 将 books 转换为 BookFile 格式供 LibrarianBar 使用
   const bookFiles: BookFile[] = useMemo(() => {

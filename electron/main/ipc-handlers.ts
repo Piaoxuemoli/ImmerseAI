@@ -162,25 +162,40 @@ export function registerIpcHandlers(): void {
   // ========================================
 
   ipcMain.handle('app:select-directory', async (): Promise<string | null> => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openDirectory'],
-      title: '选择书架目录',
-      buttonLabel: '选择'
-    })
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory'],
+        title: '选择书架目录',
+        buttonLabel: '选择'
+      })
 
-    if (result.canceled || result.filePaths.length === 0) {
-      return null
+      if (result.canceled || result.filePaths.length === 0) {
+        return null
+      }
+
+      return result.filePaths[0]
+    } catch (error) {
+      console.error('[IPC] app:select-directory error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
     }
-
-    return result.filePaths[0]
   })
 
   ipcMain.handle('app:get-safe-storage', async (_event, key: string): Promise<string> => {
-    return getSafeStorageValue(key)
+    try {
+      return getSafeStorageValue(key)
+    } catch (error) {
+      console.error('[IPC] app:get-safe-storage error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
   })
 
   ipcMain.handle('app:set-safe-storage', async (_event, key: string, value: string): Promise<boolean> => {
-    return setSafeStorageValue(key, value)
+    try {
+      return setSafeStorageValue(key, value)
+    } catch (error) {
+      console.error('[IPC] app:set-safe-storage error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
   })
 
   console.log('[IPC] All handlers registered successfully')
