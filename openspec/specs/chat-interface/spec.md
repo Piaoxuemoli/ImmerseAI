@@ -65,9 +65,10 @@
 - **THEN** 文本 SHALL 使用 `whitespace-pre-wrap` 样式保留换行
 - **AND** 文字颜色为 `text-slate-900`
 
-#### Scenario: Citations 渲染
+#### Scenario: Citations 渲染（含点击跳转）
 - **WHEN** 消息包含非空 `citations` 数组
 - **THEN** 系统 SHALL 在消息文本下方为每个 Citation 渲染一个 `CitationBadge`
+- **AND** 如果 `onCitationClick` prop 存在，SHALL 为每个 CitationBadge 传递 `onClick={() => onCitationClick(citation.cfi)}`
 
 #### Scenario: 入场动画
 - **WHEN** MessageBubble 首次渲染
@@ -116,14 +117,12 @@
 - **AND** 显示 `chapter` 名称
 - **AND** 显示 `score` 转换为百分比（如 0.85 → "85%"）
 
-#### Scenario: 视觉样式
-- **WHEN** CitationBadge 渲染
-- **THEN** SHALL 使用行内标签样式（`inline-flex`）
-- **AND** 背景为 `bg-slate-50`，边框 `border border-slate-200`
-- **AND** 圆角 `rounded-md`，字号 `text-xs`
+#### Scenario: 可点击状态
+- **WHEN** CitationBadge 接收到 `onClick` prop
+- **THEN** 按钮 SHALL 启用（`disabled={false}`）
+- **AND** hover 时 SHALL 显示 `cursor-pointer` 和 `bg-slate-100` 效果
 
-#### Scenario: 点击交互预留
-- **WHEN** CitationBadge 被点击
-- **THEN** SHALL 调用 `onClick` prop 回调（如果提供）
-- **AND** 如果未提供 `onClick`，点击无效果
-- **AND** 有 `onClick` 时鼠标样式为 `cursor-pointer`，无时为 `cursor-default`
+#### Scenario: 不可点击状态
+- **WHEN** CitationBadge 未接收 `onClick` prop
+- **THEN** 按钮 SHALL 禁用（`disabled={true}`）
+- **AND** 显示 `cursor-default`
