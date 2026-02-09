@@ -68,10 +68,22 @@ export interface ChatSession {
 // ============================================
 export interface LlmConfig {
   provider?: 'deepseek' | 'kimi' | 'moonshot' | 'openai' | 'custom'
+  baseUrl?: string // API 端点
   model?: string
   temperature?: number // 0.0 - 1.0
   maxTokens?: number
   stream?: boolean // 是否启用流式响应，默认 true
+}
+
+/**
+ * Store 中持久化的 LLM 配置（不含 apiKey）
+ */
+export interface StoreLlmConfig {
+  provider: 'deepseek' | 'kimi' | 'moonshot' | 'openai' | 'custom'
+  baseUrl: string
+  model: string
+  temperature: number // 0.0 - 1.0
+  maxTokens: number
 }
 
 // ============================================
@@ -131,6 +143,10 @@ export interface ImmerseStore {
   // === RAG 状态 ===
   indexingProgress: Record<string, number> // bookId -> 0-100
 
+  // === 设置状态 ===
+  llmConfig: StoreLlmConfig
+  bookshelfRootPath: string
+
   // === Actions ===
   setBooks: (books: Book[]) => void
   selectBook: (bookId: string) => void
@@ -151,4 +167,7 @@ export interface ImmerseStore {
 
   setIndexingProgress: (bookId: string, progress: number) => void
   clearIndexingProgress: (bookId: string) => void
+
+  setLlmConfig: (config: Partial<StoreLlmConfig>) => void
+  setBookshelfRootPath: (path: string) => void
 }

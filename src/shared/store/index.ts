@@ -52,6 +52,16 @@ export const useStore = create<ImmerseStore>()(
       // === RAG 状态 ===
       indexingProgress: {},
 
+      // === 设置状态 ===
+      llmConfig: {
+        provider: 'deepseek',
+        baseUrl: 'https://api.deepseek.com/v1',
+        model: 'deepseek-chat',
+        temperature: 0.7,
+        maxTokens: 2048,
+      },
+      bookshelfRootPath: '',
+
       // === 书架 Actions ===
       setBooks: (books) => set({ books }),
       selectBook: (bookId) => set({ selectedBookId: bookId }),
@@ -118,6 +128,13 @@ export const useStore = create<ImmerseStore>()(
           delete newProgress[bookId]
           return { indexingProgress: newProgress }
         }),
+
+      // === 设置 Actions ===
+      setLlmConfig: (config) =>
+        set((state) => ({
+          llmConfig: { ...state.llmConfig, ...config },
+        })),
+      setBookshelfRootPath: (path) => set({ bookshelfRootPath: path }),
     }),
     {
       name: 'immerse-store', // localStorage key
@@ -125,6 +142,8 @@ export const useStore = create<ImmerseStore>()(
         books: state.books,
         personas: state.personas,
         currentSession: state.currentSession,
+        llmConfig: state.llmConfig,
+        bookshelfRootPath: state.bookshelfRootPath,
       }),
     }
   )
