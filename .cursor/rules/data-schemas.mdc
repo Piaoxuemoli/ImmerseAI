@@ -1,0 +1,94 @@
+---
+description: ImmerseAI 核心数据模型接口定义 - 所有代码必须严格遵守
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# 数据契约（宪法级约束）
+
+所有代码必须严格遵守以下接口，不得擅自增删字段。
+
+## 核心接口
+
+```typescript
+interface Book {
+  id: string;                // UUID v4
+  title: string;
+  author: string;
+  path: string;              // 本地绝对路径 (通过 MCP 获取)
+  coverUrl?: string;
+  isIndexed: boolean;
+  indexedAt?: number;
+  lastReadAt?: number;
+  lastReadCfi?: string;      // epub CFI
+  chunkCount?: number;
+}
+
+interface Persona {
+  id: string;
+  bookId: string;
+  name: string;
+  description: string;
+  personality: string;
+  speechStyle: string;
+  background: string;
+  keyQuotes: string[];
+  systemPrompt: string;
+  avatar?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;           // 支持 Markdown
+  timestamp: number;
+  personaId?: string;
+  citations?: Citation[];
+}
+
+interface Citation {
+  cfi: string;               // epub 定位符
+  text: string;
+  chapter: string;
+  score: number;             // 0-1
+}
+
+interface ChatSession {
+  id: string;
+  bookId: string;
+  personaId: string;
+  messages: Message[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface AppConfig {
+  llm: {
+    provider: 'deepseek' | 'kimi' | 'moonshot' | 'openai' | 'custom';
+    apiKey: string;          // 加密存储在 safeStorage
+    baseUrl: string;
+    model: string;
+    temperature: number;     // 0.0-1.0, 默认 0.7
+    maxTokens: number;       // 默认 2048
+  };
+  bookshelf: { rootPath: string; sourceType: 'local' | 'github'; };
+  ui: { theme: 'light' | 'dark'; fontSize: number; };
+}
+```
+
+## Worker 消息类型
+
+```typescript
+type WorkerMessage =
+  | { type: 'ingest'; bookId: string; chapters: Chapter[] }
+  | { type: 'search'; bookId: string; query: string; topK?: number }
+  | { type: 'status'; bookId: string };
+
+type WorkerResponse =
+  | { type: 'ingest:progress'; bookId: string; progress: number }
+  | { type: 'ingest:complete'; bookId: string; chunkCount: number }
+  | { type: 'search:result'; results: SearchResult[] }
+  | { type: 'error'; message: string };
+```
