@@ -96,13 +96,19 @@ export function MessageBubble({ message, personaName, onCitationClick }: Message
         {/* Citations */}
         {message.citations && message.citations.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {message.citations.map((citation, index) => (
-              <CitationBadge
-                key={index}
-                citation={citation}
-                onClick={onCitationClick ? () => onCitationClick(citation.cfi) : undefined}
-              />
-            ))}
+            {message.citations.map((citation, index) => {
+              const handleClick = onCitationClick
+                ? () => onCitationClick(citation.cfi)
+                : undefined
+
+              return (
+                <CitationBadge
+                  key={index}
+                  citation={citation}
+                  {...(handleClick ? { onClick: handleClick } : {})}
+                />
+              )
+            })}
           </div>
         )}
       </div>

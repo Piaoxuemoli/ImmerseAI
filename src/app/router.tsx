@@ -19,6 +19,10 @@ const routes = [
   {
     path: '/settings',
     element: <SettingsPage />
+  },
+  {
+    path: '*',
+    element: <Navigate to="/bookshelf" replace />
   }
 ] as const
 

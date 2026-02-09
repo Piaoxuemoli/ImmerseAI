@@ -82,9 +82,14 @@ app.whenReady().then(() => {
 })
 
 // 所有窗口关闭时的处理
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   // macOS 保持应用运行，其他平台退出
   if (process.platform !== 'darwin') {
+    try {
+      await McpManager.getInstance().disconnect()
+    } catch {
+      // ignore disconnect errors on quit
+    }
     app.quit()
   }
 })

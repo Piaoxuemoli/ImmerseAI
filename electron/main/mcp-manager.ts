@@ -361,6 +361,16 @@ export class McpManager {
       console.error('[McpManager] Error closing client:', error);
     }
 
+    try {
+      // 8.4: 关闭 Transport (确保子进程退出)
+      const transport = this.transport as { close?: () => Promise<void> | void } | null
+      if (transport?.close) {
+        await transport.close()
+      }
+    } catch (error) {
+      console.error('[McpManager] Error closing transport:', error);
+    }
+
     // 8.5: 清空引用
     this.client = null;
     this.transport = null;

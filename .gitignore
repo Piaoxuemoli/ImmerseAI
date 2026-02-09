@@ -8,7 +8,7 @@ out/
 build/
 release/
 release-new/
-test_book/
+# test_book/  # keep test fixtures tracked for cross-device tests
 *.log
 !build/icon.png
 

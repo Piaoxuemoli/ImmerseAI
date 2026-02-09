@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { toast } from 'sonner'
-import type { WorkerMessage, WorkerResponse } from '../../workers/rag-types'
+import type { WorkerMessage, WorkerResponse, Chapter } from '../../workers/rag-types'
 
 /** Worker 最大重启次数 */
 const MAX_RESTART_COUNT = 3
@@ -136,5 +136,21 @@ export function useRagWorker(onMessage: (response: WorkerResponse) => void) {
     }
   }, [handleWorkerCrash])
 
-  return { postMessage, isWorkerReady }
+  const ingest = useCallback((bookId: string, chapters: Chapter[]) => {
+    postMessage({ type: 'ingest', bookId, chapters })
+  }, [postMessage])
+
+  const search = useCallback((bookId: string, query: string, topK = 5, requestId?: string) => {
+    postMessage({ type: 'search', bookId, query, topK, requestId })
+  }, [postMessage])
+
+  const getStatus = useCallback((bookId: string, requestId?: string) => {
+    postMessage({ type: 'status', bookId, requestId })
+  }, [postMessage])
+
+  const ping = useCallback(() => {
+    postMessage({ type: 'ping' })
+  }, [postMessage])
+
+  return { postMessage, ingest, search, getStatus, ping, isWorkerReady }
 }

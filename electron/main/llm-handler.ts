@@ -94,6 +94,7 @@ function getOrCreateClient(apiKey: string, provider: string, baseUrl: string): O
 /** LLM 错误码 - 标准化分类 */
 export type LlmErrorCode =
   | 'invalid_key'
+  | 'not_configured'
   | 'rate_limited'
   | 'network_error'
   | 'server_error'
@@ -102,6 +103,7 @@ export type LlmErrorCode =
 /** 错误码到中文消息的映射 */
 const ERROR_CODE_MESSAGES: Record<LlmErrorCode, string> = {
   invalid_key: 'API 密钥无效，请检查设置中的密钥配置',
+  not_configured: '尚未配置 API Key，请先在设置中保存密钥',
   rate_limited: '请求过于频繁，请稍后再试',
   network_error: '网络连接失败，请检查网络状态',
   server_error: '服务器繁忙，请稍后重试',
@@ -184,28 +186,35 @@ export async function handleLlmChat(
   // 获取 API Key
   const apiKey = getSafeStorageValue('llm_api_key')
   if (!apiKey) {
-    throw new Error('API_KEY_NOT_CONFIGURED')
+    if (!event.sender.isDestroyed()) {
+      event.sender.send('llm:chat-error', {
+        code: 'not_configured',
+        message: ERROR_CODE_MESSAGES.not_configured,
+      })
+      event.sender.send('llm:chat-chunk', '[DONE]')
+    }
+    return
   }
-
-  // 解析 baseUrl（custom provider 从 safeStorage 读取）
-  let baseUrl: string
-  if (provider === 'custom') {
-    const customBaseUrl = getSafeStorageValue('llm-base-url')
-    baseUrl = resolveBaseUrl(provider, customBaseUrl)
-  } else {
-    baseUrl = resolveBaseUrl(provider)
-  }
-
-  // 获取或创建 client
-  const client = getOrCreateClient(apiKey, provider, baseUrl)
-
-  // 转换消息格式为 OpenAI SDK 格式
-  const openaiMessages = messages.map((msg) => ({
-    role: msg.role as 'user' | 'assistant' | 'system',
-    content: msg.content,
-  }))
 
   try {
+    // 解析 baseUrl（custom provider 从 safeStorage 读取）
+    let baseUrl: string
+    if (provider === 'custom') {
+      const customBaseUrl = getSafeStorageValue('llm-base-url')
+      baseUrl = resolveBaseUrl(provider, customBaseUrl)
+    } else {
+      baseUrl = resolveBaseUrl(provider)
+    }
+
+    // 获取或创建 client
+    const client = getOrCreateClient(apiKey, provider, baseUrl)
+
+    // 转换消息格式为 OpenAI SDK 格式
+    const openaiMessages = messages.map((msg) => ({
+      role: msg.role as 'user' | 'assistant' | 'system',
+      content: msg.content,
+    }))
+
     // 流式调用
     const stream = await client.chat.completions.create({
       model: mergedConfig.model,
