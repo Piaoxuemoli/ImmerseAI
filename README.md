@@ -72,7 +72,7 @@ npm run build
 
 ## 开发进度
 
-> 更新日期：2026-02-09 | 已归档 Changes：**16/16** | 全量验证通过：**16/16 PASS**
+> 更新日期：2026-02-09 | 已归档 Changes：**16** | 活跃 Change：**app-packaging（Windows 已验证，macOS 后续跟进）** | 最近一次全量验证：**16/16 PASS**
 
 ### Phase 总览
 
@@ -118,7 +118,8 @@ SUGGESTION:      15 (代码改进建议)
 ### 待开发（后续 Phase）
 
 - **Phase 2 补全**：ipc-mcp-bridge（IPC 接入真实 MCP）、bookshelf-hook、bookshelf-wiring
-- **Phase 5 扩展**：note-taking（MCP 笔记）、librarian-agent（智能书架管理）、error-handling（全局错误边界）、app-packaging（Electron 打包分发）
+- **Phase 5 扩展**：note-taking（MCP 笔记）、librarian-agent（智能书架管理）
+- **后续跟进**：app-packaging（macOS `.dmg` 打包与安装验证）
 
 ---
 
@@ -134,16 +135,18 @@ SUGGESTION:      15 (代码改进建议)
 | AT-02 | 依赖完整性检查 | package.json 与代码 import 一致 |
 | AT-03 | Zustand Store 一致性 | Store 实现 ↔ ImmerseStore 接口对齐 |
 | AT-04 | IPC Channel 完整性 | preload 暴露 ↔ ipc-handlers 注册一致 |
-| AT-05 | RAG Worker 消息协议 | Worker 消息类型实现覆盖 rag-types.ts |
-| AT-06 | 宪法禁止项扫描 | 无 Redux/axios/CSS Modules/any 等违禁项 |
-| AT-07 | 安全配置审计 | nodeIntegration=false, contextIsolation=true |
-| AT-08 | MCP Manager 单例验证 | 单例模式 + connect/disconnect 生命周期 |
-| AT-09 | shadcn/ui 组件完整性 | 代码引用的组件都已安装 |
-| AT-10 | 路由配置完整性 | 所有路由路径可达且组件存在 |
-| AT-11 | framer-motion 动画审计 | 动画只在正确位置使用 |
-| AT-12 | 类型安全审计 | 无 `as any`、无 `@ts-ignore` |
-| AT-13 | LLM Handler 流式协议 | SSE chunk 解析 + stream IPC 正确 |
-| AT-14 | Persona System Prompt 模板 | 包含宪法定义的 5 个必需段 |
+| AT-05 | 路由配置完整性 | `/bookshelf`、`/reader/:id`、`/settings` 可达且组件存在 |
+| AT-06 | IPC Handlers 真实桥接 | `mcp:*` handlers 调用真实 McpManager（无 mock） |
+| AT-07 | BookCard 路由跳转 | 点击书籍卡片能进入 `/reader/:id` |
+| AT-08 | 挂载书架流程 | 选目录 → MCP connect → listFiles → 书架渲染 |
+| AT-09 | Worker 消息协议完整性 | rag-types.ts ↔ worker ↔ hook 覆盖完整 |
+| AT-10 | Persona Prompt 模板 | 模板结构符合宪法要求 |
+| AT-11 | 安全配置检查 | nodeIntegration=false, contextIsolation=true 等 |
+| AT-12 | 设置页存在性 | `/settings` 页面存在且可导航 |
+| AT-13 | shadcn/ui 组件完整性 | 引用的 UI 组件文件齐全 |
+| AT-14 | electron.d.ts 声明 | Window.electronAPI 类型与 preload 一致 |
+
+> 自动化测试完成后，Skill 还会输出 **CR（Code Review）报告**（CRITICAL/WARNING/SUGGESTION 三档），用于快速审阅风险点。
 
 ### 人工测试 (需手动验证)
 
@@ -158,9 +161,9 @@ SUGGESTION:      15 (代码改进建议)
 | HT-07 | 设置页功能 | Provider 切换、Key 存储、连接测试 |
 | HT-08 | MCP 书架挂载 | 选目录 → 扫描 .epub → 展示 |
 | HT-09 | 引用跳转 | 点击 CitationBadge → 跳转 EPUB + 高亮 |
-| HT-10 | 打包分发 | .exe/.dmg 安装运行正常（未来） |
+| HT-10 | 打包分发 | .exe/.dmg 安装运行正常（macOS 后续） |
 
-> 详细测试定义见 `docs/test-classification.md`，Skill 定义见 `.github/skills/qoobee-t&f-skill/SKILL.md`
+> 详细测试定义见 `docs/test-classification.md`，Skill 定义见 `.cursor/skills/qoobee-t&f-skill/SKILL.md`
 
 ## 规格驱动开发 (OpenSpec)
 
