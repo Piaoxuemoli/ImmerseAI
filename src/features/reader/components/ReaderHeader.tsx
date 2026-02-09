@@ -6,9 +6,10 @@ import { ModeToggle } from './ModeToggle'
 
 interface ReaderHeaderProps {
   bookId: string
+  onPersonaClick?: () => void
 }
 
-export function ReaderHeader({ bookId }: ReaderHeaderProps) {
+export function ReaderHeader({ bookId, onPersonaClick }: ReaderHeaderProps) {
   const navigate = useNavigate()
   const books = useStore((s) => s.books)
   const activePersonaId = useStore((s) => s.activePersonaId)
@@ -48,6 +49,7 @@ export function ReaderHeader({ bookId }: ReaderHeaderProps) {
           size="sm"
           className="h-8 gap-1 px-2 text-xs text-slate-600"
           title="选择角色"
+          onClick={onPersonaClick}
         >
           {activePersona ? (
             <>
