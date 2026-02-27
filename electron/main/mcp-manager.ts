@@ -99,7 +99,7 @@ export interface FileEntry {
   name: string;
   path: string;
   size: number;
-  type: 'epub' | 'pdf' | 'txt' | 'unknown';
+  type: 'epub' | 'pdf' | 'txt' | 'md' | 'unknown';
   lastModified: number;
 }
 
@@ -152,6 +152,7 @@ function getFileTypeFromName(name: string): FileEntry['type'] {
   if (lower.endsWith('.epub')) return 'epub';
   if (lower.endsWith('.pdf')) return 'pdf';
   if (lower.endsWith('.txt')) return 'txt';
+  if (lower.endsWith('.md')) return 'md';
   return 'unknown';
 }
 

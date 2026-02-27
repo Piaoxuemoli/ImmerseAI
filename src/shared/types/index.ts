@@ -85,8 +85,8 @@ export interface LlmConfig {
  * Store 中持久化的 LLM 配置（不含 apiKey）
  */
 export interface StoreLlmConfig {
-  baseUrl: string
-  model: string
+  baseUrl: string // 允许为空字符串，表示尚未配置
+  model: string // 允许为空字符串，表示尚未配置
 }
 
 // ============================================

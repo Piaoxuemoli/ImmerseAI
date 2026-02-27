@@ -35,6 +35,7 @@ function convertToBookFile(entry: FileEntry): BookFile {
   if (ext === 'epub') fileType = 'epub'
   else if (ext === 'pdf') fileType = 'pdf'
   else if (ext === 'txt') fileType = 'txt'
+  else if (ext === 'md') fileType = 'md'
 
   return {
     name: entry.name,

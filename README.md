@@ -23,8 +23,8 @@ ImmerseAI 通过 MCP (Model Context Protocol) 连接本地书库，利用端侧 
 | 状态管理 | Zustand 4 (persist middleware) |
 | Agent 协议 | @modelcontextprotocol/sdk |
 | 本地 RAG | @xenova/transformers + @orama/orama |
-| LLM | OpenAI Compatible API (DeepSeek / Kimi / Moonshot) |
-| 电子书 | react-reader (epub.js) |
+| LLM | OpenAI Compatible API（用户自定义 Base URL / Model） |
+| 文档阅读 | Markdown / Text (`.md` / `.txt`) |
 
 ## 快速开始
 
@@ -76,7 +76,7 @@ immerseai/
 | Phase 1 基建 | IPC / Store / 路由 / 类型 | ✅ 完成 |
 | Phase 2 书架 | MCP / Bookshelf / Mount 流程 | ✅ 完成 |
 | Phase 3 大脑 | RAG Worker / Index / Search | ✅ 完成 |
-| Phase 4 灵魂 | LLM / Chat / Persona / Reader / Settings | ✅ 完成 |
+| Phase 4 灵魂 | LLM / Chat / Persona / Reader / Settings | ✅ 完成（已迁移为 `.md/.txt` 阅读） |
 | Phase 5 整合 | 引用跳转 / 测试 Skill / App 打包 | ✅ 完成（macOS 安装验证待复测） |
 
 ### 已归档 Changes（节选）
@@ -95,6 +95,22 @@ immerseai/
 - 自动化测试项定义：`docs/test-classification.md`
 - Skill 定义：`.cursor/skills/qoobee-t&f-skill/SKILL.md`
 - 测试样书：`test_book/`（用于跨设备验证）
+
+## 配置与持久化
+
+- 应用**不再提供默认 LLM 配置**（无默认 `Base URL` / `Model`）
+- 首次启动时需要在设置页手动填写：
+  - API Key（安全存储于 `safeStorage`）
+  - Base URL
+  - Model
+- 书架目录默认不预设，需手动选择
+- 已填写的 `llmConfig` 与 `bookshelfRootPath` 通过 Zustand persist 缓存，重启后自动恢复
+
+## Agent Skills 扩展
+
+- 已引入 BMAD 相关命令与工作流（`.cursor/commands/`、`_bmad/`、`.github/prompts/`）
+- 已新增 Vercel 相关技能包（`.cursor/skills/vercel-*`、`.github/skills/vercel-*`）
+- 这些能力用于增强规范编排、文档生产与前端工程实践，不影响核心运行链路
 
 ## 规格驱动开发 (OpenSpec)
 

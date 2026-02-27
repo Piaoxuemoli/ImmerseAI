@@ -21,13 +21,21 @@ import type { Book, BookFile } from '@/shared/types'
  * - isIndexed: false
  * - 仅处理 .md / .txt 文件
  */
-function bookFileToBook(file: BookFile): Book {
+function resolveBookPath(rootPath: string, filePath: string): string {
+  const isAbsolute = /^[a-zA-Z]:[\\/]/.test(filePath) || filePath.startsWith('/')
+  if (isAbsolute) return filePath
+  const normalizedRoot = rootPath.replace(/[\\/]+$/, '')
+  const normalizedFile = filePath.replace(/^[\\/]+/, '')
+  return `${normalizedRoot}/${normalizedFile}`
+}
+
+function bookFileToBook(file: BookFile, rootPath: string): Book {
   const titleWithoutExt = file.name.replace(/\.(md|txt)$/i, '')
   return {
     id: uuidv4(),
     title: titleWithoutExt,
     author: '未知作者',
-    path: file.path,
+    path: resolveBookPath(rootPath, file.path),
     isIndexed: false,
   }
 }
@@ -70,12 +78,12 @@ export function useBookshelf() {
       // 3. 连接 MCP
       await window.electronAPI.mcp.connect(selectedPath)
 
-      // 4. 获取文件列表
+      // 4. 获取文件列表（在当前 MCP 实现中传绝对路径更稳定）
       const files: BookFile[] = await window.electronAPI.mcp.listFiles(selectedPath)
 
       // 5. 过滤 .md/.txt 文件并转换为 Book
       const textFiles = files.filter((f) => f.type === 'md' || f.type === 'txt' || f.path.endsWith('.md') || f.path.endsWith('.txt'))
-      const newBooks = textFiles.map(bookFileToBook)
+      const newBooks = textFiles.map((file) => bookFileToBook(file, selectedPath))
 
       // 6. 更新 Store
       setBooks(newBooks)
@@ -107,7 +115,7 @@ export function useBookshelf() {
     try {
       const files: BookFile[] = await window.electronAPI.mcp.listFiles(bookshelfRootPath)
       const textFiles = files.filter((f) => f.type === 'md' || f.type === 'txt' || f.path.endsWith('.md') || f.path.endsWith('.txt'))
-      const newBooks = textFiles.map(bookFileToBook)
+      const newBooks = textFiles.map((file) => bookFileToBook(file, bookshelfRootPath))
       setBooks(newBooks)
     } catch (err) {
       console.error('[useBookshelf] refreshBooks error:', err)

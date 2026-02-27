@@ -68,9 +68,9 @@ export const TextViewer: React.FC<TextViewerProps> = ({
           color: '#0f172a',
         }}
       >
-        <ReactMarkdown
-          className="prose prose-slate max-w-none"
-          components={{
+        <div className="prose prose-slate max-w-none">
+          <ReactMarkdown
+            components={{
             h1: ({ children }) => (
               <h1 className="text-3xl font-semibold text-slate-900 mt-8 mb-4">{children}</h1>
             ),
@@ -98,10 +98,11 @@ export const TextViewer: React.FC<TextViewerProps> = ({
                 </code>
               )
             },
-          }}
-        >
-          {content}
-        </ReactMarkdown>
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        </div>
       </div>
     )
   }

@@ -55,6 +55,25 @@ MCP Server SHALL 作为 Electron 主进程的子进程运行。
 - THEN 主进程 spawn MCP Server 子进程
 - AND 通过 StdioClientTransport 建立 JSON-RPC 通信
 
+### Requirement: 无默认配置与本地持久化
+系统 SHALL 不提供默认的 LLM Base URL、Model 与书架目录。
+用户配置 SHALL 在本地缓存并在应用重启后恢复。
+
+#### Scenario: 首次启动
+- WHEN 用户首次打开应用
+- THEN 设置页中的 Base URL 与 Model 为空
+- AND 书架目录为空（显示未设置状态）
+
+#### Scenario: 配置后重启
+- WHEN 用户填写 LLM 配置并选择书架目录后关闭应用再启动
+- THEN 系统从本地持久化存储恢复 llmConfig 与 bookshelfRootPath
+- AND 设置页展示上次保存的配置值
+
+#### Scenario: 未完成配置时调用 LLM
+- WHEN API Key、Base URL、Model 任一缺失
+- THEN 系统拒绝发起 LLM 请求并返回 not_configured 错误
+- AND UI 给出明确的配置提示
+
 ## ADDED Requirements
 
 ### Requirement: Cross-Origin Isolation 支持

@@ -45,6 +45,11 @@ export function SettingsPage() {
   // 测试连接状态
   const [testStatus, setTestStatus] = useState<ConnectionTestStatus>('idle')
   const [testError, setTestError] = useState('')
+  const isBaseUrlConfigured = llmConfig.baseUrl.trim().length > 0
+  const isModelConfigured = llmConfig.model.trim().length > 0
+  const isApiKeyConfigured = apiKeyDisplay.trim().length > 0
+  const canTestConnection =
+    isApiKeyLoaded && isApiKeyConfigured && isBaseUrlConfigured && isModelConfigured
 
   // ============================================
   // 页面加载：从 safeStorage 读取 API Key
@@ -87,6 +92,12 @@ export function SettingsPage() {
   // 测试连接
   // ============================================
   const handleTestConnection = useCallback(async () => {
+    if (!canTestConnection) {
+      setTestStatus('error')
+      setTestError('请先完成 API Key、Base URL 和 Model 配置')
+      return
+    }
+
     setTestStatus('testing')
     setTestError('')
 
@@ -121,7 +132,7 @@ export function SettingsPage() {
       setTestStatus('error')
       setTestError(err instanceof Error ? err.message : '连接失败')
     }
-  }, [llmConfig])
+  }, [canTestConnection, llmConfig])
 
   // ============================================
   // 更换书架目录
@@ -199,7 +210,7 @@ export function SettingsPage() {
                 <Input
                   value={llmConfig.baseUrl}
                   onChange={(e) => setLlmConfig({ baseUrl: e.target.value })}
-                  placeholder="https://api.openai.com/v1"
+                  placeholder="请输入 Base URL（例如 https://api.openai.com/v1）"
                 />
                 <p className="text-xs text-slate-400">
                   OpenAI 兼容端点
@@ -212,7 +223,7 @@ export function SettingsPage() {
                 <Input
                   value={llmConfig.model}
                   onChange={(e) => setLlmConfig({ model: e.target.value })}
-                  placeholder="gpt-4 / deepseek-chat / ..."
+                  placeholder="请输入模型名（例如 gpt-4o-mini）"
                 />
               </div>
 
@@ -223,7 +234,7 @@ export function SettingsPage() {
                 <Button
                   variant="outline"
                   onClick={() => void handleTestConnection()}
-                  disabled={testStatus === 'testing'}
+                  disabled={testStatus === 'testing' || !canTestConnection}
                 >
                   {testStatus === 'testing' && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -243,6 +254,11 @@ export function SettingsPage() {
                   </span>
                 )}
               </div>
+              {!canTestConnection && (
+                <p className="text-xs text-amber-600">
+                  请先完成 API Key、Base URL 和 Model 配置后再测试连接
+                </p>
+              )}
             </CardContent>
           </Card>
 

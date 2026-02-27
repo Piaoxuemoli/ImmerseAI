@@ -12,6 +12,7 @@ import { useStore } from '@/shared/store'
  */
 export function useReader(bookId: string) {
   const books = useStore((s) => s.books)
+  const bookshelfRootPath = useStore((s) => s.bookshelfRootPath)
   const setBooks = useStore((s) => s.setBooks)
   const setCurrentParagraphIndex = useStore((s) => s.setCurrentParagraphIndex)
   const setCurrentOffset = useStore((s) => s.setCurrentOffset)
@@ -22,6 +23,7 @@ export function useReader(bookId: string) {
   const readerMode = useStore((s) => s.readerMode)
 
   const book = books.find((b) => b.id === bookId)
+  const bookPath = book?.path ?? ''
 
   // --- State ---
   const [content, setContent] = useState<string>('')
@@ -35,7 +37,7 @@ export function useReader(bookId: string) {
 
   // --- 文本加载 ---
   useEffect(() => {
-    if (!book) {
+    if (!book || !bookPath) {
       setError('书籍不存在')
       setLoading(false)
       return
@@ -48,7 +50,15 @@ export function useReader(bookId: string) {
         setLoading(true)
         setError(null)
 
-        const arrayBuffer = await window.electronAPI.mcp.readFile(book.path)
+        const isAbsolutePath = /^[a-zA-Z]:[\\/]/.test(bookPath) || bookPath.startsWith('/')
+        const normalizedRoot = bookshelfRootPath.replace(/[\\/]+$/, '')
+        const normalizedBookPath = bookPath.replace(/^[\\/]+/, '')
+        const resolvedBookPath =
+          isAbsolutePath || !normalizedRoot
+            ? bookPath
+            : `${normalizedRoot}/${normalizedBookPath}`
+
+        const arrayBuffer = await window.electronAPI.mcp.readFile(resolvedBookPath)
         if (cancelled) return
 
         const decoder = new TextDecoder('utf-8')
@@ -70,17 +80,23 @@ export function useReader(bookId: string) {
     return () => {
       cancelled = true
     }
-  }, [book])
+  }, [bookId, bookPath, bookshelfRootPath])
 
   // --- 进度变化回调 ---
   const handleProgressChange = useCallback(
     (newParagraphIndex: number, newOffset: number) => {
+      // 未变化时不写入 store，避免触发不必要的重渲染和重复 readFile
+      const prevParagraphIndex = book?.lastReadParagraphIndex ?? 0
+      const prevOffset = book?.lastReadOffset ?? 0
+      const hasProgressChanged =
+        prevParagraphIndex !== newParagraphIndex || prevOffset !== newOffset
+
       setParagraphIndex(newParagraphIndex)
       setCurrentParagraphIndex(newParagraphIndex)
       setCurrentOffset(newOffset)
 
       // 持久化到 Book.lastReadParagraphIndex
-      if (book) {
+      if (book && hasProgressChanged) {
         const updatedBooks = books.map((b) =>
           b.id === bookId
             ? { ...b, lastReadParagraphIndex: newParagraphIndex, lastReadOffset: newOffset, lastReadAt: Date.now() }

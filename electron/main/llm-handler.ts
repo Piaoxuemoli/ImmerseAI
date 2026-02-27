@@ -81,7 +81,7 @@ export type LlmErrorCode =
 /** 错误码到中文消息的映射 */
 const ERROR_CODE_MESSAGES: Record<LlmErrorCode, string> = {
   invalid_key: 'API 密钥无效，请检查设置中的密钥配置',
-  not_configured: '尚未配置 API Key，请先在设置中保存密钥',
+  not_configured: 'LLM 尚未完成配置，请在设置中填写 API Key、Base URL 和 Model',
   rate_limited: '请求过于频繁，请稍后再试',
   network_error: '网络连接失败，请检查网络状态',
   server_error: '服务器繁忙，请稍后重试',
@@ -160,12 +160,12 @@ export async function handleLlmChat(
   // 合并默认配置
   const temperature = DEFAULT_LLM_CONFIG.temperature
   const maxTokens = DEFAULT_LLM_CONFIG.maxTokens
-  const baseUrl = config.baseUrl || 'https://api.openai.com/v1'
-  const model = config.model || 'gpt-4'
+  const baseUrl = (config.baseUrl ?? '').trim()
+  const model = (config.model ?? '').trim()
 
   // 获取 API Key
   const apiKey = getSafeStorageValue('llm_api_key')
-  if (!apiKey) {
+  if (!apiKey || !baseUrl || !model) {
     if (!event.sender.isDestroyed()) {
       event.sender.send('llm:chat-error', {
         code: 'not_configured',

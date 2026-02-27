@@ -55,8 +55,8 @@ export const useStore = create<ImmerseStore>()(
 
       // === 设置状态 ===
       llmConfig: {
-        baseUrl: 'https://api.openai.com/v1',
-        model: 'gpt-4',
+        baseUrl: '',
+        model: '',
       },
       bookshelfRootPath: '',
 
