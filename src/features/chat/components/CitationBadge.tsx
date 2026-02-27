@@ -17,7 +17,7 @@ export function CitationBadge({ citation, onClick }: CitationBadgeProps) {
       }`}
     >
       <Paperclip className="h-3 w-3" />
-      <span>{citation.chapter}</span>
+      <span>段落 {citation.paragraphIndex}</span>
       <span className="text-slate-400">{Math.round(citation.score * 100)}%</span>
     </button>
   )

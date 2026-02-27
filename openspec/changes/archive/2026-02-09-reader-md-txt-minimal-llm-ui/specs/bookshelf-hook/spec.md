@@ -1,4 +1,6 @@
-## ADDED Requirements
+# Bookshelf Hook — Delta（.md/.txt 过滤与转换）
+
+## MODIFIED Requirements
 
 ### Requirement: useBookshelf Hook 契约
 系统 SHALL 在 `src/features/bookshelf/hooks/useBookshelf.ts` 提供 `useBookshelf()` hook，封装书架挂载、卸载、刷新及与 Store/MCP 的协作。

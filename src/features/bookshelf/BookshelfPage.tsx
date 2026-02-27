@@ -41,7 +41,7 @@ export function BookshelfPage() {
       name: book.path.split('/').pop() || book.title,
       path: book.path,
       size: 0,
-      type: 'epub' as const,
+      type: book.path.endsWith('.md') ? 'md' as const : book.path.endsWith('.txt') ? 'txt' as const : 'unknown' as const,
       lastModified: Date.now(),
     }))
   }, [books])
@@ -57,11 +57,6 @@ export function BookshelfPage() {
     navigate('/settings')
   }, [navigate])
 
-  // 打开 GitHub
-  const handleGitHubClick = useCallback(() => {
-    window.open('https://github.com/ImmerseAI/ImmerseAI', '_blank')
-  }, [])
-
   // 未连接状态 UI
   const renderDisconnectedState = () => (
     <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4">
@@ -70,7 +65,7 @@ export function BookshelfPage() {
       </div>
       <h2 className="text-xl font-semibold text-zinc-800 mb-2">选择书架目录</h2>
       <p className="text-zinc-500 mb-6 max-w-md">
-        选择一个包含 EPUB 电子书的文件夹，ImmerseAI 将扫描并加载其中的书籍
+        选择一个包含 .md / .txt 文件的文件夹，ImmerseAI 将扫描并加载其中的文档
       </p>
       <Button onClick={mountBookshelf} className="gap-2">
         <FolderOpen className="w-4 h-4" />
@@ -98,7 +93,7 @@ export function BookshelfPage() {
       </div>
       <h2 className="text-xl font-semibold text-zinc-800 mb-2">书架是空的</h2>
       <p className="text-zinc-500 mb-6 max-w-md">
-        当前目录中没有找到 EPUB 文件。请添加一些电子书，或选择其他目录。
+        当前目录中没有找到 .md / .txt 文件。请添加一些文档，或选择其他目录。
       </p>
       <Button variant="outline" onClick={mountBookshelf} className="gap-2">
         <Plus className="w-4 h-4" />
@@ -142,7 +137,6 @@ export function BookshelfPage() {
       <TopBar
         onSettingsClick={handleSettingsClick}
         onImportClick={mountBookshelf}
-        onGitHubClick={handleGitHubClick}
       />
       <ScrollArea className="h-[calc(100vh-52px)]">
         {renderContent()}

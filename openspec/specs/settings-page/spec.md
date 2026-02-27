@@ -16,27 +16,22 @@
 - **WHEN** 用户在设置页面点击返回按钮
 - **THEN** 导航回上一页（`/bookshelf`）
 
-### Requirement: LLM Provider 配置
-系统 SHALL 提供 LLM Provider 选择与连接参数配置表单。
+### Requirement: LLM 最小配置
+系统 SHALL 提供 LLM 连接的最小配置：Base URL、API Key、Model。**不区分 Provider，不提供 Provider 下拉选择；** 统一为 OpenAI 兼容单一入口。
 
-#### Scenario: Provider 下拉选择
-- **WHEN** 用户打开 Provider 下拉框
-- **THEN** 显示选项：DeepSeek、Kimi、Moonshot、OpenAI、Custom
-- **AND** 选择后即时更新 Zustand Store 中的 `llmConfig.provider`
-
-#### Scenario: Provider 切换自动填充 Base URL
-- **WHEN** 用户切换 Provider 为非 custom 值
-- **THEN** Base URL 输入框自动填充对应默认值（deepseek→`https://api.deepseek.com/v1`，kimi/moonshot→`https://api.moonshot.cn/v1`，openai→`https://api.openai.com/v1`）
-- **AND** 用户仍可手动覆盖
-
-#### Scenario: Custom Provider
-- **WHEN** 用户选择 custom Provider
-- **THEN** Base URL 输入框清空，用户必须手动填写
-- **AND** Model 名称输入框不受限制
+#### Scenario: Base URL 输入
+- **WHEN** 用户在 Base URL 输入框中输入或修改
+- **THEN** 即时更新 Zustand Store 中的 `llmConfig.baseUrl`（或等价字段）
+- **AND** 无 Provider 切换自动填充；用户自行填写（如 `https://api.openai.com/v1` 或自定义）
 
 #### Scenario: Model 名称输入
 - **WHEN** 用户在 Model 输入框中输入模型名称
 - **THEN** 即时更新 Zustand Store 中的 `llmConfig.model`
+
+#### Scenario: 无 Provider 选择
+- **WHEN** 用户打开设置页
+- **THEN** 不显示 Provider 下拉框（DeepSeek/Kimi/Moonshot/OpenAI/Custom）
+- **AND** 调用 LLM 时统一使用 Store 的 baseUrl + apiKey（safeStorage）+ model
 
 ### Requirement: API Key 安全管理
 系统 SHALL 通过 Electron safeStorage IPC 管理 API Key，禁止存入 localStorage。**存储使用的 key 必须与 llm-handler 一致。**
@@ -61,27 +56,12 @@
 - **WHEN** 查看 Zustand Store 和 localStorage
 - **THEN** 不得包含 API Key 的明文或加密值
 
-### Requirement: Temperature 与 MaxTokens 滑块
-系统 SHALL 提供 Temperature 和 MaxTokens 滑块控件。
-
-#### Scenario: Temperature 滑块
-- **WHEN** 用户拖动 Temperature 滑块
-- **THEN** 值范围 0.0 ~ 1.0，步进 0.1，默认 0.7
-- **AND** 即时更新 Zustand Store 中的 `llmConfig.temperature`
-- **AND** 在滑块旁显示当前数值
-
-#### Scenario: MaxTokens 滑块
-- **WHEN** 用户拖动 MaxTokens 滑块
-- **THEN** 值范围 256 ~ 8192，步进 256，默认 2048
-- **AND** 即时更新 Zustand Store 中的 `llmConfig.maxTokens`
-- **AND** 在滑块旁显示当前数值
-
 ### Requirement: 测试连接
 系统 SHALL 提供"测试连接"按钮验证 LLM API Key 和端点有效性。
 
 #### Scenario: 测试成功
 - **WHEN** 用户点击"测试连接"
-- **THEN** 使用当前配置（从 Store 读取 provider/baseUrl/model，从 safeStorage 读取 apiKey）发送一条测试消息（maxTokens=1）
+- **THEN** 使用当前配置（从 Store 读取 baseUrl、model，从 safeStorage 读取 apiKey）发送一条测试消息（maxTokens=1）
 - **AND** 收到响应后显示绿色 ✅ "连接成功"
 
 #### Scenario: 测试失败
@@ -92,28 +72,16 @@
 - **WHEN** 测试请求正在进行
 - **THEN** 按钮显示 loading 状态，禁止重复点击
 
-### Requirement: 书架路径配置
-系统 SHALL 显示当前书架根路径并提供更换功能；**与 Store 字段名一致。**
+### Requirement: 书架路径显示与更换
+系统 SHALL 在设置页面显示当前书架根目录路径，并提供更换目录按钮。
 
-#### Scenario: 路径显示
-- **WHEN** 设置页面加载
-- **THEN** 显示 Zustand Store 中的 `bookshelfRootPath` 值
-- **AND** 如果为空，显示「未挂载」或「未设置」
+#### Scenario: 显示当前路径
+- **WHEN** 设置页面渲染
+- **THEN** 从 Zustand Store 读取 `bookshelfRootPath` 显示在只读输入框中
+- **AND** 如果为空显示"未设置"
 
-#### Scenario: 更换目录
-- **WHEN** 用户点击「更换目录」按钮
-- **THEN** 调用 `window.electronAPI.app.selectDirectory()` 打开系统文件选择对话框
-- **AND** 选择后更新 Zustand Store 中的 `bookshelfRootPath`（通过 setBookshelfRootPath）
-
-### Requirement: UI 设计规范
-系统 SHALL 遵循 Notion 极简风格，使用 shadcn/ui 组件。
-
-#### Scenario: 组件选用
-- **WHEN** 渲染设置页面
-- **THEN** 使用 shadcn/ui 的 Input、Select、Slider、Label、Separator、Button、Card 组件
-- **AND** 使用 lucide-react 图标
-
-#### Scenario: 布局风格
-- **WHEN** 排布设置项
-- **THEN** 分区使用 Card 或 Separator 隔开（LLM 配置区 / 书架配置区）
-- **AND** 遵循 slate 色系、Inter 字体、rounded-lg 圆角
+#### Scenario: 更换书架目录
+- **WHEN** 用户点击"更换目录"按钮
+- **THEN** 调用 `window.electronAPI.app.selectDirectory()` 弹出系统目录选择对话框
+- **AND** 用户选择目录后更新 Store 的 `bookshelfRootPath`
+- **AND** 用户取消选择时不修改 Store

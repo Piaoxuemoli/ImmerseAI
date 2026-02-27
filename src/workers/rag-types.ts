@@ -5,18 +5,18 @@
 
 // ---- 基础数据结构 ----
 
-/** EPUB 章节数据 */
-export interface Chapter {
-  title: string
+/** 文本段落数据 */
+export interface Paragraph {
+  index: number
   text: string
-  cfi: string
+  offset?: number
 }
 
 /** 语义检索结果 */
 export interface SearchResult {
   text: string
-  cfi: string
-  chapter: string
+  paragraphIndex: number
+  offset?: number
   score: number
 }
 
@@ -25,7 +25,7 @@ export interface SearchResult {
 export interface IngestMessage {
   type: 'ingest'
   bookId: string
-  chapters: Chapter[]
+  paragraphs: Paragraph[]
 }
 
 export interface SearchMessage {

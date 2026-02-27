@@ -10,7 +10,8 @@ export interface Book {
   isIndexed: boolean // 是否已完成向量化索引
   indexedAt?: number // 索引完成时间戳
   lastReadAt?: number // 上次阅读时间戳
-  lastReadCfi?: string // 上次阅读位置 (epub CFI)
+  lastReadParagraphIndex?: number // 上次阅读段落索引
+  lastReadOffset?: number // 上次阅读字符偏移（可选）
   chunkCount?: number // 索引片段总数
 }
 
@@ -53,9 +54,9 @@ export interface Message {
 }
 
 export interface Citation {
-  cfi: string // epub 定位符 (用于阅读器跳转)
+  paragraphIndex: number // 段落索引（用于阅读器跳转）
+  offset?: number // 可选字符偏移
   text: string // 原文片段
-  chapter: string // 所属章节名
   score: number // 相似度分数 (0-1)
 }
 
@@ -75,11 +76,8 @@ export interface ChatSession {
 // LLM 配置
 // ============================================
 export interface LlmConfig {
-  provider?: 'deepseek' | 'kimi' | 'moonshot' | 'openai' | 'custom'
-  baseUrl?: string // API 端点
+  baseUrl?: string // API 端点（OpenAI 兼容）
   model?: string
-  temperature?: number // 0.0 - 1.0
-  maxTokens?: number
   stream?: boolean // 是否启用流式响应，默认 true
 }
 
@@ -87,11 +85,8 @@ export interface LlmConfig {
  * Store 中持久化的 LLM 配置（不含 apiKey）
  */
 export interface StoreLlmConfig {
-  provider: 'deepseek' | 'kimi' | 'moonshot' | 'openai' | 'custom'
   baseUrl: string
   model: string
-  temperature: number // 0.0 - 1.0
-  maxTokens: number
 }
 
 // ============================================
@@ -99,12 +94,9 @@ export interface StoreLlmConfig {
 // ============================================
 export interface AppConfig {
   llm: {
-    provider: 'deepseek' | 'kimi' | 'moonshot' | 'openai' | 'custom'
     apiKey: string // 加密存储在 safeStorage 中
-    baseUrl: string // API 端点
+    baseUrl: string // API 端点（OpenAI 兼容）
     model: string // 模型名称
-    temperature: number // 0.0 - 1.0, 默认 0.7
-    maxTokens: number // 最大生成长度, 默认 2048
   }
   bookshelf: {
     rootPath: string // 书架根目录
@@ -123,7 +115,7 @@ export interface BookFile {
   name: string // 文件名
   path: string // 相对路径
   size: number // 文件大小 (bytes)
-  type: 'epub' | 'pdf' | 'txt' | 'unknown'
+  type: 'md' | 'txt' | 'unknown'
   lastModified: number // 最后修改时间
 }
 
@@ -168,7 +160,8 @@ export interface ImmerseStore {
   connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error'
 
   // === 阅读器状态 ===
-  currentCfi: string | null
+  currentParagraphIndex: number | null // 当前段落索引
+  currentOffset: number | null // 当前字符偏移（可选）
   readerMode: 'read' | 'chat'
 
   // === 角色状态 ===
@@ -190,7 +183,8 @@ export interface ImmerseStore {
   lastNotePath: string | null
 
   // === 引用跳转状态 ===
-  pendingCitationCfi: string | null
+  pendingCitationParagraphIndex: number | null
+  pendingCitationOffset: number | null
 
   // === Librarian Agent 状态 ===
   agentHistory: AgentOperation[] // 最多 10 条操作历史
@@ -200,7 +194,8 @@ export interface ImmerseStore {
   selectBook: (bookId: string) => void
   setConnectionStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void
 
-  setCurrentCfi: (cfi: string | null) => void
+  setCurrentParagraphIndex: (index: number | null) => void
+  setCurrentOffset: (offset: number | null) => void
   toggleMode: () => void
   setReaderMode: (mode: 'read' | 'chat') => void
 
@@ -219,7 +214,8 @@ export interface ImmerseStore {
   setLlmConfig: (config: Partial<StoreLlmConfig>) => void
   setBookshelfRootPath: (path: string) => void
 
-  setPendingCitationCfi: (cfi: string | null) => void
+  setPendingCitationParagraphIndex: (index: number | null) => void
+  setPendingCitationOffset: (offset: number | null) => void
 
   setLastNotePath: (path: string | null) => void
 

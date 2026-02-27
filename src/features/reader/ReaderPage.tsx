@@ -6,7 +6,7 @@ import { ChatInterface } from '@/features/chat/components/ChatInterface'
 import { PersonaConfigDialog } from '@/features/persona/components/PersonaConfigDialog'
 import { useReader } from './hooks/useReader'
 import { ReaderHeader } from './components/ReaderHeader'
-import { EpubViewer } from './components/EpubViewer'
+import { TextViewer } from './components/TextViewer'
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -29,13 +29,15 @@ export function ReaderPage() {
     : undefined
 
   const {
-    blobUrl,
+    content,
     loading,
     error,
-    location,
-    renditionRef,
-    handleLocationChanged,
+    paragraphIndex,
+    handleProgressChange,
   } = useReader(bookId)
+
+  const books = useStore((s) => s.books)
+  const book = books.find((b) => b.id === bookId)
 
   return (
     <div className="flex h-screen flex-col bg-slate-50">
@@ -64,13 +66,11 @@ export function ReaderPage() {
                 exit="exit"
                 transition={pageTransition}
               >
-                <EpubViewer
-                  blobUrl={loading ? null : blobUrl}
-                  location={location}
-                  onLocationChange={handleLocationChanged}
-                  onRendition={(rendition) => {
-                    renditionRef.current = rendition
-                  }}
+                <TextViewer
+                  content={loading ? '' : content}
+                  bookPath={book?.path ?? ''}
+                  initialParagraphIndex={paragraphIndex}
+                  onProgressChange={handleProgressChange}
                 />
               </motion.div>
             ) : (

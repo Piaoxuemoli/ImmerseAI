@@ -70,7 +70,7 @@ Providers:        DeepSeek / Kimi / Moonshot / OpenAI (user-configurable)
 SDK:              openai (official Node.js SDK)
 
 # ===== 电子书 =====
-EPUB Rendering:   react-reader (based on epub.js)
+Text/Markdown:    支持 .md 与 .txt 文件（不依赖 EPUB 或 react-reader）
 ```
 
 ### 2.2 禁止使用清单（红线）
@@ -331,7 +331,7 @@ interface BookshelfConnector {
   
   // 统一资源操作（屏蔽底层差异）
   listBooks(): Promise<BookFile[]>;
-  readBook(bookPath: string): Promise<ArrayBuffer>;
+  readBook(bookPath: string): Promise<string>;  // 返回文本内容（.md/.txt）
   moveBook(source: string, destination: string): Promise<void>;
   writeNote(path: string, content: string): Promise<void>;
 }
@@ -355,7 +355,7 @@ interface BookshelfConnector {
   MCP Client 握手成功 → 状态更新为 'connected'
         │
         ▼
-  自动调用 list_directory → 解析 .epub 文件 → 生成 Book[] 列表
+  自动调用 list_directory → 解析 .md/.txt 文件 → 生成 Book[] 列表
         │
         ▼
   渲染进程: Zustand Store 更新 → 网格视图渲染书籍封面
@@ -383,16 +383,16 @@ interface BookshelfConnector {
 Step 1: Lazy Load (懒加载)
   ┌─────────────────────────────────────┐
   │ 触发: 用户首次点击某本书              │
-  │ 动作: MCP read_file → EPUB ArrayBuffer│
+  │ 动作: MCP read_file → 文本内容（.md/.txt）│
   │ 传递: Renderer → postMessage → Worker │
   └─────────────────────────────────────┘
               │
               ▼
 Step 2: Parsing (解析)
   ┌─────────────────────────────────────┐
-  │ 工具: epub.js                        │
-  │ 输出: Chapter[] (纯文本, 保留 CFI)    │
-  │ CFI: epub 内容定位符，用于跳转         │
+  │ 工具: 文本/Markdown 解析              │
+  │ 输出: Paragraph[] (纯文本, 保留段落索引)│
+  │ 定位: 段落索引或字符偏移              │
   └─────────────────────────────────────┘
               │
               ▼
@@ -419,7 +419,7 @@ Step 4: Embedding (向量化)
 Step 5: Indexing (索引存储)
   ┌─────────────────────────────────────┐
   │ 引擎: Orama                          │
-  │ Schema: { text, vector, cfi, chapter }│
+  │ Schema: { text, vector, paragraphIndex, offset }│
   │ 持久化: IndexedDB (Key: book_{id})    │
   └─────────────────────────────────────┘
 ```
@@ -429,7 +429,7 @@ Step 5: Indexing (索引存储)
 ```typescript
 // Worker 接收的消息类型
 type WorkerMessage =
-  | { type: 'ingest'; bookId: string; chapters: Chapter[] }
+  | { type: 'ingest'; bookId: string; paragraphs: Paragraph[] }
   | { type: 'search'; bookId: string; query: string; topK?: number }
   | { type: 'status'; bookId: string };
 
@@ -443,8 +443,8 @@ type WorkerResponse =
 
 interface SearchResult {
   text: string;           // 匹配的文本片段
-  cfi: string;            // epub 定位符（用于跳转）
-  chapter: string;        // 所属章节名
+  paragraphIndex: number; // 段落索引（用于跳转）
+  offset?: number;        // 可选字符偏移
   score: number;          // 相似度分数 (0-1)
 }
 ```
@@ -561,7 +561,7 @@ const IMMERSIVE_SYSTEM_PROMPT = `
 | 对话触发         | Agent 动作              | MCP Tool         |
 | ---------------- | ----------------------- | ---------------- |
 | "帮我记个笔记"   | 生成 Markdown 写入本地  | `write_file`   |
-| "这段话出自哪里" | RAG 检索 + 返回 CFI     | 内部 Worker 调用 |
+| "这段话出自哪里" | RAG 检索 + 返回段落定位 | 内部 Worker 调用 |
 | "总结一下这章"   | RAG 检索整章 + LLM 总结 | 内部流程         |
 
 ---
@@ -586,7 +586,8 @@ interface Book {
   isIndexed: boolean;        // 是否已完成向量化索引
   indexedAt?: number;        // 索引完成时间戳
   lastReadAt?: number;       // 上次阅读时间戳
-  lastReadCfi?: string;      // 上次阅读位置 (epub CFI)
+  lastReadParagraphIndex?: number;  // 上次阅读段落索引
+  lastReadOffset?: number;   // 上次阅读字符偏移（可选）
   chunkCount?: number;       // 索引片段总数
 }
 
@@ -622,9 +623,9 @@ interface Message {
 }
 
 interface Citation {
-  cfi: string;               // epub 定位符 (用于阅读器跳转)
+  paragraphIndex: number;    // 段落索引（用于阅读器跳转）
+  offset?: number;           // 可选字符偏移
   text: string;              // 原文片段
-  chapter: string;           // 所属章节名
   score: number;             // 相似度分数 (0-1)
 }
 
@@ -645,12 +646,9 @@ interface ChatSession {
 // ============================================
 interface AppConfig {
   llm: {
-    provider: 'deepseek' | 'kimi' | 'moonshot' | 'openai' | 'custom';
     apiKey: string;          // 加密存储在 safeStorage 中
-    baseUrl: string;         // API 端点
+    baseUrl: string;         // API 端点（OpenAI 兼容）
     model: string;           // 模型名称
-    temperature: number;     // 0.0 - 1.0, 默认 0.7
-    maxTokens: number;       // 最大生成长度, 默认 2048
   };
   bookshelf: {
     rootPath: string;        // 书架根目录
@@ -669,7 +667,7 @@ interface BookFile {
   name: string;              // 文件名
   path: string;              // 相对路径
   size: number;              // 文件大小 (bytes)
-  type: 'epub' | 'pdf' | 'txt' | 'unknown';
+  type: 'md' | 'txt' | 'unknown';
   lastModified: number;      // 最后修改时间
 }
 ```
@@ -684,7 +682,8 @@ interface ImmerseStore {
   connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
   
   // === 阅读器状态 ===
-  currentCfi: string | null;
+  currentParagraphIndex: number | null;  // 当前段落索引
+  currentOffset: number | null;          // 当前字符偏移（可选）
   readerMode: 'read' | 'chat';
   
   // === 角色状态 ===
@@ -746,7 +745,7 @@ Shadows:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  ◉ ImmerseAI                    [⚙️] [📥 Import] [🔗 GitHub] │  ← Header
+│  ◉ ImmerseAI                    [⚙️] [📥 Import]          │  ← Header
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐    │
@@ -759,7 +758,7 @@ Shadows:
 │  刘慈欣    余华      马尔克斯   曹雪芹     奥威尔     │
 │                                                          │
 │  ┌──────┐  ┌──────┐                                     │
-│  │      │  │  +   │  ← Empty state: "拖入 EPUB 文件"    │
+│  │      │  │  +   │  ← Empty state: "添加 .md / .txt 文件"│
 │  │ Cover│  │ Add  │                                     │
 │  │      │  │      │                                     │
 │  └──────┘  └──────┘                                     │
@@ -810,7 +809,7 @@ Shadows:
 │  │  │ 🤖 章北海:                                   │  │  │
 │  │  │ "当我第一次理解黑暗森林法则时，我感到的         │  │  │
 │  │  │  不是恐惧，而是一种冷静的确认..."              │  │  │
-│  │  │  📎 引用: 第23章 "黑暗森林" [点击跳转]        │  │  │
+│  │  │  📎 引用: 第23段 [点击跳转]                  │  │  │
 │  │  └─────────────────────────────────────────────┘  │  │
 │  │                                                    │  │
 │  └────────────────────────────────────────────────────┘  │
@@ -827,11 +826,11 @@ Shadows:
 <ReaderPage>
   <ReaderHeader />                    // Back + Title + Persona + Mode Toggle
   <AnimatePresence>                   // framer-motion 过渡
-    {mode === 'read' && <EpubReader />}    // react-reader 渲染区
-    {mode === 'chat' && <ChatInterface />} // 对话界面
+    {mode === 'read' && <TextViewer />}      // 文本/Markdown 渲染区
+    {mode === 'chat' && <ChatInterface />}   // 对话界面
   </AnimatePresence>
-  {mode === 'chat' && <ChatInput />}       // 聊天输入框
-  <PersonaConfigDialog />                   // 角色配置弹窗 (shadcn Dialog)
+  {mode === 'chat' && <ChatInput />}         // 聊天输入框
+  <PersonaConfigDialog />                     // 角色配置弹窗 (shadcn Dialog)
 </ReaderPage>
 ```
 
@@ -902,7 +901,7 @@ immerseai/
 │   │   │
 │   │   ├── reader/                    # 阅读功能
 │   │   │   ├── components/
-│   │   │   │   ├── EpubViewer.tsx
+│   │   │   │   ├── TextViewer.tsx
 │   │   │   │   ├── ReaderHeader.tsx
 │   │   │   │   └── ModeToggle.tsx
 │   │   │   ├── hooks/
@@ -1009,7 +1008,7 @@ Phase 1 ──► Phase 2 ──► Phase 3 ──► Phase 4 ──► Phase 5
 | 2.2  | 实现 IPC → MCP 桥接     | IPC handlers for MCP             | 渲染进程能调用 `listFiles` / `readFile` |
 | 2.3  | 开发 TopBar 组件         | Logo + 操作按钮                  | UI 渲染正确                                 |
 | 2.4  | 开发 BookGrid + BookCard | 书籍网格展示                     | 2:3 卡片、hover 动效                        |
-| 2.5  | 实现"挂载书架"流程       | 选择文件夹 → MCP 连接 → 扫描   | 选择目录后自动展示 .epub 文件               |
+| 2.5  | 实现"挂载书架"流程       | 选择文件夹 → MCP 连接 → 扫描   | 选择目录后自动展示 .md/.txt 文件            |
 | 2.6  | 开发 LibrarianBar        | 底部聊天输入框                   | 固定在底部，不随滚动                        |
 | 2.7  | 实现点击书籍导航         | 路由跳转到 `/reader/:id`       | 点击卡片进入阅读页                          |
 
@@ -1058,14 +1057,14 @@ McpManager 必须是单例模式，支持 connect/disconnect/reconnect。
 
 | 序号 | 任务                       | 产出                                  | 验收标准                         |
 | ---- | -------------------------- | ------------------------------------- | -------------------------------- |
-| 4.1  | 实现 LLM API Handler       | `electron/main/llm-handler.ts`      | 能调用 DeepSeek API 并流式返回   |
+| 4.1  | 实现 LLM API Handler       | `electron/main/llm-handler.ts`      | 能调用 LLM API 并流式返回（OpenAI 兼容）|
 | 4.2  | 实现 API Key 安全存储      | `electron/main/safe-storage.ts`     | Key 加密存储，不暴露给 Renderer  |
 | 4.3  | 开发 ChatInterface 组件    | 消息列表 + 气泡                       | ChatGPT 风格，支持 Markdown 渲染 |
 | 4.4  | 实现流式打字机效果         | SSE 流式接收 → 逐字显示              | 用户感知实时生成                 |
 | 4.5  | 开发 PersonaConfigDialog   | 角色配置弹窗                          | 输入名字 → 一键生成 → 确认保存 |
 | 4.6  | 实现 PersonaGenerator 服务 | RAG Search → LLM Summarize → Prompt | 自动生成角色 System Prompt       |
 | 4.7  | 实现阅读/对话模式切换      | framer-motion 过渡动画                | 丝滑切换，无闪烁                 |
-| 4.8  | 开发 EpubViewer 组件       | react-reader 集成                     | 能渲染 EPUB 并记住进度           |
+| 4.8  | 开发 TextViewer 组件       | 文本/Markdown 渲染                    | 能渲染 .md/.txt 并记住进度（段落/偏移）|
 
 **AI Prompt**:
 
@@ -1086,10 +1085,10 @@ McpManager 必须是单例模式，支持 connect/disconnect/reconnect。
 
 | 序号 | 任务                   | 产出                              | 验收标准                                           |
 | ---- | ---------------------- | --------------------------------- | -------------------------------------------------- |
-| 5.1  | 实现引用跳转           | 点击 Citation → 阅读器跳转到 CFI | 对话中的引用可点击，自动切换到阅读模式并滚动到原文 |
+| 5.1  | 实现引用跳转           | 点击 Citation → 阅读器跳转到段落 | 对话中的引用可点击，自动切换到阅读模式并滚动到原文 |
 | 5.2  | 实现笔记功能           | Chat 调用 MCP write_file          | 用户说"记笔记" → Agent 写入本地 Markdown          |
 | 5.3  | Librarian Agent 智能化 | 自然语言 → MCP 工具调用          | "整理书架" → Agent 自动分类移动文件               |
-| 5.4  | 设置页面               | API Key 配置、模型选择            | 用户能配置 LLM provider 和 Key                     |
+| 5.4  | 设置页面               | API Key 配置、模型选择            | 用户能配置 LLM BaseURL、Key、Model（OpenAI 兼容）|
 | 5.5  | 错误处理 & Edge Cases  | 全局错误边界                      | 网络断开、模型加载失败、文件不存在等场景           |
 | 5.6  | 性能优化               | 懒加载、缓存优化                  | 大书索引不卡顿，对话响应 < 2s                      |
 | 5.7  | 打包测试               | electron-builder                  | 能生成可安装的 .dmg / .exe                         |
@@ -1102,8 +1101,8 @@ McpManager 必须是单例模式，支持 connect/disconnect/reconnect。
 为每个 citation 渲染一个可点击的 CitationBadge 组件。
 点击后：
 1. 切换 readerMode 为 'read'
-2. 调用 EpubViewer 的 goToCfi(citation.cfi) 方法
-3. 高亮对应文本片段
+2. 调用 TextViewer 的 goToParagraph(citation.paragraphIndex) 方法
+3. 可选高亮对应文本片段
 使用 framer-motion 实现从 chat 到 read 模式的平滑过渡。
 ```
 
@@ -1160,16 +1159,16 @@ McpManager 必须是单例模式，支持 connect/disconnect/reconnect。
 1. 引入 @xenova/transformers 的 pipeline 函数
 2. 引入 @orama/orama 创建向量数据库
 3. 模型加载：单例模式，使用 all-MiniLM-L6-v2 quantized
-4. ingest(bookId, chapters)：
+4. ingest(bookId, paragraphs)：
    - RecursiveCharacterTextSplitter(500, 50)
    - 批量向量化（batch size: 32）
-   - 存入 Orama（schema: text, vector[384], cfi, chapter）
+   - 存入 Orama（schema: text, vector[384], paragraphIndex, offset）
    - 每处理 10% 发送 progress 消息
    - 完成后持久化到 IndexedDB
 5. search(bookId, query, topK=5)：
    - 向量化 query
    - Orama 向量搜索
-   - 返回 { text, cfi, chapter, score }[]
+   - 返回 { text, paragraphIndex, offset, score }[]
 6. 启动时检查 IndexedDB 缓存
 ```
 
@@ -1330,7 +1329,6 @@ WIP                            # 不应提交 WIP
 | --------- | ------------------------------ | ------------------------------------- |
 | MCP       | Model Context Protocol         | Anthropic 开发的 Agent 工具调用协议   |
 | RAG       | Retrieval-Augmented Generation | 检索增强生成，用外部知识补充 LLM      |
-| CFI       | Canonical Fragment Identifier  | EPUB 内容定位标准，精确到段落/句子    |
 | Embedding | 向量嵌入                       | 将文本转换为高维数值向量的过程        |
 | Orama     | -                              | 高性能纯 JavaScript 全文/向量搜索引擎 |
 | Sidecar   | 边车模式                       | 子进程伴随主进程运行的架构模式        |

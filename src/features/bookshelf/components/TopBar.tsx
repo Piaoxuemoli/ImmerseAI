@@ -1,13 +1,12 @@
-import { Settings, Download, Github } from 'lucide-react'
+import { Settings, Download } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 
 interface TopBarProps {
   onSettingsClick?: () => void
   onImportClick?: () => void
-  onGitHubClick?: () => void
 }
 
-export function TopBar({ onSettingsClick, onImportClick, onGitHubClick }: TopBarProps) {
+export function TopBar({ onSettingsClick, onImportClick }: TopBarProps) {
   return (
     <header className="flex items-center justify-between border-b border-slate-200 px-6 py-3">
       {/* Logo */}
@@ -20,9 +19,6 @@ export function TopBar({ onSettingsClick, onImportClick, onGitHubClick }: TopBar
         </Button>
         <Button variant="ghost" size="icon" onClick={onImportClick}>
           <Download className="h-5 w-5 text-slate-500" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onGitHubClick}>
-          <Github className="h-5 w-5 text-slate-500" />
         </Button>
       </div>
     </header>

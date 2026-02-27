@@ -38,7 +38,8 @@ export const useStore = create<ImmerseStore>()(
       connectionStatus: 'disconnected',
 
       // === 阅读器状态 ===
-      currentCfi: null,
+      currentParagraphIndex: null,
+      currentOffset: null,
       readerMode: 'read',
 
       // === 角色状态 ===
@@ -54,12 +55,8 @@ export const useStore = create<ImmerseStore>()(
 
       // === 设置状态 ===
       llmConfig: {
-
-        provider: 'deepseek',
-        baseUrl: 'https://api.deepseek.com/v1',
-        model: 'deepseek-chat',
-        temperature: 0.7,
-        maxTokens: 2048,
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4',
       },
       bookshelfRootPath: '',
 
@@ -67,7 +64,8 @@ export const useStore = create<ImmerseStore>()(
       lastNotePath: null,
 
       // === 引用跳转状态 ===
-      pendingCitationCfi: null,
+      pendingCitationParagraphIndex: null,
+      pendingCitationOffset: null,
 
       // === Librarian Agent 状态 ===
       agentHistory: [],
@@ -78,7 +76,8 @@ export const useStore = create<ImmerseStore>()(
       setConnectionStatus: (status) => set({ connectionStatus: status }),
 
       // === 阅读器 Actions ===
-      setCurrentCfi: (cfi) => set({ currentCfi: cfi }),
+      setCurrentParagraphIndex: (index) => set({ currentParagraphIndex: index }),
+      setCurrentOffset: (offset) => set({ currentOffset: offset }),
       toggleMode: () =>
         set((state) => ({
           readerMode: state.readerMode === 'read' ? 'chat' : 'read',
@@ -147,7 +146,8 @@ export const useStore = create<ImmerseStore>()(
       setBookshelfRootPath: (path) => set({ bookshelfRootPath: path }),
 
       // === 引用跳转 Actions ===
-      setPendingCitationCfi: (cfi) => set({ pendingCitationCfi: cfi }),
+      setPendingCitationParagraphIndex: (index) => set({ pendingCitationParagraphIndex: index }),
+      setPendingCitationOffset: (offset) => set({ pendingCitationOffset: offset }),
 
       // === 笔记 Actions ===
       setLastNotePath: (path) => set({ lastNotePath: path }),

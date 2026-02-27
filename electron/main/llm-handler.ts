@@ -1,7 +1,7 @@
 /**
  * LLM Handler - OpenAI Compatible 流式 Chat Completion
  *
- * 支持 provider 路由：DeepSeek / Kimi / Moonshot / OpenAI / Custom
+ * 统一 OpenAI 兼容单一入口，不区分 provider
  * 使用 openai SDK 单例 client，configHash 脏检测按需重建
  */
 
@@ -14,19 +14,10 @@ import { getSafeStorageValue } from './safe-storage'
 // 常量定义
 // ========================================
 
-/** Provider 名称到 API 端点的映射表 */
-const PROVIDER_BASE_URLS: Record<string, string> = {
-  deepseek: 'https://api.deepseek.com',
-  kimi: 'https://api.moonshot.cn/v1',
-  moonshot: 'https://api.moonshot.cn/v1',
-  openai: 'https://api.openai.com/v1',
-}
-
 /** 默认 LLM 配置 */
-export const DEFAULT_LLM_CONFIG: Required<Pick<LlmConfig, 'temperature' | 'maxTokens' | 'model'>> = {
+export const DEFAULT_LLM_CONFIG = {
   temperature: 0.7,
   maxTokens: 2048,
-  model: 'deepseek-chat',
 }
 
 // ========================================
@@ -48,29 +39,16 @@ let cachedClient: { client: OpenAI; configHash: string } | null = null
 /**
  * 计算配置的 hash 用于脏检测
  */
-function computeConfigHash(apiKey: string, provider: string, baseUrl: string): string {
-  return `${provider}:${baseUrl}:${apiKey.slice(0, 8)}`
-}
-
-/**
- * 解析 provider 对应的 baseUrl
- */
-function resolveBaseUrl(provider: string, customBaseUrl?: string): string {
-  if (provider === 'custom') {
-    if (!customBaseUrl) {
-      throw new Error('Custom provider requires a baseUrl')
-    }
-    return customBaseUrl
-  }
-  return PROVIDER_BASE_URLS[provider] || PROVIDER_BASE_URLS['deepseek']
+function computeConfigHash(apiKey: string, baseUrl: string): string {
+  return `${baseUrl}:${apiKey.slice(0, 8)}`
 }
 
 /**
  * 获取或创建 OpenAI client
  * 配置变更时自动重建
  */
-function getOrCreateClient(apiKey: string, provider: string, baseUrl: string): OpenAI {
-  const hash = computeConfigHash(apiKey, provider, baseUrl)
+function getOrCreateClient(apiKey: string, baseUrl: string): OpenAI {
+  const hash = computeConfigHash(apiKey, baseUrl)
 
   if (cachedClient && cachedClient.configHash === hash) {
     return cachedClient.client
@@ -180,8 +158,10 @@ export async function handleLlmChat(
   config: LlmConfig
 ): Promise<void> {
   // 合并默认配置
-  const mergedConfig = { ...DEFAULT_LLM_CONFIG, ...config }
-  const provider = mergedConfig.provider || 'deepseek'
+  const temperature = DEFAULT_LLM_CONFIG.temperature
+  const maxTokens = DEFAULT_LLM_CONFIG.maxTokens
+  const baseUrl = config.baseUrl || 'https://api.openai.com/v1'
+  const model = config.model || 'gpt-4'
 
   // 获取 API Key
   const apiKey = getSafeStorageValue('llm_api_key')
@@ -197,17 +177,8 @@ export async function handleLlmChat(
   }
 
   try {
-    // 解析 baseUrl（custom provider 从 safeStorage 读取）
-    let baseUrl: string
-    if (provider === 'custom') {
-      const customBaseUrl = getSafeStorageValue('llm-base-url')
-      baseUrl = resolveBaseUrl(provider, customBaseUrl)
-    } else {
-      baseUrl = resolveBaseUrl(provider)
-    }
-
     // 获取或创建 client
-    const client = getOrCreateClient(apiKey, provider, baseUrl)
+    const client = getOrCreateClient(apiKey, baseUrl)
 
     // 转换消息格式为 OpenAI SDK 格式
     const openaiMessages = messages.map((msg) => ({
@@ -217,11 +188,11 @@ export async function handleLlmChat(
 
     // 流式调用
     const stream = await client.chat.completions.create({
-      model: mergedConfig.model,
+      model,
       messages: openaiMessages,
       stream: true,
-      temperature: mergedConfig.temperature,
-      max_tokens: mergedConfig.maxTokens,
+      temperature,
+      max_tokens: maxTokens,
     })
 
     // 逐 chunk 发送到渲染进程

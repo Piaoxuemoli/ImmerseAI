@@ -4,7 +4,6 @@ import { ArrowLeft, Loader2, CheckCircle2, XCircle, FolderOpen } from 'lucide-re
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
-import { Slider } from '@/shared/components/ui/slider'
 import { Separator } from '@/shared/components/ui/separator'
 import {
   Card,
@@ -13,34 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/shared/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select'
 import { useStore } from '@/shared/store'
-import type { StoreLlmConfig } from '@/shared/types'
-
-// ============================================
-// Provider → Base URL 默认映射
-// ============================================
-const PROVIDER_BASE_URLS: Record<StoreLlmConfig['provider'], string> = {
-  deepseek: 'https://api.deepseek.com/v1',
-  kimi: 'https://api.moonshot.cn/v1',
-  moonshot: 'https://api.moonshot.cn/v1',
-  openai: 'https://api.openai.com/v1',
-  custom: '',
-}
-
-const PROVIDER_LABELS: Record<StoreLlmConfig['provider'], string> = {
-  deepseek: 'DeepSeek',
-  kimi: 'Kimi',
-  moonshot: 'Moonshot',
-  openai: 'OpenAI',
-  custom: 'Custom',
-}
 
 /**
  * 掩码显示 API Key：保留前 3 位和后 4 位
@@ -94,19 +66,6 @@ export function SettingsPage() {
   }, [])
 
   // ============================================
-  // Provider 切换处理
-  // ============================================
-  const handleProviderChange = useCallback(
-    (provider: StoreLlmConfig['provider']) => {
-      setLlmConfig({
-        provider,
-        baseUrl: PROVIDER_BASE_URLS[provider],
-      })
-    },
-    [setLlmConfig]
-  )
-
-  // ============================================
   // API Key 保存
   // ============================================
   const handleSaveApiKey = useCallback(async () => {
@@ -134,11 +93,8 @@ export function SettingsPage() {
     try {
       const testMessages = [{ id: 'test', role: 'user' as const, content: 'ping', timestamp: Date.now() }]
       const testConfig = {
-        provider: llmConfig.provider,
         baseUrl: llmConfig.baseUrl,
         model: llmConfig.model,
-        temperature: 0,
-        maxTokens: 1,
         stream: true,
       }
 
@@ -207,28 +163,6 @@ export function SettingsPage() {
               <CardDescription>配置 AI 模型的连接参数</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              {/* Provider */}
-              <div className="space-y-2">
-                <Label>Provider</Label>
-                <Select
-                  value={llmConfig.provider}
-                  onValueChange={(v) =>
-                    handleProviderChange(v as StoreLlmConfig['provider'])
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PROVIDER_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               {/* API Key */}
               <div className="space-y-2">
                 <Label>API Key</Label>
@@ -265,8 +199,11 @@ export function SettingsPage() {
                 <Input
                   value={llmConfig.baseUrl}
                   onChange={(e) => setLlmConfig({ baseUrl: e.target.value })}
-                  placeholder="https://api.example.com/v1"
+                  placeholder="https://api.openai.com/v1"
                 />
+                <p className="text-xs text-slate-400">
+                  OpenAI 兼容端点
+                </p>
               </div>
 
               {/* Model */}
@@ -275,52 +212,8 @@ export function SettingsPage() {
                 <Input
                   value={llmConfig.model}
                   onChange={(e) => setLlmConfig({ model: e.target.value })}
-                  placeholder="模型名称"
+                  placeholder="gpt-4 / deepseek-chat / ..."
                 />
-              </div>
-
-              <Separator />
-
-              {/* Temperature */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Temperature</Label>
-                  <span className="text-sm text-slate-500">
-                    {llmConfig.temperature.toFixed(1)}
-                  </span>
-                </div>
-                <Slider
-                  value={[llmConfig.temperature]}
-                  onValueChange={([v]) => { if (v !== undefined) setLlmConfig({ temperature: v }) }}
-                  min={0}
-                  max={1}
-                  step={0.1}
-                  className="w-full"
-                />
-                <p className="text-xs text-slate-400">
-                  越低越确定性，越高越有创造力
-                </p>
-              </div>
-
-              {/* MaxTokens */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Max Tokens</Label>
-                  <span className="text-sm text-slate-500">
-                    {llmConfig.maxTokens}
-                  </span>
-                </div>
-                <Slider
-                  value={[llmConfig.maxTokens]}
-                  onValueChange={([v]) => { if (v !== undefined) setLlmConfig({ maxTokens: v }) }}
-                  min={256}
-                  max={8192}
-                  step={256}
-                  className="w-full"
-                />
-                <p className="text-xs text-slate-400">
-                  单次生成的最大 Token 数量
-                </p>
               </div>
 
               <Separator />

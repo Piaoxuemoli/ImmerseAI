@@ -10,7 +10,8 @@ export function ChatInterface() {
 
   const activePersonaId = useStore((s) => s.activePersonaId)
   const personas = useStore((s) => s.personas)
-  const setPendingCitationCfi = useStore((s) => s.setPendingCitationCfi)
+  const setPendingCitationParagraphIndex = useStore((s) => s.setPendingCitationParagraphIndex)
+  const setPendingCitationOffset = useStore((s) => s.setPendingCitationOffset)
   const setReaderMode = useStore((s) => s.setReaderMode)
   const activePersona = activePersonaId
     ? personas.find((p) => p.id === activePersonaId)
@@ -18,14 +19,15 @@ export function ChatInterface() {
   const personaName = activePersona?.name
 
   /**
-   * 引用跳转回调：设置 pendingCitationCfi 并切换到阅读模式
+   * 引用跳转回调：设置 pendingCitationParagraphIndex 并切换到阅读模式
    */
   const handleCitationClick = useCallback(
-    (cfi: string) => {
-      setPendingCitationCfi(cfi)
+    (paragraphIndex: number, offset?: number) => {
+      setPendingCitationParagraphIndex(paragraphIndex)
+      setPendingCitationOffset(offset ?? null)
       setReaderMode('read')
     },
-    [setPendingCitationCfi, setReaderMode],
+    [setPendingCitationParagraphIndex, setPendingCitationOffset, setReaderMode],
   )
 
   // 底部锚点引用

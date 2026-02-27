@@ -19,9 +19,10 @@ import type { Book, BookFile } from '@/shared/types'
  * - author: '未知作者'
  * - path: 原路径
  * - isIndexed: false
+ * - 仅处理 .md / .txt 文件
  */
 function bookFileToBook(file: BookFile): Book {
-  const titleWithoutExt = file.name.replace(/\.epub$/i, '')
+  const titleWithoutExt = file.name.replace(/\.(md|txt)$/i, '')
   return {
     id: uuidv4(),
     title: titleWithoutExt,
@@ -72,9 +73,9 @@ export function useBookshelf() {
       // 4. 获取文件列表
       const files: BookFile[] = await window.electronAPI.mcp.listFiles(selectedPath)
 
-      // 5. 过滤 .epub 文件并转换为 Book
-      const epubFiles = files.filter((f) => f.type === 'epub')
-      const newBooks = epubFiles.map(bookFileToBook)
+      // 5. 过滤 .md/.txt 文件并转换为 Book
+      const textFiles = files.filter((f) => f.type === 'md' || f.type === 'txt' || f.path.endsWith('.md') || f.path.endsWith('.txt'))
+      const newBooks = textFiles.map(bookFileToBook)
 
       // 6. 更新 Store
       setBooks(newBooks)
@@ -105,8 +106,8 @@ export function useBookshelf() {
 
     try {
       const files: BookFile[] = await window.electronAPI.mcp.listFiles(bookshelfRootPath)
-      const epubFiles = files.filter((f) => f.type === 'epub')
-      const newBooks = epubFiles.map(bookFileToBook)
+      const textFiles = files.filter((f) => f.type === 'md' || f.type === 'txt' || f.path.endsWith('.md') || f.path.endsWith('.txt'))
+      const newBooks = textFiles.map(bookFileToBook)
       setBooks(newBooks)
     } catch (err) {
       console.error('[useBookshelf] refreshBooks error:', err)

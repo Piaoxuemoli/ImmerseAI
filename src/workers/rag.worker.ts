@@ -8,7 +8,7 @@ import { create, insert, search } from '@orama/orama'
 import type { AnyOrama } from '@orama/orama'
 import { persist, restore } from '@orama/plugin-data-persistence'
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter'
-import type { WorkerMessage, WorkerResponse, Chapter, SearchResult } from './rag-types'
+import type { WorkerMessage, WorkerResponse, Paragraph, SearchResult } from './rag-types'
 
 // 配置：允许本地模型缓存
 env.allowLocalModels = true
@@ -125,8 +125,8 @@ async function createBookIndex(): Promise<OramaDB> {
   return create({
     schema: {
       text: 'string' as const,
-      chapter: 'string' as const,
-      cfi: 'string' as const,
+      paragraphIndex: 'number' as const,
+      offset: 'number' as const,
       embedding: 'vector[384]' as const,
     },
   })
@@ -148,25 +148,27 @@ async function restoreBookIndex(bookId: string): Promise<boolean> {
 
 // ---- 文本切分 ----
 
-async function splitChapters(
-  chapters: Chapter[],
-): Promise<Array<{ text: string; chapter: string; cfi: string }>> {
+async function splitParagraphs(
+  paragraphs: Paragraph[],
+): Promise<Array<{ text: string; paragraphIndex: number; offset: number }>> {
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: 500,
     chunkOverlap: 50,
     separators: ['\n\n', '\n', '。', ' '],
   })
 
-  const allChunks: Array<{ text: string; chapter: string; cfi: string }> = []
+  const allChunks: Array<{ text: string; paragraphIndex: number; offset: number }> = []
 
-  for (const ch of chapters) {
-    const texts = await splitter.splitText(ch.text)
+  for (const para of paragraphs) {
+    const texts = await splitter.splitText(para.text)
+    let currentOffset = 0
     for (const text of texts) {
       allChunks.push({
         text,
-        chapter: ch.title,
-        cfi: ch.cfi,
+        paragraphIndex: para.index,
+        offset: currentOffset,
       })
+      currentOffset += text.length
     }
   }
 
@@ -175,15 +177,15 @@ async function splitChapters(
 
 // ---- Ingest Pipeline ----
 
-async function handleIngest(bookId: string, chapters: Chapter[]): Promise<void> {
-  // 空章节快速路径
-  if (chapters.length === 0) {
+async function handleIngest(bookId: string, paragraphs: Paragraph[]): Promise<void> {
+  // 空段落快速路径
+  if (paragraphs.length === 0) {
     reply({ type: 'ingest:complete', bookId, chunkCount: 0 })
     return
   }
 
   // Step 1: 切分
-  const chunks = await splitChapters(chapters)
+  const chunks = await splitParagraphs(paragraphs)
 
   // Step 2: 创建新索引（覆盖旧索引）
   if (bookIndexes.has(bookId)) {
@@ -214,8 +216,8 @@ async function handleIngest(bookId: string, chapters: Chapter[]): Promise<void> 
       if (chunk && vector) {
         await insert(db, {
           text: chunk.text,
-          chapter: chunk.chapter,
-          cfi: chunk.cfi,
+          paragraphIndex: chunk.paragraphIndex,
+          offset: chunk.offset,
           embedding: vector,
         })
       }
@@ -278,8 +280,8 @@ async function handleSearch(bookId: string, query: string, topK: number, request
   // Step 4: 结果映射为 SearchResult[]
   const results: SearchResult[] = searchResult.hits.map((hit) => ({
     text: hit.document.text as string,
-    cfi: hit.document.cfi as string,
-    chapter: hit.document.chapter as string,
+    paragraphIndex: hit.document.paragraphIndex as number,
+    offset: (hit.document.offset as number) || 0,
     score: hit.score,
   }))
 
@@ -319,7 +321,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       }
 
       case 'ingest': {
-        await handleIngest(message.bookId, message.chapters)
+        await handleIngest(message.bookId, message.paragraphs)
         break
       }
 

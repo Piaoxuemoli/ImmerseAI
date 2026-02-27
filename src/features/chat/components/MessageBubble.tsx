@@ -7,7 +7,7 @@ import type { Message } from '@/shared/types'
 interface MessageBubbleProps {
   message: Message
   personaName?: string | undefined
-  onCitationClick?: (cfi: string) => void
+  onCitationClick?: (paragraphIndex: number, offset?: number) => void
 }
 
 export function MessageBubble({ message, personaName, onCitationClick }: MessageBubbleProps) {
@@ -98,7 +98,7 @@ export function MessageBubble({ message, personaName, onCitationClick }: Message
           <div className="flex flex-wrap gap-1">
             {message.citations.map((citation, index) => {
               const handleClick = onCitationClick
-                ? () => onCitationClick(citation.cfi)
+                ? () => onCitationClick(citation.paragraphIndex, citation.offset)
                 : undefined
 
               return (

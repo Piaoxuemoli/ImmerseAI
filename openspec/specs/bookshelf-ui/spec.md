@@ -20,12 +20,12 @@ BookshelfPage SHALL 采用垂直三段式布局：顶部 TopBar、中间可滚�
 - **AND** books 与 connectionStatus 仅从 hook/store 读取，不使用本地 mock 数组
 
 ### Requirement: TopBar 组件
-TopBar SHALL 渲染为水平导航栏，左侧显示 "ImmerseAI" 文字 logo（font-semibold, slate-900），右侧显示三个图标按钮：Settings、Import、GitHub。图标按钮 SHALL 使用 lucide-react 和 shadcn/ui Button。**TopBar 必须接收回调 props 并执行导航或挂载。**
+TopBar SHALL 渲染为水平导航栏，左侧显示 "ImmerseAI" 文字 logo（font-semibold, slate-900），右侧显示两个图标按钮：Settings、Import。**不显示 GitHub 图标。**
 
 #### Scenario: 渲染 TopBar 元素
 - **WHEN** BookshelfPage 加载完成
 - **THEN** 顶部显示 "ImmerseAI" 文字 logo
-- **AND** 右侧依次显示 Settings、Import、GitHub 三个图标按钮
+- **AND** 右侧依次显示 Settings、Import 两个图标按钮（无 GitHub 按钮）
 - **AND** 图标颜色为 slate-500
 
 #### Scenario: Settings 按钮点击
@@ -35,10 +35,6 @@ TopBar SHALL 渲染为水平导航栏，左侧显示 "ImmerseAI" 文字 logo（f
 #### Scenario: Import 按钮点击
 - **WHEN** 用户点击 Import（下载）按钮
 - **THEN** 系统 SHALL 调用挂载书架流程（如 useBookshelf 的 `mountBookshelf()`，或通过 onImportClick 回调传入）
-
-#### Scenario: GitHub 按钮点击
-- **WHEN** 用户点击 GitHub 按钮
-- **THEN** 系统 SHALL 打开外链（如 `window.open('https://github.com/...')`）
 
 #### Scenario: 图标按钮 hover 效果
 - **WHEN** 用户 hover 任一图标按钮
@@ -84,7 +80,7 @@ BookshelfPage SHALL 根据 connectionStatus 与 books 展示三种内容状态�
 
 #### Scenario: 空书架状态
 - **WHEN** `connectionStatus === 'connected'` 且 `books.length === 0`
-- **THEN** 中间区域 SHALL 展示 Empty state（如「拖入 EPUB 文件」或引导添加的文案 + Add 卡片）
+- **THEN** 中间区域 SHALL 展示 Empty state（文案为「添加 .md / .txt 文件」或引导添加的说明 + Add 卡片）
 - **AND** 不展示空 BookGrid
 
 ### Requirement: BookCard 封面卡片
