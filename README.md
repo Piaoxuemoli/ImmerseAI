@@ -1,125 +1,93 @@
 # ImmerseAI
 
-> Local-First 沉浸式阅读与角色扮演 Agent 桌面应用
+> 把书里的人物请出来，和他们聊天。
 
-ImmerseAI 通过 MCP (Model Context Protocol) 连接本地书库，利用端侧 RAG 理解书籍内容，支持生成书中角色并进行沉浸式对话。所有书籍与向量索引均保留在本地，唯一出站流量为 LLM API 调用。
+ImmerseAI 是一款 **Local-First** 桌面应用。它通过 MCP 协议接管你的本地书库，在设备端完成 RAG 向量化，让你可以生成书中角色的人设并与其进行沉浸式对话——所有书籍与向量索引永远留在本地，唯一出站的只有你主动发起的 LLM 请求。
 
-## 亮点
+---
 
-- **数据主权** — 书籍与索引完全本地化
-- **端侧 RAG** — Web Worker + Orama + Transformers.js，UI 零阻塞
-- **MCP 集成** — 以安全 IPC 桥接本地文件系统
-- **沉浸式对话** — 角色人设生成 + 流式对话 + 引用跳转
-- **可打包交付** — electron-builder 一键出包
+## 它能做什么
+
+拖入一个装满 `.md` / `.txt` 文档的文件夹，ImmerseAI 会自动扫描、索引、建立书架。选中任意一本，切换到 Chat 模式，就可以为它配置一个角色人设，然后开始对话。AI 的每一句回应都经过 RAG 检索，有据可查——点击引用可以直接跳回原文。
+
+你还可以用自然语言指挥底部的 **Librarian Agent** 管理书架：「把这本书移到科幻文件夹」、「列出无分类里有什么」，它会调用 MCP 工具完成文件操作，并实时刷新视图。
+
+---
 
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
+| 层级 | 技术选型 |
+|------|---------|
 | 运行时 | Electron 28+ |
-| 前端 | React 18 + TypeScript (strict) |
+| 前端 | React 18 + TypeScript strict |
 | 构建 | Vite 5 + electron-vite |
-| UI | TailwindCSS + shadcn/ui + framer-motion |
-| 状态管理 | Zustand 4 (persist middleware) |
-| Agent 协议 | @modelcontextprotocol/sdk |
-| 本地 RAG | @xenova/transformers + @orama/orama |
-| LLM | OpenAI Compatible API（用户自定义 Base URL / Model） |
-| 文档阅读 | Markdown / Text (`.md` / `.txt`) |
+| UI | TailwindCSS 3 + shadcn/ui + framer-motion |
+| 全局状态 | Zustand 4 + persist middleware |
+| Agent 协议 | @modelcontextprotocol/sdk（Stdio transport） |
+| 端侧 RAG | @xenova/transformers（Web Worker）+ @orama/orama |
+| LLM | OpenAI Compatible API，用户自定义 Base URL / Model |
+
+架构分为四层：**渲染进程（React UI）→ Web Worker（ML 计算）→ 主进程（IPC 桥接 + MCP）→ 外部（LLM API）**。计算密集型操作全部卸载到 Worker，UI 始终不阻塞。
+
+---
 
 ## 快速开始
 
 ```bash
-# 安装依赖
 npm install
-
-# 开发模式
-npm run dev
-
-# 构建
-npm run build
-
-# 打包
-npm run pack
+npm run dev      # 开发模式（热重载）
+npm run build    # 类型检查 + 构建
+npm run pack     # electron-builder 打包
 ```
+
+首次启动后，在设置页填入 API Key、Base URL 和 Model 名称，然后选择一个本地目录挂载书架即可。配置通过 Zustand persist 缓存，重启后自动恢复。API Key 使用 Electron `safeStorage` 加密存储，不写入任何明文文件。
+
+---
 
 ## 项目结构
 
 ```
 immerseai/
-├── electron/                   # Electron 主进程
-│   ├── main/                   # ipc-handlers, llm-handler, mcp-manager
-│   └── preload/                # contextBridge 安全 API
-├── src/                        # 渲染进程 (React)
-│   ├── app/                    # 路由 / Provider
-│   ├── features/               # bookshelf / reader / chat / persona / settings
-│   ├── shared/                 # 通用组件、Store、类型
-│   ├── workers/                # RAG Worker
-│   └── styles/                 # TailwindCSS 全局样式
-├── openspec/                   # 规格驱动开发 (OpenSpec)
-│   ├── specs/                  # 主规格文档
-│   └── changes/archive/        # 已归档变更记录
-├── test_book/                  # 跨设备测试用书
-└── docs/                       # 设计文档、Spike 实验
+├── electron/
+│   ├── main/          # ipc-handlers · llm-handler · mcp-manager · safe-storage
+│   └── preload/       # contextBridge 安全 API（白名单 channel）
+├── src/
+│   ├── app/           # 路由 · Provider
+│   ├── features/      # bookshelf · reader · chat · persona · settings
+│   ├── shared/        # 通用组件 · Store · 类型 · hooks
+│   └── workers/       # rag.worker.ts（Transformers.js + Orama，纯 Worker 上下文）
+├── openspec/          # 规格驱动开发文档与归档变更
+├── test_book/         # 调试记录与跨设备验证样本
+└── docs/              # 设计文档 · Spike 实验 · API 参考
 ```
 
-## 进度概览
+---
 
-> 更新日期：2026-02-09  
-> 已归档 Changes：**17**  
-> 活跃 Change：**无**  
-> 最近一次自动化验证：**AT-01 ~ AT-14 全通过**  
+## 开发进度
 
-### Phase 状态
+> 更新：2026-03-05 · 已归档 Changes：**17** · AT-01 ~ AT-14 全部通过
 
-| Phase | 模块 | 状态 |
+| Phase | 内容 | 状态 |
 |-------|------|------|
-| Phase 1 基建 | IPC / Store / 路由 / 类型 | ✅ 完成 |
-| Phase 2 书架 | MCP / Bookshelf / Mount 流程 | ✅ 完成 |
-| Phase 3 大脑 | RAG Worker / Index / Search | ✅ 完成 |
-| Phase 4 灵魂 | LLM / Chat / Persona / Reader / Settings | ✅ 完成（已迁移为 `.md/.txt` 阅读） |
-| Phase 5 整合 | 引用跳转 / 测试 Skill / App 打包 | ✅ 完成（macOS 安装验证待复测） |
+| 1 基建 | IPC 桥接 / Zustand Store / 路由 / 类型系统 | ✅ |
+| 2 书架 | MCP Manager / BookshelfPage / 目录挂载流程 / Librarian Agent | ✅ |
+| 3 大脑 | RAG Worker / 向量索引 / 语义搜索 | ✅ |
+| 4 灵魂 | LLM 流式对话 / Chat UI / 角色人设生成 / 阅读器 / 设置页 | ✅ |
+| 5 整合 | 引用跳转 / 测试 Skill / 打包 / Bug 调试记录体系 | ✅ |
 
-### 已归档 Changes（节选）
+已归档 changes（节选）：`init-scaffold` · `mcp-manager` · `bookshelf-ui` · `rag-worker-setup` · `rag-indexing` · `rag-search` · `llm-handler` · `chat-ui` · `persona-ui` · `persona-generator` · `settings-page` · `citation-jump` · `test-and-fix-skill` · `app-packaging`
 
-- init-scaffold / init-ipc-bridge / init-store
-- mcp-manager / bookshelf-ui
-- rag-worker-setup / rag-indexing / rag-search
-- llm-handler / chat-ui / epub-reader / persona-ui / persona-generator / settings-page
-- citation-jump / test-and-fix-skill
-- app-packaging
+---
 
-## 测试体系
+## 规格与工程实践
 
-项目采用双模测试策略（自动化 + 人工），由 `qoobee-t&f-skill` 驱动。
+开发流程遵循 **OpenSpec** 规格驱动范式：`proposal → design → specs → tasks → apply → verify → archive`。每个功能变更都有对应的 spec 文档和归档记录（`openspec/changes/archive/`）。
 
-- 自动化测试项定义：`docs/test-classification.md`
-- Skill 定义：`.cursor/skills/qoobee-t&f-skill/SKILL.md`
-- 测试样书：`test_book/`（用于跨设备验证）
+测试由 `qoobee-t&f-skill` 驱动，支持自动化代码审计（AT-01 ~ AT-14）与人工测试报告修复两种模式。调试记录维护在 `test_book/无分类/Bug调试记录.md`，每条记录附带根因分析、代码 diff 和面向面试的知识点问答。
 
-## 配置与持久化
+Agent Skills 扩展（`.cursor/skills/`）包含测试修复、bug 调试记录、Vercel 工程实践等能力包，均通过关键词触发，不影响核心运行链路。
 
-- 应用**不再提供默认 LLM 配置**（无默认 `Base URL` / `Model`）
-- 首次启动时需要在设置页手动填写：
-  - API Key（安全存储于 `safeStorage`）
-  - Base URL
-  - Model
-- 书架目录默认不预设，需手动选择
-- 已填写的 `llmConfig` 与 `bookshelfRootPath` 通过 Zustand persist 缓存，重启后自动恢复
-
-## Agent Skills 扩展
-
-- 已引入 BMAD 相关命令与工作流（`.cursor/commands/`、`_bmad/`、`.github/prompts/`）
-- 已新增 Vercel 相关技能包（`.cursor/skills/vercel-*`、`.github/skills/vercel-*`）
-- 这些能力用于增强规范编排、文档生产与前端工程实践，不影响核心运行链路
-
-## 规格驱动开发 (OpenSpec)
-
-```
-proposal → design + specs → tasks → apply → verify → archive
-```
-
-- 主规格文档：`openspec/specs/`
-- 归档记录：`openspec/changes/archive/`
+---
 
 ## License
 
