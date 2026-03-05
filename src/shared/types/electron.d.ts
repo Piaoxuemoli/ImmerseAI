@@ -34,7 +34,10 @@ export interface ElectronAPI {
 
   // LLM 聊天
   llm: {
-    chat: (messages: Message[], config: LlmConfig) => Promise<ReadableStream<string>>
+    chat: (messages: Message[], config: LlmConfig) => Promise<void>
+    onChunk: (callback: (chunk: string) => void) => () => void
+    onError: (callback: (err: { code: string; message: string }) => void) => () => void
+    cancelChat: () => void
   }
 
   // 应用工具

@@ -124,7 +124,7 @@ export function LibrarianBar({ files }: LibrarianBarProps) {
 
           {/* 输入框 */}
           <Input
-            placeholder="输入指令：列出书架、移动文件、创建目录、删除文件..."
+            placeholder="输入指令：列目录、创建文件夹、删除文件夹、移动书籍（使用路径）..."
             className="flex-1"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}

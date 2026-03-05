@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from '@/shared/components/ui/card'
 import { useStore } from '@/shared/store'
+import { createLlmStream } from '@/shared/utils/llm-stream'
 
 /**
  * 掩码显示 API Key：保留前 3 位和后 4 位
@@ -101,6 +102,13 @@ export function SettingsPage() {
     setTestStatus('testing')
     setTestError('')
 
+    const readerRef = { current: null as ReadableStreamDefaultReader<string> | null }
+    const timeoutId = setTimeout(() => {
+      readerRef.current?.cancel().catch(() => {})
+      setTestStatus('error')
+      setTestError('连接超时 (10s)')
+    }, 10000)
+
     try {
       const testMessages = [{ id: 'test', role: 'user' as const, content: 'ping', timestamp: Date.now() }]
       const testConfig = {
@@ -109,16 +117,11 @@ export function SettingsPage() {
         stream: true,
       }
 
-      const stream = await window.electronAPI.llm.chat(testMessages, testConfig)
+      const stream = createLlmStream(testMessages, testConfig)
       const reader = stream.getReader()
+      readerRef.current = reader
 
-      // 超时 10 秒
-      const timeoutId = setTimeout(() => {
-        reader.cancel().catch(() => {})
-        setTestStatus('error')
-        setTestError('连接超时 (10s)')
-      }, 10000)
-
+      // 读取第一个 chunk 即视为连接成功
       const { done } = await reader.read()
       clearTimeout(timeoutId)
       reader.cancel().catch(() => {})
@@ -126,9 +129,10 @@ export function SettingsPage() {
       if (!done) {
         setTestStatus('success')
       } else {
-        setTestStatus('success') // 即使收到空的 done，说明连接成功
+        setTestStatus('success')
       }
     } catch (err) {
+      clearTimeout(timeoutId)
       setTestStatus('error')
       setTestError(err instanceof Error ? err.message : '连接失败')
     }

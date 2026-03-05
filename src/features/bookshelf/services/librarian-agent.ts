@@ -7,9 +7,9 @@
  * - 编排 MCP 工具调用
  */
 
-import type { Message, AgentIntent, AgentOperation, BookFile } from '@/shared/types'
+import type { Message, AgentIntent, AgentOperation, BookFile, LlmConfig } from '@/shared/types'
 import { buildLibrarianSystemPrompt } from '../utils/librarian-prompt'
-import { resolvePath, buildTargetPath } from '../utils/path-resolver'
+import { createLlmStream } from '@/shared/utils/llm-stream'
 
 /**
  * 意图识别结果
@@ -32,6 +32,26 @@ export interface AgentExecuteResult {
     path: string
     fileName: string
   }
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+/g, '/')
+}
+
+function isAbsolutePath(path: string): boolean {
+  return /^[a-zA-Z]:[\\/]/.test(path) || path.startsWith('/')
+}
+
+function toAbsolutePath(inputPath: string, bookshelfPath: string): string {
+  const normalizedInput = normalizePath(inputPath).replace(/^[./]+/, '')
+  if (isAbsolutePath(normalizedInput)) return normalizedInput
+  return normalizePath(`${bookshelfPath}/${normalizedInput}`)
+}
+
+function fileNameFromPath(path: string): string {
+  const normalized = normalizePath(path).replace(/\/$/, '')
+  const parts = normalized.split('/')
+  return parts[parts.length - 1] || normalized
 }
 
 /**
@@ -83,13 +103,15 @@ function parseJsonResponse(response: string): IntentRecognitionResult {
  *
  * @param userInput - 用户输入的自然语言
  * @param availableFiles - 当前书架可用的文件名列表
+ * @param llmConfig - 当前 LLM 配置（baseUrl、model）
  * @returns 识别到的意图和参数
  */
 export async function recognizeIntent(
   userInput: string,
-  availableFiles: string[],
+  availablePaths: string[],
+  llmConfig: LlmConfig,
 ): Promise<IntentRecognitionResult> {
-  const systemPrompt = buildLibrarianSystemPrompt(availableFiles)
+  const systemPrompt = buildLibrarianSystemPrompt(availablePaths)
 
   const messages: Message[] = [
     {
@@ -107,22 +129,20 @@ export async function recognizeIntent(
   ]
 
   try {
-    const stream = await window.electronAPI.llm.chat(messages, {
+    const stream = createLlmStream(messages, {
+      ...llmConfig,
       stream: true,
-      temperature: 0.1, // 低温度保证输出稳定
-      maxTokens: 256, // 只需要简短的 JSON 输出
+      temperature: 0.1,
+      maxTokens: 256,
     })
     const reader = stream.getReader()
-
     let fullContent = ''
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      if (value) {
-        fullContent += value
-      }
+      if (value) fullContent += value
     }
-
+    console.log('[LibrarianAgent] Raw LLM response:', JSON.stringify(fullContent))
     return parseJsonResponse(fullContent)
   } catch (error) {
     console.error('[LibrarianAgent] Intent recognition failed:', error)
@@ -136,18 +156,20 @@ export async function recognizeIntent(
  * @param userInput - 用户原始输入
  * @param bookshelfPath - 书架根目录路径
  * @param files - 当前书架文件列表
+ * @param llmConfig - 当前 LLM 配置（baseUrl、model）
  * @returns 执行结果
  */
 export async function executeLibrarianCommand(
   userInput: string,
   bookshelfPath: string,
   files: BookFile[],
+  llmConfig: LlmConfig,
 ): Promise<AgentExecuteResult> {
   const startTime = Date.now()
 
   // Step 1: 意图识别
-  const fileNames = files.map((f) => f.name)
-  const intentResult = await recognizeIntent(userInput, fileNames)
+  const availablePaths = files.map((f) => f.path)
+  const intentResult = await recognizeIntent(userInput, availablePaths, llmConfig)
 
   const baseOperation: Partial<AgentOperation> = {
     id: crypto.randomUUID(),
@@ -161,7 +183,7 @@ export async function executeLibrarianCommand(
   if (intentResult.intent === 'unknown') {
     return {
       success: false,
-      message: '抱歉，我无法理解您的指令。支持的操作：列出文件、移动文件、创建目录、删除文件。',
+      message: '抱歉，我无法理解您的指令。支持的操作：列出目录、移动书籍、创建文件夹、删除文件夹。',
       operation: {
         ...baseOperation,
         result: 'error',
@@ -172,7 +194,7 @@ export async function executeLibrarianCommand(
   }
 
   if (intentResult.intent === 'list_files') {
-    return await executeListFiles(bookshelfPath, baseOperation, startTime)
+    return await executeListFiles(intentResult.params, bookshelfPath, baseOperation, startTime)
   }
 
   if (intentResult.intent === 'create_directory') {
@@ -180,12 +202,12 @@ export async function executeLibrarianCommand(
   }
 
   if (intentResult.intent === 'move_file') {
-    return await executeMoveFile(intentResult.params, bookshelfPath, files, baseOperation, startTime)
+    return await executeMoveFile(intentResult.params, bookshelfPath, baseOperation, startTime)
   }
 
   if (intentResult.intent === 'delete_file') {
-    // 删除操作需要二次确认，先返回确认请求
-    return handleDeleteConfirmation(intentResult.params, bookshelfPath, files, baseOperation, startTime)
+    // 删除文件夹操作需要二次确认
+    return handleDeleteConfirmation(intentResult.params, bookshelfPath, baseOperation, startTime)
   }
 
   return {
@@ -204,27 +226,31 @@ export async function executeLibrarianCommand(
  * 执行列出文件操作
  */
 async function executeListFiles(
+  params: Record<string, string>,
   bookshelfPath: string,
   baseOperation: Partial<AgentOperation>,
   startTime: number,
 ): Promise<AgentExecuteResult> {
   try {
-    const files = await window.electronAPI.mcp.listFiles(bookshelfPath)
-    const fileNames = files.map((f) => f.name).join('、')
-    const message = files.length > 0 ? `书架中共有 ${files.length} 本书：${fileNames}` : '书架为空'
+    const targetPath = params.path ? toAbsolutePath(params.path, bookshelfPath) : bookshelfPath
+    const entries = await window.electronAPI.mcp.listFiles(targetPath)
+    const folders = entries.filter((entry) => entry.type === 'directory')
+    const books = entries.filter((entry) => entry.type !== 'directory')
+    const message = `目录 ${targetPath}：${folders.length} 个文件夹，${books.length} 本书`
 
     return {
       success: true,
       message,
       operation: {
         ...baseOperation,
+        params: { path: targetPath },
         result: 'success',
         message,
         duration: Date.now() - startTime,
       },
     }
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : '列出文件失败'
+    const errorMsg = error instanceof Error ? error.message : '列出目录失败'
     return {
       success: false,
       message: errorMsg,
@@ -247,26 +273,25 @@ async function executeCreateDirectory(
   baseOperation: Partial<AgentOperation>,
   startTime: number,
 ): Promise<AgentExecuteResult> {
-  const dirName = params.path?.replace(/文件夹|目录|分类/g, '').trim()
-
-  if (!dirName) {
+  const directoryPathInput = params.path?.trim()
+  if (!directoryPathInput) {
     return {
       success: false,
-      message: '请指定要创建的目录名称',
+      message: '请提供要创建的文件夹路径',
       operation: {
         ...baseOperation,
         result: 'error',
-        message: '缺少目录名称',
+        message: '缺少路径参数 path',
         duration: Date.now() - startTime,
       },
     }
   }
 
-  const fullPath = `${bookshelfPath}/${dirName}`.replace(/\/+/g, '/')
+  const fullPath = toAbsolutePath(directoryPathInput, bookshelfPath)
 
   try {
     await window.electronAPI.mcp.createDirectory(fullPath)
-    const message = `已创建目录：${dirName}`
+    const message = `已创建文件夹：${fullPath}`
 
     return {
       success: true,
@@ -280,7 +305,7 @@ async function executeCreateDirectory(
       },
     }
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : '创建目录失败'
+    const errorMsg = error instanceof Error ? error.message : '创建文件夹失败'
     return {
       success: false,
       message: errorMsg,
@@ -300,61 +325,29 @@ async function executeCreateDirectory(
 async function executeMoveFile(
   params: Record<string, string>,
   bookshelfPath: string,
-  files: BookFile[],
   baseOperation: Partial<AgentOperation>,
   startTime: number,
 ): Promise<AgentExecuteResult> {
   const { source, target } = params
 
-  if (!source) {
+  if (!source || !target) {
     return {
       success: false,
-      message: '请指定要移动的文件',
+      message: '请同时提供 source 和 target 路径',
       operation: {
         ...baseOperation,
         result: 'error',
-        message: '缺少源文件',
+        message: '缺少 source/target 参数',
         duration: Date.now() - startTime,
       },
     }
   }
 
-  // 解析源文件路径
-  const sourceResult = resolvePath(source, files, bookshelfPath)
-
-  if (sourceResult.type === 'not_found') {
-    return {
-      success: false,
-      message: `找不到文件：${source}`,
-      operation: {
-        ...baseOperation,
-        result: 'error',
-        message: `文件不存在: ${source}`,
-        duration: Date.now() - startTime,
-      },
-    }
-  }
-
-  if (sourceResult.type === 'multiple') {
-    return {
-      success: false,
-      message: `找到多个匹配的文件，请更具体指定：${sourceResult.candidates.join('、')}`,
-      operation: {
-        ...baseOperation,
-        result: 'error',
-        message: '路径歧义',
-        duration: Date.now() - startTime,
-      },
-    }
-  }
-
-  const sourcePath = sourceResult.path
-  const sourceFileName = sourcePath.split('/').pop() || ''
-
-  // 构建目标路径
-  const targetPath = target
-    ? buildTargetPath(target, sourceFileName, bookshelfPath)
-    : sourcePath
+  const sourcePath = toAbsolutePath(source, bookshelfPath)
+  const sourceFileName = fileNameFromPath(sourcePath)
+  const targetPath = /\.(md|txt)$/i.test(target)
+    ? toAbsolutePath(target, bookshelfPath)
+    : toAbsolutePath(`${target}/${sourceFileName}`, bookshelfPath)
 
   try {
     await window.electronAPI.mcp.moveFile(sourcePath, targetPath)
@@ -392,61 +385,31 @@ async function executeMoveFile(
 function handleDeleteConfirmation(
   params: Record<string, string>,
   bookshelfPath: string,
-  files: BookFile[],
   baseOperation: Partial<AgentOperation>,
   startTime: number,
 ): AgentExecuteResult {
-  const filePath = params.path
+  const folderPathInput = params.path?.trim()
 
-  if (!filePath) {
+  if (!folderPathInput) {
     return {
       success: false,
-      message: '请指定要删除的文件',
+      message: '请提供要删除的文件夹路径',
       operation: {
         ...baseOperation,
         result: 'error',
-        message: '缺少文件路径',
+        message: '缺少路径参数 path',
         duration: Date.now() - startTime,
       },
     }
   }
 
-  // 解析文件路径
-  const pathResult = resolvePath(filePath, files, bookshelfPath)
-
-  if (pathResult.type === 'not_found') {
-    return {
-      success: false,
-      message: `找不到文件：${filePath}`,
-      operation: {
-        ...baseOperation,
-        result: 'error',
-        message: `文件不存在: ${filePath}`,
-        duration: Date.now() - startTime,
-      },
-    }
-  }
-
-  if (pathResult.type === 'multiple') {
-    return {
-      success: false,
-      message: `找到多个匹配的文件，请更具体指定：${pathResult.candidates.join('、')}`,
-      operation: {
-        ...baseOperation,
-        result: 'error',
-        message: '路径歧义',
-        duration: Date.now() - startTime,
-      },
-    }
-  }
-
-  const resolvedPath = pathResult.path
-  const fileName = resolvedPath.split('/').pop() || filePath
+  const resolvedPath = toAbsolutePath(folderPathInput, bookshelfPath)
+  const fileName = fileNameFromPath(resolvedPath)
 
   // 返回需要确认的状态
   return {
     success: true,
-    message: `即将删除文件：${fileName}`,
+    message: `即将删除文件夹：${fileName}`,
     needsConfirmation: true,
     confirmationData: {
       intent: 'delete_file',
@@ -472,13 +435,13 @@ function handleDeleteConfirmation(
 export async function executeDeleteFile(filePath: string): Promise<{ success: boolean; message: string }> {
   try {
     await window.electronAPI.mcp.deleteFile(filePath)
-    const fileName = filePath.split('/').pop() || filePath
+    const fileName = fileNameFromPath(filePath)
     return {
       success: true,
-      message: `已删除：${fileName}`,
+      message: `已删除文件夹：${fileName}`,
     }
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : '删除文件失败'
+    const errorMsg = error instanceof Error ? error.message : '删除文件夹失败'
     return {
       success: false,
       message: errorMsg,

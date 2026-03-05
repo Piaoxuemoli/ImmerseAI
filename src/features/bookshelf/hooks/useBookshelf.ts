@@ -1,10 +1,7 @@
 /**
  * useBookshelf Hook
- * 
- * 管理书架的连接生命周期与书籍数据
- * - mountBookshelf: 选择目录 → 连接 MCP → 加载书籍
- * - refreshBooks: 重新扫描当前目录
- * - unmountBookshelf: 断开连接 → 清空数据
+ *
+ * 管理书架连接、目录浏览、根目录迁移与书籍扫描
  */
 
 import { useState, useCallback } from 'react'
@@ -12,20 +9,25 @@ import { v4 as uuidv4 } from 'uuid'
 import { useStore } from '@/shared/store'
 import type { Book, BookFile } from '@/shared/types'
 
-/**
- * 将 BookFile 转换为 Book
- * - id: UUID v4
- * - title: 文件名去后缀
- * - author: '未知作者'
- * - path: 原路径
- * - isIndexed: false
- * - 仅处理 .md / .txt 文件
- */
+const DEFAULT_FOLDER_NAME = '无分类'
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+/g, '/')
+}
+
+function buildChildPath(parentPath: string, name: string): string {
+  return normalizePath(`${parentPath}/${name}`)
+}
+
+function isTextBookFile(file: BookFile): boolean {
+  return file.type === 'md' || file.type === 'txt' || file.path.endsWith('.md') || file.path.endsWith('.txt')
+}
+
 function resolveBookPath(rootPath: string, filePath: string): string {
   const isAbsolute = /^[a-zA-Z]:[\\/]/.test(filePath) || filePath.startsWith('/')
-  if (isAbsolute) return filePath
-  const normalizedRoot = rootPath.replace(/[\\/]+$/, '')
-  const normalizedFile = filePath.replace(/^[\\/]+/, '')
+  if (isAbsolute) return normalizePath(filePath)
+  const normalizedRoot = normalizePath(rootPath).replace(/[\\/]+$/, '')
+  const normalizedFile = normalizePath(filePath).replace(/^[\\/]+/, '')
   return `${normalizedRoot}/${normalizedFile}`
 }
 
@@ -40,8 +42,62 @@ function bookFileToBook(file: BookFile, rootPath: string): Book {
   }
 }
 
+async function ensureDefaultFolderAndMigrateRootBooks(rootPath: string): Promise<void> {
+  const rootEntries = await window.electronAPI.mcp.listFiles(rootPath)
+  const defaultFolderPath = buildChildPath(rootPath, DEFAULT_FOLDER_NAME)
+
+  const hasDefaultFolder = rootEntries.some(
+    (entry) => entry.type === 'directory' && normalizePath(entry.path) === normalizePath(defaultFolderPath),
+  )
+  if (!hasDefaultFolder) {
+    await window.electronAPI.mcp.createDirectory(defaultFolderPath)
+  }
+
+  const rootBooks = rootEntries.filter((entry) => entry.type !== 'directory' && isTextBookFile(entry))
+  for (const rootBook of rootBooks) {
+    const sourcePath = normalizePath(rootBook.path)
+    const targetPath = buildChildPath(defaultFolderPath, rootBook.name)
+    if (sourcePath === normalizePath(targetPath)) continue
+    await window.electronAPI.mcp.moveFile(sourcePath, targetPath)
+  }
+}
+
+async function scanBooksRecursively(rootPath: string): Promise<{ books: Book[]; rootEntries: BookFile[] }> {
+  const queue: string[] = [rootPath]
+  const allBookFiles: BookFile[] = []
+  let rootEntries: BookFile[] = []
+  const visited = new Set<string>()
+
+  while (queue.length > 0) {
+    const currentPath = queue.shift()
+    if (!currentPath) continue
+    const normalizedCurrent = normalizePath(currentPath)
+    if (visited.has(normalizedCurrent)) continue
+    visited.add(normalizedCurrent)
+
+    const entries = await window.electronAPI.mcp.listFiles(normalizedCurrent)
+    if (normalizedCurrent === normalizePath(rootPath)) {
+      rootEntries = entries
+    }
+
+    for (const entry of entries) {
+      if (entry.type === 'directory') {
+        queue.push(normalizePath(entry.path))
+        continue
+      }
+      if (isTextBookFile(entry)) {
+        allBookFiles.push(entry)
+      }
+    }
+  }
+
+  return {
+    books: allBookFiles.map((file) => bookFileToBook(file, rootPath)),
+    rootEntries,
+  }
+}
+
 export function useBookshelf() {
-  // Store 状态
   const books = useStore((state) => state.books)
   const connectionStatus = useStore((state) => state.connectionStatus)
   const bookshelfRootPath = useStore((state) => state.bookshelfRootPath)
@@ -49,44 +105,31 @@ export function useBookshelf() {
   const setConnectionStatus = useStore((state) => state.setConnectionStatus)
   const setBookshelfRootPath = useStore((state) => state.setBookshelfRootPath)
 
-  // 本地状态
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rootEntries, setRootEntries] = useState<BookFile[]>([])
 
-  /**
-   * 挂载书架
-   * 1. 弹出目录选择对话框
-   * 2. 用户取消则 return
-   * 3. 否则 connecting → connect → listFiles → 过滤 .epub → 转 Book[] → setBooks + setBookshelfRootPath + connected
-   * 4. 错误时 setConnectionStatus('error') 并设置 error
-   */
+  const loadBookshelfData = useCallback(
+    async (rootPath: string) => {
+      await ensureDefaultFolderAndMigrateRootBooks(rootPath)
+      const { books: newBooks, rootEntries: nextRootEntries } = await scanBooksRecursively(rootPath)
+      setBooks(newBooks)
+      setRootEntries(nextRootEntries)
+    },
+    [setBooks],
+  )
+
   const mountBookshelf = useCallback(async () => {
     setError(null)
 
     try {
-      // 1. 选择目录
       const selectedPath = await window.electronAPI.app.selectDirectory()
-      if (!selectedPath) {
-        // 用户取消
-        return
-      }
+      if (!selectedPath) return
 
-      // 2. 开始连接
       setConnectionStatus('connecting')
       setIsLoading(true)
-
-      // 3. 连接 MCP
       await window.electronAPI.mcp.connect(selectedPath)
-
-      // 4. 获取文件列表（在当前 MCP 实现中传绝对路径更稳定）
-      const files: BookFile[] = await window.electronAPI.mcp.listFiles(selectedPath)
-
-      // 5. 过滤 .md/.txt 文件并转换为 Book
-      const textFiles = files.filter((f) => f.type === 'md' || f.type === 'txt' || f.path.endsWith('.md') || f.path.endsWith('.txt'))
-      const newBooks = textFiles.map((file) => bookFileToBook(file, selectedPath))
-
-      // 6. 更新 Store
-      setBooks(newBooks)
+      await loadBookshelfData(selectedPath)
       setBookshelfRootPath(selectedPath)
       setConnectionStatus('connected')
     } catch (err) {
@@ -96,13 +139,28 @@ export function useBookshelf() {
     } finally {
       setIsLoading(false)
     }
-  }, [setBooks, setBookshelfRootPath, setConnectionStatus])
+  }, [loadBookshelfData, setBookshelfRootPath, setConnectionStatus])
 
-  /**
-   * 刷新书籍列表
-   * 当已连接且 bookshelfRootPath 非空时，重新扫描目录
-   * MCP 调用失败时设置 connectionStatus 为 'error'
-   */
+  const autoConnect = useCallback(async () => {
+    if (!bookshelfRootPath || connectionStatus !== 'disconnected') return
+
+    setError(null)
+    setConnectionStatus('connecting')
+    setIsLoading(true)
+
+    try {
+      await window.electronAPI.mcp.connect(bookshelfRootPath)
+      await loadBookshelfData(bookshelfRootPath)
+      setConnectionStatus('connected')
+    } catch (err) {
+      console.error('[useBookshelf] autoConnect error:', err)
+      setConnectionStatus('disconnected')
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setIsLoading(false)
+    }
+  }, [bookshelfRootPath, connectionStatus, loadBookshelfData, setConnectionStatus])
+
   const refreshBooks = useCallback(async () => {
     if (connectionStatus !== 'connected' || !bookshelfRootPath) {
       console.warn('[useBookshelf] refreshBooks: not connected or no root path')
@@ -113,10 +171,7 @@ export function useBookshelf() {
     setIsLoading(true)
 
     try {
-      const files: BookFile[] = await window.electronAPI.mcp.listFiles(bookshelfRootPath)
-      const textFiles = files.filter((f) => f.type === 'md' || f.type === 'txt' || f.path.endsWith('.md') || f.path.endsWith('.txt'))
-      const newBooks = textFiles.map((file) => bookFileToBook(file, bookshelfRootPath))
-      setBooks(newBooks)
+      await loadBookshelfData(bookshelfRootPath)
     } catch (err) {
       console.error('[useBookshelf] refreshBooks error:', err)
       setConnectionStatus('error')
@@ -124,12 +179,32 @@ export function useBookshelf() {
     } finally {
       setIsLoading(false)
     }
-  }, [connectionStatus, bookshelfRootPath, setBooks, setConnectionStatus])
+  }, [bookshelfRootPath, connectionStatus, loadBookshelfData, setConnectionStatus])
 
-  /**
-   * 卸载书架
-   * 断开 MCP 连接并清空数据
-   */
+  const listDirectory = useCallback(async (directoryPath: string): Promise<BookFile[]> => {
+    return window.electronAPI.mcp.listFiles(directoryPath)
+  }, [])
+
+  const createFolder = useCallback(
+    async (folderPath: string) => {
+      await window.electronAPI.mcp.createDirectory(folderPath)
+      if (bookshelfRootPath) {
+        await loadBookshelfData(bookshelfRootPath)
+      }
+    },
+    [bookshelfRootPath, loadBookshelfData],
+  )
+
+  const deleteFolder = useCallback(
+    async (folderPath: string) => {
+      await window.electronAPI.mcp.deleteFile(folderPath)
+      if (bookshelfRootPath) {
+        await loadBookshelfData(bookshelfRootPath)
+      }
+    },
+    [bookshelfRootPath, loadBookshelfData],
+  )
+
   const unmountBookshelf = useCallback(async () => {
     setError(null)
 
@@ -137,24 +212,28 @@ export function useBookshelf() {
       await window.electronAPI.mcp.disconnect()
     } catch (err) {
       console.error('[useBookshelf] disconnect error:', err)
-      // 忽略断开连接的错误，继续清空状态
     }
 
     setBooks([])
+    setRootEntries([])
     setBookshelfRootPath('')
     setConnectionStatus('disconnected')
   }, [setBooks, setBookshelfRootPath, setConnectionStatus])
 
   return {
-    // 状态
     books,
     connectionStatus,
     bookshelfRootPath,
+    rootEntries,
     isLoading,
     error,
-    // 操作
+    defaultFolderName: DEFAULT_FOLDER_NAME,
     mountBookshelf,
     unmountBookshelf,
     refreshBooks,
+    autoConnect,
+    listDirectory,
+    createFolder,
+    deleteFolder,
   }
 }

@@ -6,6 +6,7 @@
 
 import type { Message } from '@/shared/types'
 import { buildNoteSystemPrompt } from '../utils/note-prompt'
+import { createLlmStream } from '@/shared/utils/llm-stream'
 
 /** 笔记生成使用的最大上下文消息数 */
 const MAX_CONTEXT_MESSAGES = 10
@@ -52,19 +53,14 @@ export async function generateNoteContent(
   ]
 
   try {
-    // 调用 LLM，收集完整响应（非流式展示）
-    const stream = await window.electronAPI.llm.chat(llmMessages, {
-      stream: true,
-    })
+    const stream = createLlmStream(llmMessages, { stream: true })
     const reader = stream.getReader()
-
     let fullContent = ''
+
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      if (value) {
-        fullContent += value
-      }
+      if (value) fullContent += value
     }
 
     if (fullContent.trim().length === 0) {

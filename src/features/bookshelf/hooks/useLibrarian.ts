@@ -52,6 +52,7 @@ export interface UseLibrarianReturn {
 export function useLibrarian(files: BookFile[]): UseLibrarianReturn {
   const bookshelfRootPath = useStore((state) => state.bookshelfRootPath)
   const connectionStatus = useStore((state) => state.connectionStatus)
+  const llmConfig = useStore((state) => state.llmConfig)
   const history = useStore((state) => state.agentHistory)
   const addAgentOperation = useStore((state) => state.addAgentOperation)
   const clearAgentHistory = useStore((state) => state.clearAgentHistory)
@@ -84,6 +85,7 @@ export function useLibrarian(files: BookFile[]): UseLibrarianReturn {
           userInput,
           bookshelfRootPath,
           files,
+          llmConfig,
         )
 
         if (result.needsConfirmation && result.confirmationData) {
@@ -93,7 +95,7 @@ export function useLibrarian(files: BookFile[]): UseLibrarianReturn {
             fileName: result.confirmationData.fileName,
           })
           setPendingOperation(result.operation)
-          setLastMessage(`确认删除文件：${result.confirmationData.fileName}？`)
+          setLastMessage(`确认删除文件夹：${result.confirmationData.fileName}？`)
         } else {
           // 其他操作直接记录结果
           if (result.operation.id) {
@@ -108,7 +110,7 @@ export function useLibrarian(files: BookFile[]): UseLibrarianReturn {
         setIsExecuting(false)
       }
     },
-    [bookshelfRootPath, connectionStatus, files, addAgentOperation],
+    [bookshelfRootPath, connectionStatus, files, llmConfig, addAgentOperation],
   )
 
   /**
@@ -138,7 +140,7 @@ export function useLibrarian(files: BookFile[]): UseLibrarianReturn {
       addAgentOperation(operation)
       setLastMessage(result.message)
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : '删除失败'
+      const errorMsg = error instanceof Error ? error.message : '删除文件夹失败'
       setLastMessage(errorMsg)
     } finally {
       setPendingDelete(null)

@@ -37,10 +37,10 @@ export function ConfirmDeleteDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-600">
             <AlertTriangle className="h-5 w-5" />
-            确认删除
+            确认删除文件夹
           </DialogTitle>
           <DialogDescription className="space-y-2 pt-2">
-            <p>确定要删除以下文件吗？</p>
+            <p>确定要删除以下文件夹吗？</p>
             <p className="font-medium text-slate-900">{fileName}</p>
             <p className="font-mono text-xs text-slate-500 break-all">{filePath}</p>
             <p className="text-red-500 font-medium mt-2">⚠️ 此操作不可撤销</p>

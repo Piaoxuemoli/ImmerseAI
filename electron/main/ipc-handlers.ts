@@ -30,12 +30,14 @@ function wrapMcpError(error: unknown): Error {
  * 将 FileEntry 转换为 BookFile 类型
  */
 function convertToBookFile(entry: FileEntry): BookFile {
-  const ext = path.extname(entry.name).toLowerCase().slice(1)
-  let fileType: BookFile['type'] = 'unknown'
-  if (ext === 'epub') fileType = 'epub'
-  else if (ext === 'pdf') fileType = 'pdf'
-  else if (ext === 'txt') fileType = 'txt'
-  else if (ext === 'md') fileType = 'md'
+  let fileType: BookFile['type'] = entry.type
+  if (entry.type === 'unknown') {
+    const ext = path.extname(entry.name).toLowerCase().slice(1)
+    if (ext === 'epub') fileType = 'epub'
+    else if (ext === 'pdf') fileType = 'pdf'
+    else if (ext === 'txt') fileType = 'txt'
+    else if (ext === 'md') fileType = 'md'
+  }
 
   return {
     name: entry.name,

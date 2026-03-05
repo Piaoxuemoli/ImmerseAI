@@ -115,7 +115,7 @@ export interface BookFile {
   name: string // 文件名
   path: string // 相对路径
   size: number // 文件大小 (bytes)
-  type: 'md' | 'txt' | 'unknown'
+  type: 'epub' | 'pdf' | 'md' | 'txt' | 'directory' | 'unknown'
   lastModified: number // 最后修改时间
 }
 

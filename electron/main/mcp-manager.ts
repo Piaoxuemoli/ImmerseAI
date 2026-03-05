@@ -99,7 +99,7 @@ export interface FileEntry {
   name: string;
   path: string;
   size: number;
-  type: 'epub' | 'pdf' | 'txt' | 'md' | 'unknown';
+  type: 'epub' | 'pdf' | 'txt' | 'md' | 'directory' | 'unknown';
   lastModified: number;
 }
 
@@ -156,7 +156,11 @@ function getFileTypeFromName(name: string): FileEntry['type'] {
   return 'unknown';
 }
 
-function parseListDirectoryText(text: string, _basePath: string): FileEntry[] {
+function buildEntryPath(basePath: string, name: string): string {
+  return path.join(basePath, name);
+}
+
+function parseListDirectoryText(text: string, basePath: string): FileEntry[] {
   const entries: FileEntry[] = [];
   const lines = text
     .split('\n')
@@ -165,6 +169,15 @@ function parseListDirectoryText(text: string, _basePath: string): FileEntry[] {
 
   for (const line of lines) {
     if (line.startsWith('[DIR]')) {
+      const name = line.replace('[DIR]', '').trim();
+      if (!name) continue;
+      entries.push({
+        name,
+        path: buildEntryPath(basePath, name),
+        size: 0,
+        type: 'directory',
+        lastModified: Date.now(),
+      });
       continue;
     }
     if (line.startsWith('[FILE]')) {
@@ -172,7 +185,7 @@ function parseListDirectoryText(text: string, _basePath: string): FileEntry[] {
       if (!name) continue;
       entries.push({
         name,
-        path: name, // MCP 操作都是相对于挂载点，直接用文件名
+        path: buildEntryPath(basePath, name),
         size: 0,
         type: getFileTypeFromName(name),
         lastModified: Date.now(),
@@ -714,16 +727,16 @@ export class McpManager {
    */
   private _convertToFileEntry(item: unknown): FileEntry | null {
     const record = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
-    if (record.type === 'directory') {
-      return null;
-    }
 
     const name = typeof record.name === 'string' ? record.name : '';
+    const recordType = typeof record.type === 'string' ? record.type : 'file';
+    if (!name) return null;
+
     return {
       name,
       path: typeof record.path === 'string' ? record.path : '',
       size: typeof record.size === 'number' ? record.size : 0,
-      type: getFileTypeFromName(name),
+      type: recordType === 'directory' ? 'directory' : getFileTypeFromName(name),
       lastModified: typeof record.lastModified === 'number' ? record.lastModified : Date.now(),
     };
   }

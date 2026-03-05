@@ -9,6 +9,7 @@
  */
 
 import type { Message, LlmConfig } from '@/shared/types'
+import { createLlmStream } from '@/shared/utils/llm-stream'
 import type {
   SearchResult,
   SearchMessage,
@@ -241,14 +242,7 @@ async function callLlm(messages: Message[]): Promise<string> {
     maxTokens: 2048,
   }
 
-  let stream: ReadableStream<string>
-  try {
-    stream = await window.electronAPI.llm.chat(messages, config)
-  } catch (error: unknown) {
-    const detail = error instanceof Error ? error.message : String(error)
-    throw new Error(`${ERROR_CODES.LLM_ERROR}: ${detail}`)
-  }
-
+  const stream = createLlmStream(messages, config)
   const reader = stream.getReader()
   let fullText = ''
 
@@ -256,8 +250,7 @@ async function callLlm(messages: Message[]): Promise<string> {
     for (;;) {
       const { done, value } = await reader.read()
       if (done) break
-      if (value === '[DONE]') break
-      fullText += value
+      if (value) fullText += value
     }
   } catch (error: unknown) {
     const detail = error instanceof Error ? error.message : String(error)

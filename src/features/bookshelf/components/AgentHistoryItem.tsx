@@ -37,11 +37,11 @@ function getIntentLabel(intent: AgentOperation['intent']) {
     case 'list_files':
       return '列出文件'
     case 'move_file':
-      return '移动文件'
+      return '移动书籍'
     case 'create_directory':
-      return '创建目录'
+      return '创建文件夹'
     case 'delete_file':
-      return '删除文件'
+      return '删除文件夹'
     default:
       return '未知操作'
   }

@@ -37,64 +37,21 @@ const electronAPI: ElectronAPI = {
   },
 
   llm: {
-    chat: (messages: Message[], config: LlmConfig): Promise<ReadableStream<string>> => {
-      return new Promise((resolve, reject) => {
-        // 流状态标记，防止 error 后再处理 [DONE]
-        let streamClosed = false
-
-        // 创建 ReadableStream 封装 IPC 事件流
-        const stream = new ReadableStream<string>({
-          start(controller) {
-            // 清理两个监听器的辅助函数
-            const cleanup = (): void => {
-              ipcRenderer.removeListener('llm:chat-chunk', chunkListener)
-              ipcRenderer.removeListener('llm:chat-error', errorListener)
-            }
-
-            // chunk 监听器：接收流式文本或 [DONE] 终止信号
-            const chunkListener = (_: unknown, chunk: string): void => {
-              if (streamClosed) return
-              if (chunk === '[DONE]') {
-                streamClosed = true
-                cleanup()
-                controller.close()
-              } else {
-                controller.enqueue(chunk)
-              }
-            }
-
-            // error 监听器：接收流中错误事件
-            const errorListener = (_: unknown, errorPayload: { code: string; message: string }): void => {
-              if (streamClosed) return
-              streamClosed = true
-              cleanup()
-              controller.error(new Error(errorPayload.message))
-            }
-
-            ipcRenderer.on('llm:chat-chunk', chunkListener)
-            ipcRenderer.on('llm:chat-error', errorListener)
-
-            // 发起 IPC 调用
-            ipcRenderer.invoke('llm:chat', messages, config)
-              .catch((err: Error) => {
-                if (!streamClosed) {
-                  streamClosed = true
-                  cleanup()
-                  controller.error(err)
-                }
-                reject(err)
-              })
-          },
-          cancel() {
-            // 用户主动取消流时清理监听器
-            streamClosed = true
-            ipcRenderer.removeAllListeners('llm:chat-chunk')
-            ipcRenderer.removeAllListeners('llm:chat-error')
-          }
-        })
-
-        resolve(stream)
-      })
+    chat: (messages: Message[], config: LlmConfig): Promise<void> =>
+      ipcRenderer.invoke('llm:chat', messages, config),
+    onChunk: (callback: (chunk: string) => void): (() => void) => {
+      const listener = (_: unknown, chunk: string): void => callback(chunk)
+      ipcRenderer.on('llm:chat-chunk', listener)
+      return () => ipcRenderer.removeListener('llm:chat-chunk', listener)
+    },
+    onError: (callback: (err: { code: string; message: string }) => void): (() => void) => {
+      const listener = (_: unknown, err: { code: string; message: string }): void => callback(err)
+      ipcRenderer.on('llm:chat-error', listener)
+      return () => ipcRenderer.removeListener('llm:chat-error', listener)
+    },
+    cancelChat: (): void => {
+      ipcRenderer.removeAllListeners('llm:chat-chunk')
+      ipcRenderer.removeAllListeners('llm:chat-error')
     }
   },
 

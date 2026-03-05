@@ -5,6 +5,7 @@ import type { Message, ChatSession } from '@/shared/types'
 import { detectNoteIntent } from '../utils/note-intent'
 import { generateNoteContent } from '../services/note-generator'
 import { writeNote } from '../services/note-writer'
+import { createLlmStream } from '@/shared/utils/llm-stream'
 
 function generateId(): string {
   return crypto.randomUUID()
@@ -257,13 +258,11 @@ export function useChat(): UseChatReturn {
     streamingContentRef.current = ''
 
     try {
-      const stream = await window.electronAPI.llm.chat(llmMessages, {
-        stream: true,
-      })
+      // 6. 在渲染侧构建 ReadableStream，逐 chunk 读取
+      const stream = createLlmStream(llmMessages, { stream: true })
       const reader = stream.getReader()
       readerRef.current = reader
 
-      // 6. 逐 chunk 读取
       let fullContent = ''
       try {
         while (true) {
@@ -286,14 +285,11 @@ export function useChat(): UseChatReturn {
         }
         addMessage(assistantMsg)
       } catch (readError) {
-        // 流式读取中断 - 可能是 LLM 错误
+        // 流式读取中断（LLM 错误或用户取消）
         try { reader.cancel() } catch { /* ignore */ }
-
-        // 如果有错误消息，展示 Toast
         if (readError instanceof Error && readError.message) {
           toast.error(readError.message)
         }
-
         savePartialMessage(streamingContentRef.current)
       }
     } catch (apiError) {
@@ -350,8 +346,8 @@ export function useChat(): UseChatReturn {
       if (readerRef.current) {
         try { readerRef.current.cancel() } catch { /* ignore */ }
         readerRef.current = null
-        setIsGenerating(false)
       }
+      setIsGenerating(false)
     }
   }, [setIsGenerating])
 
