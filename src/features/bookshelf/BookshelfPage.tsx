@@ -51,9 +51,13 @@ export function BookshelfPage() {
   const [activeFolderEntries, setActiveFolderEntries] = useState<BookFile[]>([])
   const [isFolderLoading, setIsFolderLoading] = useState(false)
 
-  // 应用启动时若有已保存路径则自动重连
+  // 应用启动时若有已保存路径则自动重连；若已连接则直接刷新目录树
   useEffect(() => {
-    autoConnect()
+    if (connectionStatus === 'connected') {
+      refreshBooks()
+    } else {
+      autoConnect()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
