@@ -111,16 +111,18 @@ function parseJsonResponse(response: string): IntentRecognitionResult {
  * 调用 LLM 识别用户意图
  *
  * @param userInput - 用户输入的自然语言
- * @param availableFiles - 当前书架可用的文件名列表
+ * @param availablePaths - 当前书架可用的书籍路径列表
  * @param llmConfig - 当前 LLM 配置（baseUrl、model）
+ * @param rootFolderNames - 根目录下一级文件夹名称列表
  * @returns 识别到的意图和参数
  */
 export async function recognizeIntent(
   userInput: string,
   availablePaths: string[],
   llmConfig: LlmConfig,
+  rootFolderNames: string[] = [],
 ): Promise<IntentRecognitionResult> {
-  const systemPrompt = buildLibrarianSystemPrompt(availablePaths)
+  const systemPrompt = buildLibrarianSystemPrompt(availablePaths, rootFolderNames)
 
   const messages: Message[] = [
     {
@@ -166,6 +168,7 @@ export async function recognizeIntent(
  * @param bookshelfPath - 书架根目录路径
  * @param files - 当前书架文件列表
  * @param llmConfig - 当前 LLM 配置（baseUrl、model）
+ * @param rootFolders - 根目录下一级文件夹列表
  * @returns 执行结果
  */
 export async function executeLibrarianCommand(
@@ -173,12 +176,14 @@ export async function executeLibrarianCommand(
   bookshelfPath: string,
   files: BookFile[],
   llmConfig: LlmConfig,
+  rootFolders: BookFile[] = [],
 ): Promise<AgentExecuteResult> {
   const startTime = Date.now()
 
-  // Step 1: 意图识别
+  // Step 1: 意图识别（附带一级文件夹上下文）
   const availablePaths = files.map((f) => f.path)
-  const intentResult = await recognizeIntent(userInput, availablePaths, llmConfig)
+  const rootFolderNames = rootFolders.map((f) => f.name)
+  const intentResult = await recognizeIntent(userInput, availablePaths, llmConfig, rootFolderNames)
 
   const baseOperation: Partial<AgentOperation> = {
     id: crypto.randomUUID(),
@@ -211,7 +216,7 @@ export async function executeLibrarianCommand(
   }
 
   if (intentResult.intent === 'move_file') {
-    return await executeMoveFile(intentResult.params, bookshelfPath, baseOperation, startTime)
+    return await executeMoveFile(intentResult.params, bookshelfPath, rootFolderNames, baseOperation, startTime)
   }
 
   if (intentResult.intent === 'delete_file') {
@@ -232,7 +237,7 @@ export async function executeLibrarianCommand(
 }
 
 /**
- * 执行列出文件操作
+ * 执行列出文件操作（自动展开子文件夹）
  */
 async function executeListFiles(
   params: Record<string, string>,
@@ -244,8 +249,42 @@ async function executeListFiles(
     const targetPath = params.path ? toAbsolutePath(params.path, bookshelfPath) : bookshelfPath
     const entries = await window.electronAPI.mcp.listFiles(targetPath)
     const folders = entries.filter((entry) => entry.type === 'directory')
-    const books = entries.filter((entry) => entry.type !== 'directory')
-    const message = `目录 ${targetPath}：${folders.length} 个文件夹，${books.length} 本书`
+    const rootBooks = entries.filter((entry) => entry.type !== 'directory')
+
+    const lines: string[] = []
+
+    if (folders.length === 0 && rootBooks.length === 0) {
+      lines.push('（目录为空）')
+    } else {
+      // 当前目录下的散文件（通常根目录不应有书籍，但兜底展示）
+      if (rootBooks.length > 0) {
+        lines.push(`📄 根目录书籍（${rootBooks.length} 本）：`)
+        for (const book of rootBooks) {
+          lines.push(`  - ${book.name}`)
+        }
+      }
+
+      // 展开每个子文件夹
+      for (const folder of folders) {
+        let subEntries: typeof entries = []
+        try {
+          subEntries = await window.electronAPI.mcp.listFiles(folder.path)
+        } catch {
+          subEntries = []
+        }
+        const subBooks = subEntries.filter((e) => e.type !== 'directory')
+        if (subBooks.length > 0) {
+          lines.push(`📁 ${folder.name}（${subBooks.length} 本）：`)
+          for (const book of subBooks) {
+            lines.push(`  - ${book.name}`)
+          }
+        } else {
+          lines.push(`📁 ${folder.name}（空）`)
+        }
+      }
+    }
+
+    const message = lines.join('\n')
 
     return {
       success: true,
@@ -346,6 +385,7 @@ async function executeCreateDirectory(
 async function executeMoveFile(
   params: Record<string, string>,
   bookshelfPath: string,
+  rootFolderNames: string[],
   baseOperation: Partial<AgentOperation>,
   startTime: number,
 ): Promise<AgentExecuteResult> {
@@ -369,6 +409,25 @@ async function executeMoveFile(
   const targetPath = /\.(md|txt)$/i.test(target)
     ? toAbsolutePath(target, bookshelfPath)
     : toAbsolutePath(`${target}/${sourceFileName}`, bookshelfPath)
+
+  // 预校验目标文件夹是否存在（仅对相对路径中的一级文件夹名做校验）
+  if (rootFolderNames.length > 0) {
+    const targetFolderName = normalizePath(target).replace(/^[./]+/, '').split('/')[0]
+    const targetIsAbsolute = isAbsolutePath(normalizePath(target).replace(/^[./]+/, ''))
+    if (!targetIsAbsolute && targetFolderName && !rootFolderNames.includes(targetFolderName)) {
+      const message = `目标文件夹"${targetFolderName}"不存在。当前可用文件夹：${rootFolderNames.join('、')}。请先创建该文件夹，或选择已有文件夹。`
+      return {
+        success: false,
+        message,
+        operation: {
+          ...baseOperation,
+          result: 'error',
+          message,
+          duration: Date.now() - startTime,
+        },
+      }
+    }
+  }
 
   try {
     await window.electronAPI.mcp.moveFile(sourcePath, targetPath)

@@ -50,6 +50,7 @@ export function BookshelfPage() {
   const [activeFolderPath, setActiveFolderPath] = useState('')
   const [activeFolderEntries, setActiveFolderEntries] = useState<BookFile[]>([])
   const [isFolderLoading, setIsFolderLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // 应用启动时若有已保存路径则自动重连；若已连接则直接刷新目录树
   useEffect(() => {
@@ -138,6 +139,21 @@ export function BookshelfPage() {
     selectBook(bookId)
     navigate(`/reader/${bookId}`)
   }, [selectBook, navigate])
+
+  // 手动刷新书架
+  const handleRefreshClick = useCallback(async () => {
+    if (isRefreshing || connectionStatus !== 'connected') return
+    setIsRefreshing(true)
+    try {
+      await refreshBooks()
+      const nextPath = activeFolderPath || defaultFolderPath
+      if (nextPath) {
+        await loadActiveFolderEntries(nextPath)
+      }
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [isRefreshing, connectionStatus, refreshBooks, activeFolderPath, defaultFolderPath, loadActiveFolderEntries])
 
   // 导航到设置页
   const handleSettingsClick = useCallback(() => {
@@ -382,12 +398,18 @@ export function BookshelfPage() {
       <TopBar
         onSettingsClick={handleSettingsClick}
         onImportClick={mountBookshelf}
+        onRefreshClick={handleRefreshClick}
+        isRefreshing={isRefreshing}
       />
       <ScrollArea className="h-[calc(100vh-52px)]">
         {renderContent()}
       </ScrollArea>
       {connectionStatus === 'connected' && (
-        <LibrarianBar files={bookFiles} onCommandSuccess={handleLibrarianSuccess} />
+        <LibrarianBar
+          files={bookFiles}
+          rootFolders={rootFolders}
+          onCommandSuccess={handleLibrarianSuccess}
+        />
       )}
     </div>
   )

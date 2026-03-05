@@ -45,12 +45,14 @@ export interface UseLibrarianReturn {
 
 interface UseLibrarianOptions {
   onCommandSuccess?: () => Promise<void> | void
+  rootFolders?: BookFile[]
 }
 
 /**
  * Librarian Agent Hook
  *
  * @param files - 当前书架文件列表
+ * @param options - 配置选项
  * @returns Hook 返回值
  */
 export function useLibrarian(files: BookFile[], options: UseLibrarianOptions = {}): UseLibrarianReturn {
@@ -61,6 +63,7 @@ export function useLibrarian(files: BookFile[], options: UseLibrarianOptions = {
   const addAgentOperation = useStore((state) => state.addAgentOperation)
   const clearAgentHistory = useStore((state) => state.clearAgentHistory)
   const onCommandSuccess = options.onCommandSuccess
+  const rootFolders = options.rootFolders ?? []
 
   const [isExecuting, setIsExecuting] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<DeleteConfirmation | null>(null)
@@ -91,6 +94,7 @@ export function useLibrarian(files: BookFile[], options: UseLibrarianOptions = {
           bookshelfRootPath,
           files,
           llmConfig,
+          rootFolders,
         )
 
         if (result.needsConfirmation && result.confirmationData) {
@@ -118,7 +122,7 @@ export function useLibrarian(files: BookFile[], options: UseLibrarianOptions = {
         setIsExecuting(false)
       }
     },
-    [bookshelfRootPath, connectionStatus, files, llmConfig, addAgentOperation, onCommandSuccess],
+    [bookshelfRootPath, connectionStatus, files, llmConfig, rootFolders, addAgentOperation, onCommandSuccess],
   )
 
   /**
