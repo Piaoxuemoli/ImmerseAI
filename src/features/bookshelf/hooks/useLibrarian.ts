@@ -43,19 +43,24 @@ export interface UseLibrarianReturn {
   lastMessage: string | null
 }
 
+interface UseLibrarianOptions {
+  onCommandSuccess?: () => Promise<void> | void
+}
+
 /**
  * Librarian Agent Hook
  *
  * @param files - 当前书架文件列表
  * @returns Hook 返回值
  */
-export function useLibrarian(files: BookFile[]): UseLibrarianReturn {
+export function useLibrarian(files: BookFile[], options: UseLibrarianOptions = {}): UseLibrarianReturn {
   const bookshelfRootPath = useStore((state) => state.bookshelfRootPath)
   const connectionStatus = useStore((state) => state.connectionStatus)
   const llmConfig = useStore((state) => state.llmConfig)
   const history = useStore((state) => state.agentHistory)
   const addAgentOperation = useStore((state) => state.addAgentOperation)
   const clearAgentHistory = useStore((state) => state.clearAgentHistory)
+  const onCommandSuccess = options.onCommandSuccess
 
   const [isExecuting, setIsExecuting] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<DeleteConfirmation | null>(null)
@@ -102,6 +107,9 @@ export function useLibrarian(files: BookFile[]): UseLibrarianReturn {
             addAgentOperation(result.operation as AgentOperation)
           }
           setLastMessage(result.message)
+          if (result.success) {
+            await onCommandSuccess?.()
+          }
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : '执行命令失败'
@@ -110,7 +118,7 @@ export function useLibrarian(files: BookFile[]): UseLibrarianReturn {
         setIsExecuting(false)
       }
     },
-    [bookshelfRootPath, connectionStatus, files, llmConfig, addAgentOperation],
+    [bookshelfRootPath, connectionStatus, files, llmConfig, addAgentOperation, onCommandSuccess],
   )
 
   /**
@@ -139,6 +147,9 @@ export function useLibrarian(files: BookFile[]): UseLibrarianReturn {
 
       addAgentOperation(operation)
       setLastMessage(result.message)
+      if (result.success) {
+        await onCommandSuccess?.()
+      }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '删除文件夹失败'
       setLastMessage(errorMsg)
@@ -147,7 +158,7 @@ export function useLibrarian(files: BookFile[]): UseLibrarianReturn {
       setPendingOperation(null)
       setIsExecuting(false)
     }
-  }, [pendingDelete, pendingOperation, addAgentOperation])
+  }, [pendingDelete, pendingOperation, addAgentOperation, onCommandSuccess])
 
   /**
    * 取消删除操作

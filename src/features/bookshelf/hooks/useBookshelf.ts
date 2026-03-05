@@ -19,6 +19,15 @@ function buildChildPath(parentPath: string, name: string): string {
   return normalizePath(`${parentPath}/${name}`)
 }
 
+function isRootDirectChildPath(rootPath: string, targetPath: string): boolean {
+  const normalizedRoot = normalizePath(rootPath).replace(/\/+$/, '')
+  const normalizedTarget = normalizePath(targetPath).replace(/\/+$/, '')
+  if (!normalizedTarget.startsWith(`${normalizedRoot}/`)) return false
+  const relative = normalizedTarget.slice(normalizedRoot.length + 1)
+  if (!relative || relative.includes('/')) return false
+  return true
+}
+
 function isTextBookFile(file: BookFile): boolean {
   return file.type === 'md' || file.type === 'txt' || file.path.endsWith('.md') || file.path.endsWith('.txt')
 }
@@ -187,6 +196,9 @@ export function useBookshelf() {
 
   const createFolder = useCallback(
     async (folderPath: string) => {
+      if (!bookshelfRootPath || !isRootDirectChildPath(bookshelfRootPath, folderPath)) {
+        throw new Error('仅支持在根目录创建一级子文件夹')
+      }
       await window.electronAPI.mcp.createDirectory(folderPath)
       if (bookshelfRootPath) {
         await loadBookshelfData(bookshelfRootPath)

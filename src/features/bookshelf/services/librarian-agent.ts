@@ -54,6 +54,15 @@ function fileNameFromPath(path: string): string {
   return parts[parts.length - 1] || normalized
 }
 
+function isRootDirectChildPath(rootPath: string, targetPath: string): boolean {
+  const normalizedRoot = normalizePath(rootPath).replace(/\/+$/, '')
+  const normalizedTarget = normalizePath(targetPath).replace(/\/+$/, '')
+  if (!normalizedTarget.startsWith(`${normalizedRoot}/`)) return false
+  const relative = normalizedTarget.slice(normalizedRoot.length + 1)
+  if (!relative || relative.includes('/')) return false
+  return true
+}
+
 /**
  * 从 LLM 响应中解析 JSON
  */
@@ -288,6 +297,18 @@ async function executeCreateDirectory(
   }
 
   const fullPath = toAbsolutePath(directoryPathInput, bookshelfPath)
+  if (!isRootDirectChildPath(bookshelfPath, fullPath)) {
+    return {
+      success: false,
+      message: '仅支持在根目录创建一级子文件夹',
+      operation: {
+        ...baseOperation,
+        result: 'error',
+        message: '不允许嵌套创建目录',
+        duration: Date.now() - startTime,
+      },
+    }
+  }
 
   try {
     await window.electronAPI.mcp.createDirectory(fullPath)

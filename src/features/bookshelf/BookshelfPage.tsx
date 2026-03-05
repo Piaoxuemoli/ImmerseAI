@@ -157,13 +157,18 @@ export function BookshelfPage() {
     if (!bookshelfRootPath) return
     const newFolderName = window.prompt('请输入新文件夹名称')
     if (!newFolderName || !newFolderName.trim()) return
-    const basePath = activeFolderPath || defaultFolderPath || normalizePath(bookshelfRootPath)
-    const newFolderPath = normalizePath(`${basePath}/${newFolderName.trim()}`)
+    const sanitizedName = newFolderName.trim().replace(/[\\/]/g, '')
+    if (!sanitizedName) {
+      toast.error('文件夹名称不合法')
+      return
+    }
+    const basePath = normalizePath(bookshelfRootPath)
+    const newFolderPath = normalizePath(`${basePath}/${sanitizedName}`)
     try {
       await createFolder(newFolderPath)
       await refreshBooks()
-      await loadActiveFolderEntries(basePath)
-      toast.success(`已创建文件夹：${newFolderName.trim()}`)
+      await loadActiveFolderEntries(activeFolderPath || defaultFolderPath || basePath)
+      toast.success(`已创建文件夹：${sanitizedName}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '创建文件夹失败')
     }
@@ -188,6 +193,14 @@ export function BookshelfPage() {
     },
     [activeFolderPath, defaultFolderPath, deleteFolder, loadActiveFolderEntries, refreshBooks],
   )
+
+  const handleLibrarianSuccess = useCallback(async () => {
+    await refreshBooks()
+    const nextPath = activeFolderPath || defaultFolderPath
+    if (nextPath) {
+      await loadActiveFolderEntries(nextPath)
+    }
+  }, [activeFolderPath, defaultFolderPath, loadActiveFolderEntries, refreshBooks])
 
   // 未连接状态 UI
   const renderDisconnectedState = () => (
@@ -370,7 +383,7 @@ export function BookshelfPage() {
         {renderContent()}
       </ScrollArea>
       {connectionStatus === 'connected' && (
-        <LibrarianBar files={bookFiles} />
+        <LibrarianBar files={bookFiles} onCommandSuccess={handleLibrarianSuccess} />
       )}
     </div>
   )

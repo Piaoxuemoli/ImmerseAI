@@ -18,9 +18,10 @@ import { AgentHistoryItem } from './AgentHistoryItem'
 
 interface LibrarianBarProps {
   files: BookFile[]
+  onCommandSuccess?: () => Promise<void> | void
 }
 
-export function LibrarianBar({ files }: LibrarianBarProps) {
+export function LibrarianBar({ files, onCommandSuccess }: LibrarianBarProps) {
   const [inputValue, setInputValue] = useState('')
   const [showHistory, setShowHistory] = useState(false)
 
@@ -33,7 +34,7 @@ export function LibrarianBar({ files }: LibrarianBarProps) {
     cancelDelete,
     clearHistory,
     lastMessage,
-  } = useLibrarian(files)
+  } = useLibrarian(files, { onCommandSuccess })
 
   /**
    * 处理发送命令

@@ -11,10 +11,11 @@
  */
 
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import { app } from 'electron';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResultSchema, ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 
 // ============================================
 // MCP Server 启动配置
@@ -154,6 +155,21 @@ function getFileTypeFromName(name: string): FileEntry['type'] {
   if (lower.endsWith('.txt')) return 'txt';
   if (lower.endsWith('.md')) return 'md';
   return 'unknown';
+}
+
+function getToolErrorMessage(result: unknown): string | null {
+  const record = (typeof result === 'object' && result !== null ? result : {}) as Record<string, unknown>;
+  if (record.isError !== true) return null;
+
+  const content = Array.isArray(record.content) ? record.content : [];
+  const errors: string[] = [];
+  for (const item of content) {
+    const itemRecord = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
+    if (itemRecord.type === 'text' && typeof itemRecord.text === 'string' && itemRecord.text.trim()) {
+      errors.push(itemRecord.text.trim());
+    }
+  }
+  return errors.length > 0 ? errors.join(' | ') : 'MCP tool returned error';
 }
 
 function buildEntryPath(basePath: string, name: string): string {
@@ -427,6 +443,10 @@ export class McpManager {
         },
         CallToolResultSchema
       );
+      const toolError = getToolErrorMessage(result);
+      if (toolError) {
+        throw new Error(toolError);
+      }
 
       // 10.5: 解析结果
       const entries: FileEntry[] = [];
@@ -490,6 +510,10 @@ export class McpManager {
         },
         CallToolResultSchema
       );
+      const toolError = getToolErrorMessage(result);
+      if (toolError) {
+        throw new Error(toolError);
+      }
 
       // 11.5: 根据返回类型判断
       if (result.content && Array.isArray(result.content) && result.content[0]) {
@@ -536,7 +560,7 @@ export class McpManager {
 
     try {
       // 12.4: 调用 MCP Tool
-      await this.client.request(
+      const result = await this.client.request(
         {
           method: 'tools/call',
           params: {
@@ -546,6 +570,10 @@ export class McpManager {
         },
         CallToolResultSchema
       );
+      const toolError = getToolErrorMessage(result);
+      if (toolError) {
+        throw new Error(toolError);
+      }
 
       // 12.5: 操作完成
       console.log(`[McpManager] writeFile completed: ${normalizedPath}`);
@@ -577,7 +605,7 @@ export class McpManager {
 
     try {
       // 13.4: 调用 MCP Tool
-      await this.client.request(
+      const result = await this.client.request(
         {
           method: 'tools/call',
           params: {
@@ -587,6 +615,10 @@ export class McpManager {
         },
         CallToolResultSchema
       );
+      const toolError = getToolErrorMessage(result);
+      if (toolError) {
+        throw new Error(toolError);
+      }
 
       // 13.5: 操作完成
       console.log(`[McpManager] moveFile completed`);
@@ -616,7 +648,7 @@ export class McpManager {
 
     try {
       // 调用 MCP Tool
-      await this.client.request(
+      const result = await this.client.request(
         {
           method: 'tools/call',
           params: {
@@ -626,6 +658,10 @@ export class McpManager {
         },
         CallToolResultSchema
       );
+      const toolError = getToolErrorMessage(result);
+      if (toolError) {
+        throw new Error(toolError);
+      }
 
       // 操作完成
       console.log(`[McpManager] createDirectory completed`);
@@ -654,17 +690,8 @@ export class McpManager {
     console.log(`[McpManager] deleteFile: ${sanitizePath(normalizedPath)}`);
 
     try {
-      // 调用 MCP Tool - 注意: @modelcontextprotocol/server-filesystem 使用 delete_file 或类似命名
-      await this.client.request(
-        {
-          method: 'tools/call',
-          params: {
-            name: 'delete_file',
-            arguments: { path: normalizedPath },
-          },
-        },
-        CallToolResultSchema
-      );
+      // 兼容不同版本 server-filesystem 的删除工具名
+      await this._callDeleteToolWithFallback(normalizedPath);
 
       // 操作完成
       console.log(`[McpManager] deleteFile completed`);
@@ -720,6 +747,119 @@ export class McpManager {
 
     // 默认错误
     return new Error(`${operation} failed: ${errorMessage}`);
+  }
+
+  /**
+   * 兼容调用删除工具：
+   * - 新旧版本 server-filesystem 的删除工具名不同，按候选列表回退尝试
+   */
+  private async _callDeleteToolWithFallback(normalizedPath: string): Promise<void> {
+    if (!this.client) {
+      throw new Error('Not connected to MCP server');
+    }
+
+    const dynamicCandidates = await this._getDeleteToolCandidates();
+    const staticCandidates = ['delete_file', 'delete_path', 'remove_file', 'remove_path', 'delete_directory', 'delete'];
+    const candidates = [...new Set([...dynamicCandidates, ...staticCandidates])];
+    const argCandidates: Array<Record<string, unknown>> = [
+      { path: normalizedPath },
+      { target: normalizedPath },
+      { filePath: normalizedPath },
+      { directoryPath: normalizedPath },
+      { paths: [normalizedPath] },
+    ];
+    let lastError: Error | null = null;
+
+    for (const toolName of candidates) {
+      for (const args of argCandidates) {
+        try {
+          const result = await this.client.request(
+            {
+              method: 'tools/call',
+              params: {
+                name: toolName,
+                arguments: args,
+              },
+            },
+            CallToolResultSchema,
+          );
+          const toolError = getToolErrorMessage(result);
+          if (toolError) {
+            throw new Error(toolError);
+          }
+          return;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (message.includes('Unknown tool')) {
+            lastError = error instanceof Error ? error : new Error(message);
+            break; // 换下一个 toolName
+          }
+          if (
+            message.includes('Invalid arguments') ||
+            message.includes('required property') ||
+            message.includes('Expected object') ||
+            message.includes('Schema')
+          ) {
+            lastError = error instanceof Error ? error : new Error(message);
+            continue; // 同一 toolName 尝试下一种参数结构
+          }
+          throw error;
+        }
+      }
+    }
+
+    // 当前 MCP Server 不支持删除工具时，降级到本地文件系统删除（仅限挂载目录内）
+    if (lastError && (lastError.message.includes('Unknown tool') || lastError.message.includes('No supported delete tool found'))) {
+      await this._deleteWithNativeFsFallback(normalizedPath);
+      return;
+    }
+
+    throw lastError ?? new Error('No supported delete tool found');
+  }
+
+  private async _getDeleteToolCandidates(): Promise<string[]> {
+    if (!this.client) return [];
+
+    try {
+      const result = await this.client.request({ method: 'tools/list' }, ListToolsResultSchema);
+      const tools = Array.isArray(result.tools) ? result.tools : [];
+      const names = tools
+        .map((tool) => (tool && typeof tool.name === 'string' ? tool.name : ''))
+        .filter((name) => name.length > 0);
+
+      if (names.length > 0) {
+        console.log(`[McpManager] available tools: ${names.join(', ')}`);
+      }
+      const deleteLikeNames = names.filter((name) => /delete|remove/i.test(name));
+      if (deleteLikeNames.length > 0) {
+        console.log(`[McpManager] delete tool candidates: ${deleteLikeNames.join(', ')}`);
+      }
+      return deleteLikeNames;
+    } catch (error) {
+      console.warn('[McpManager] Failed to list tools before delete fallback:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 本地删除兜底：仅允许删除当前挂载根目录内的路径
+   */
+  private async _deleteWithNativeFsFallback(targetPath: string): Promise<void> {
+    if (!this.currentPath) {
+      throw new Error('deleteFile fallback failed: currentPath is empty');
+    }
+
+    const root = path.resolve(this.currentPath);
+    const resolvedTarget = path.resolve(targetPath);
+    const relative = path.relative(root, resolvedTarget);
+    const isInsideRoot = relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+
+    if (!isInsideRoot) {
+      throw new Error('deleteFile fallback denied: target path is outside mounted root');
+    }
+
+    await fs.rm(resolvedTarget, { recursive: true, force: false });
+    console.log(`[McpManager] deleteFile fallback completed via fs.rm: ${sanitizePath(resolvedTarget)}`);
   }
 
   /**
