@@ -7,11 +7,14 @@
  */
 
 import path from 'node:path'
+import fs from 'node:fs/promises'
 import { ipcMain, dialog } from 'electron'
 import type { BookFile, Message, LlmConfig } from '@/shared/types'
 import { handleLlmChat } from './llm-handler'
 import { getSafeStorageValue, setSafeStorageValue } from './safe-storage'
 import { McpManager, McpConnectionError, type FileEntry, type McpStatus } from './mcp-manager'
+import { ragIngest, ragSearch, ragStatus, ragClearCache } from './rag-handler'
+import type { RagParagraph } from './rag-handler'
 
 /**
  * 将 MCP 错误包装为可读信息
@@ -92,9 +95,7 @@ export function registerIpcHandlers(): void {
     console.log(`[IPC] mcp:list-files called with path: ${filePath}`)
     try {
       const entries = await McpManager.getInstance().listFiles(filePath)
-      return entries
-        .filter((e) => e.type !== 'unknown')
-        .map(convertToBookFile)
+      return entries.map(convertToBookFile)
     } catch (error) {
       throw wrapMcpError(error)
     }
@@ -183,6 +184,35 @@ export function registerIpcHandlers(): void {
     }
   })
 
+  ipcMain.handle('app:read-file-text', async (_event, filePath: string): Promise<string> => {
+    try {
+      return await fs.readFile(filePath, 'utf-8')
+    } catch (error) {
+      console.error('[IPC] app:read-file-text error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
+  })
+
+  ipcMain.handle('app:select-files', async (): Promise<string[]> => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile', 'multiSelections'],
+        title: '选择书籍文件',
+        buttonLabel: '导入',
+        filters: [
+          { name: '书籍文件', extensions: ['md', 'txt'] },
+          { name: '所有文件', extensions: ['*'] },
+        ],
+      })
+
+      if (result.canceled) return []
+      return result.filePaths
+    } catch (error) {
+      console.error('[IPC] app:select-files error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
+  })
+
   ipcMain.handle('app:get-safe-storage', async (_event, key: string): Promise<string> => {
     try {
       return getSafeStorageValue(key)
@@ -197,6 +227,56 @@ export function registerIpcHandlers(): void {
       return setSafeStorageValue(key, value)
     } catch (error) {
       console.error('[IPC] app:set-safe-storage error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
+  })
+
+  // ========================================
+  // RAG handlers (主进程 RAG — 彻底规避 file:// 限制)
+  // ========================================
+
+  // 索引书籍（单向推送进度/完成事件）
+  ipcMain.on('rag:ingest', (event, data: { bookId: string; paragraphs: RagParagraph[] }) => {
+    const { bookId, paragraphs } = data
+    console.log(`[IPC] rag:ingest called for book: ${bookId}, paragraphs: ${paragraphs.length}`)
+    ragIngest(bookId, paragraphs, event.sender).catch((error) => {
+      console.error('[IPC] rag:ingest error:', error)
+      event.sender.send('rag:ingest-error', {
+        bookId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+  })
+
+  // 检索（返回结果）
+  ipcMain.handle(
+    'rag:search',
+    async (_, data: { contentHash: string; query: string; topK?: number }) => {
+      try {
+        return await ragSearch(data.contentHash, data.query, data.topK ?? 5)
+      } catch (error) {
+        console.error('[IPC] rag:search error:', error)
+        throw error instanceof Error ? error : new Error(String(error))
+      }
+    },
+  )
+
+  // 检查缓存是否存在
+  ipcMain.handle('rag:status', async (_, contentHash: string) => {
+    try {
+      return await ragStatus(contentHash)
+    } catch (error) {
+      console.error('[IPC] rag:status error:', error)
+      return false
+    }
+  })
+
+  // 清除指定书籍的缓存
+  ipcMain.handle('rag:clear-cache', async (_, contentHash: string) => {
+    try {
+      await ragClearCache(contentHash)
+    } catch (error) {
+      console.error('[IPC] rag:clear-cache error:', error)
       throw error instanceof Error ? error : new Error(String(error))
     }
   })

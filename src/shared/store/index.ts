@@ -99,10 +99,28 @@ export const useStore = create<ImmerseStore>()(
             return { personas: [...state.personas, persona] }
           }
         }),
-      setActivePersona: (personaId) => set({ activePersonaId: personaId }),
+      setActivePersona: (personaId) =>
+        set((state) => ({
+          activePersonaId: personaId,
+          currentSession: state.currentSession
+            ? {
+                ...state.currentSession,
+                personaId: personaId ?? '',
+                updatedAt: Date.now(),
+              }
+            : null,
+        })),
       removePersona: (personaId) =>
         set((state) => ({
           personas: state.personas.filter((p) => p.id !== personaId),
+          activePersonaId: state.activePersonaId === personaId ? null : state.activePersonaId,
+          currentSession: state.currentSession?.personaId === personaId
+            ? {
+                ...state.currentSession,
+                personaId: '',
+                updatedAt: Date.now(),
+              }
+            : state.currentSession,
         })),
 
       // === 对话 Actions ===
@@ -133,10 +151,17 @@ export const useStore = create<ImmerseStore>()(
         })),
       clearIndexingProgress: (bookId) =>
         set((state) => {
-          const newProgress = { ...state.indexingProgress }
-          delete newProgress[bookId]
-          return { indexingProgress: newProgress }
+          const { [bookId]: _removed, ...remainingProgress } = state.indexingProgress
+          return { indexingProgress: remainingProgress }
         }),
+      markBookIndexed: (bookId, contentHash, chunkCount) =>
+        set((state) => ({
+          books: state.books.map((b) =>
+            b.id === bookId
+              ? { ...b, isIndexed: true, indexedAt: Date.now(), contentHash, chunkCount }
+              : b,
+          ),
+        })),
 
       // === 设置 Actions ===
       setLlmConfig: (config) =>

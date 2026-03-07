@@ -13,6 +13,30 @@ export interface Book {
   lastReadParagraphIndex?: number // 上次阅读段落索引
   lastReadOffset?: number // 上次阅读字符偏移（可选）
   chunkCount?: number // 索引片段总数
+  /**
+   * 书籍内容的 SHA-256 哈希值（由主进程 RAG 处理器计算）
+   * 用作 RAG 缓存键：与文件路径无关，书籍移动/重命名后缓存仍然有效
+   */
+  contentHash?: string
+}
+
+// ============================================
+// RAG 检索类型（主进程 RAG 架构）
+// ============================================
+
+/** 传递给主进程进行向量化的段落数据 */
+export interface RagParagraph {
+  index: number
+  text: string
+  offset: number
+}
+
+/** RAG 检索结果（语义检索 or 词法检索均返回此格式） */
+export interface RagSearchResult {
+  text: string
+  paragraphIndex: number
+  offset: number
+  score: number
 }
 
 // ============================================
@@ -79,6 +103,8 @@ export interface LlmConfig {
   baseUrl?: string // API 端点（OpenAI 兼容）
   model?: string
   stream?: boolean // 是否启用流式响应，默认 true
+  temperature?: number
+  maxTokens?: number
 }
 
 /**
@@ -210,6 +236,8 @@ export interface ImmerseStore {
 
   setIndexingProgress: (bookId: string, progress: number) => void
   clearIndexingProgress: (bookId: string) => void
+  /** 标记书籍已完成索引，同时记录 contentHash（RAG 缓存键）与 chunkCount */
+  markBookIndexed: (bookId: string, contentHash: string, chunkCount: number) => void
 
   setLlmConfig: (config: Partial<StoreLlmConfig>) => void
   setBookshelfRootPath: (path: string) => void

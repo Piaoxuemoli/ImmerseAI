@@ -1,5 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react'
+import { UserRound, X, Trash2 } from 'lucide-react'
 import { ScrollArea } from '@/shared/components/ui/scroll-area'
+import { Button } from '@/shared/components/ui/button'
 import { useStore } from '@/shared/store'
 import { useChat } from '../hooks/useChat'
 import { MessageBubble } from './MessageBubble'
@@ -9,12 +11,15 @@ export function ChatInterface() {
   const { messages, streamingContent, isGenerating, sendMessage } = useChat()
 
   const activePersonaId = useStore((s) => s.activePersonaId)
+  const selectedBookId = useStore((s) => s.selectedBookId)
   const personas = useStore((s) => s.personas)
+  const setActivePersona = useStore((s) => s.setActivePersona)
+  const removePersona = useStore((s) => s.removePersona)
   const setPendingCitationParagraphIndex = useStore((s) => s.setPendingCitationParagraphIndex)
   const setPendingCitationOffset = useStore((s) => s.setPendingCitationOffset)
   const setReaderMode = useStore((s) => s.setReaderMode)
   const activePersona = activePersonaId
-    ? personas.find((p) => p.id === activePersonaId)
+    ? personas.find((p) => p.id === activePersonaId && p.bookId === selectedBookId)
     : undefined
   const personaName = activePersona?.name
 
@@ -61,6 +66,42 @@ export function ChatInterface() {
 
   return (
     <div className="flex h-full flex-col">
+      {activePersona && (
+        <div className="border-b border-slate-200 bg-white px-4 py-3">
+          <div className="flex items-start justify-between gap-3 rounded-lg bg-slate-50 p-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                <UserRound className="h-4 w-4 text-slate-500" />
+                <span className="truncate">{activePersona.name}</span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500 line-clamp-2">
+                {activePersona.description || '已为当前书籍启用该人物设定。'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-slate-500"
+                onClick={() => setActivePersona(null)}
+              >
+                <X className="mr-1 h-4 w-4" />
+                停用
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-red-500 hover:text-red-600"
+                onClick={() => removePersona(activePersona.id)}
+              >
+                <Trash2 className="mr-1 h-4 w-4" />
+                删除
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 消息列表区域 */}
       <ScrollArea className="flex-1" onScrollCapture={handleScroll}>
         <div ref={scrollContainerRef}>

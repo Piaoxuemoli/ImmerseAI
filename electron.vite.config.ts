@@ -20,7 +20,7 @@ export default defineConfig({
     }
   },
 
-  // Preload 脚本配置（注意：ESM 产物为 .mjs，主进程需匹配引用路径）
+  // Preload 脚本配置
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
@@ -53,14 +53,6 @@ export default defineConfig({
       }
     },
     plugins: [react()],
-    optimizeDeps: {
-      // 排除 @xenova/transformers 以避免预打包导致的 Worker 加载问题
-      exclude: ['@xenova/transformers']
-    },
-    worker: {
-      // Worker 使用 ES 模块格式
-      format: 'es'
-    },
     server: {
       port: 5173
     }

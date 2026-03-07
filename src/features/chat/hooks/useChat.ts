@@ -1,11 +1,17 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useStore } from '@/shared/store'
-import type { Message, ChatSession } from '@/shared/types'
+import type { Message, ChatSession, RagSearchResult } from '@/shared/types'
 import { detectNoteIntent } from '../utils/note-intent'
 import { generateNoteContent } from '../services/note-generator'
 import { writeNote } from '../services/note-writer'
 import { createLlmStream } from '@/shared/utils/llm-stream'
+import {
+  buildCitations,
+  buildRagContext,
+  injectRagContext,
+  searchBookContext,
+} from '../services/persona-generator'
 
 function generateId(): string {
   return crypto.randomUUID()
@@ -30,6 +36,7 @@ export function useChat(): UseChatReturn {
   const selectedBookId = useStore((s) => s.selectedBookId)
   const personas = useStore((s) => s.personas)
   const lastNotePath = useStore((s) => s.lastNotePath)
+  const llmConfig = useStore((s) => s.llmConfig)
 
   // Store actions
   const setCurrentSession = useStore((s) => s.setCurrentSession)
@@ -51,7 +58,7 @@ export function useChat(): UseChatReturn {
 
   // 获取活跃 Persona
   const activePersona = activePersonaId
-    ? personas.find((p) => p.id === activePersonaId)
+    ? personas.find((p) => p.id === activePersonaId && p.bookId === selectedBookId)
     : undefined
 
   /**
@@ -110,7 +117,7 @@ export function useChat(): UseChatReturn {
 
     try {
       // 1. 生成笔记内容
-      const noteContent = await generateNoteContent(currentMessages, bookTitle, topic)
+      const noteContent = await generateNoteContent(currentMessages, bookTitle, llmConfig, topic)
 
       // 从笔记内容中提取标题（第一个 # 标题行）
       const titleMatch = noteContent.match(/^#\s+(.+)$/m)
@@ -124,7 +131,7 @@ export function useChat(): UseChatReturn {
         noteTitle,
         noteContent,
         isAppendMode,
-        isAppendMode ? currentLastNotePath! : undefined,
+        isAppendMode ? currentLastNotePath ?? undefined : undefined,
       )
 
       // 3. 移除临时 loading 消息并插入确认消息
@@ -193,7 +200,7 @@ export function useChat(): UseChatReturn {
     } finally {
       setIsGenerating(false)
     }
-  }, [addMessage, setIsGenerating, setLastNotePath])
+  }, [addMessage, llmConfig, setIsGenerating, setLastNotePath])
 
   /**
    * 发送消息并触发 LLM 流式调用
@@ -203,7 +210,7 @@ export function useChat(): UseChatReturn {
 
     // 1. 自动创建 ChatSession（如果不存在）
     let session = useStore.getState().currentSession
-    if (!session) {
+    if (!session || (selectedBookId && session.bookId !== selectedBookId)) {
       const newSession: ChatSession = {
         id: generateId(),
         bookId: selectedBookId ?? '',
@@ -236,15 +243,39 @@ export function useChat(): UseChatReturn {
 
     // ── 常规对话流程 ──
     // 4. 构建 LLM messages 数组
-    const updatedSession = useStore.getState().currentSession!
+    const updatedSession = useStore.getState().currentSession
+    if (!updatedSession) {
+      setIsGenerating(false)
+      return
+    }
     const llmMessages: Message[] = []
+    const effectiveBookId = selectedBookId || updatedSession.bookId
+    let ragResults: RagSearchResult[] = []
+
+    if (effectiveBookId) {
+      try {
+        const ragQuery = activePersona?.name
+          ? `${activePersona.name} ${content}`
+          : content
+        ragResults = await searchBookContext(effectiveBookId, ragQuery, 5)
+      } catch {
+        ragResults = []
+      }
+    }
 
     // 如果有活跃 Persona，插入 system prompt
     if (activePersona?.systemPrompt) {
       llmMessages.push({
         id: generateId(),
         role: 'system',
-        content: activePersona.systemPrompt,
+        content: injectRagContext(activePersona.systemPrompt, ragResults),
+        timestamp: 0,
+      })
+    } else if (ragResults.length > 0) {
+      llmMessages.push({
+        id: generateId(),
+        role: 'system',
+        content: `你正在和用户讨论当前书籍，请优先依据以下原文片段回答；若信息不足，请明确说明这是基于角色或上下文的合理推测。\n\n${buildRagContext(ragResults)}`,
         timestamp: 0,
       })
     }
@@ -259,7 +290,7 @@ export function useChat(): UseChatReturn {
 
     try {
       // 6. 在渲染侧构建 ReadableStream，逐 chunk 读取
-      const stream = createLlmStream(llmMessages, { stream: true })
+      const stream = createLlmStream(llmMessages, { ...llmConfig, stream: true })
       const reader = stream.getReader()
       readerRef.current = reader
 
@@ -282,6 +313,7 @@ export function useChat(): UseChatReturn {
           content: fullContent,
           timestamp: Date.now(),
           ...(activePersonaId ? { personaId: activePersonaId } : {}),
+          ...(ragResults.length > 0 ? { citations: buildCitations(ragResults) } : {}),
         }
         addMessage(assistantMsg)
       } catch (readError) {
@@ -322,6 +354,7 @@ export function useChat(): UseChatReturn {
     setIsGenerating,
     savePartialMessage,
     handleNoteFlow,
+    llmConfig,
   ])
 
   /**

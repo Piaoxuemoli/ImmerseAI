@@ -1,4 +1,4 @@
-import { Settings, Download, RefreshCw } from 'lucide-react'
+import { Settings, FilePlus, RefreshCw } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 
@@ -29,8 +29,8 @@ export function TopBar({ onSettingsClick, onImportClick, onRefreshClick, isRefre
         <Button variant="ghost" size="icon" onClick={onSettingsClick}>
           <Settings className="h-5 w-5 text-slate-500" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={onImportClick}>
-          <Download className="h-5 w-5 text-slate-500" />
+        <Button variant="ghost" size="icon" onClick={onImportClick} disabled={!onImportClick} title="导入书籍到当前文件夹">
+          <FilePlus className="h-5 w-5 text-slate-500" />
         </Button>
       </div>
     </header>

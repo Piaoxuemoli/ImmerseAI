@@ -59,7 +59,6 @@ export function BookshelfPage() {
     } else {
       autoConnect()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 用于跟踪上一次的 connectionStatus，避免初始 render 时误弹 Toast
@@ -154,6 +153,42 @@ export function BookshelfPage() {
       setIsRefreshing(false)
     }
   }, [isRefreshing, connectionStatus, refreshBooks, activeFolderPath, defaultFolderPath, loadActiveFolderEntries])
+
+  // 导入书籍到当前激活目录
+  const handleImportBooks = useCallback(async () => {
+    if (connectionStatus !== 'connected') return
+    const targetDir = activeFolderPath || defaultFolderPath
+    if (!targetDir) {
+      toast.error('请先选择目标文件夹')
+      return
+    }
+    const filePaths = await window.electronAPI.app.selectFiles()
+    if (!filePaths.length) return
+
+    let successCount = 0
+    const errors: string[] = []
+
+      for (const filePath of filePaths) {
+        try {
+          const fileName = filePath.replace(/\\/g, '/').split('/').pop() ?? filePath
+          const destPath = normalizePath(`${targetDir}/${fileName}`)
+          const text = await window.electronAPI.app.readFileText(filePath)
+          await window.electronAPI.mcp.writeFile(destPath, text)
+          successCount++
+        } catch (err) {
+          errors.push(err instanceof Error ? err.message : String(err))
+        }
+      }
+
+    if (successCount > 0) {
+      toast.success(`已导入 ${successCount} 本书籍`)
+      await refreshBooks()
+      await loadActiveFolderEntries(targetDir)
+    }
+    if (errors.length > 0) {
+      toast.error(`${errors.length} 个文件导入失败：${errors[0]}`)
+    }
+  }, [connectionStatus, activeFolderPath, defaultFolderPath, refreshBooks, loadActiveFolderEntries])
 
   // 导航到设置页
   const handleSettingsClick = useCallback(() => {
@@ -397,7 +432,7 @@ export function BookshelfPage() {
     <div className="min-h-screen bg-white">
       <TopBar
         onSettingsClick={handleSettingsClick}
-        onImportClick={mountBookshelf}
+        onImportClick={connectionStatus === 'connected' ? handleImportBooks : undefined}
         onRefreshClick={handleRefreshClick}
         isRefreshing={isRefreshing}
       />

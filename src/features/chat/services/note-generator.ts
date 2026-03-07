@@ -4,7 +4,7 @@
  * 调用 LLM 基于对话上下文生成结构化 Markdown 笔记
  */
 
-import type { Message } from '@/shared/types'
+import type { Message, StoreLlmConfig } from '@/shared/types'
 import { buildNoteSystemPrompt } from '../utils/note-prompt'
 import { createLlmStream } from '@/shared/utils/llm-stream'
 
@@ -23,6 +23,7 @@ const MAX_CONTEXT_MESSAGES = 10
 export async function generateNoteContent(
   messages: Message[],
   bookTitle: string,
+  llmConfig: StoreLlmConfig,
   topic?: string,
 ): Promise<string> {
   // 取最近 N 条消息作为上下文（排除 system 消息）
@@ -53,7 +54,7 @@ export async function generateNoteContent(
   ]
 
   try {
-    const stream = createLlmStream(llmMessages, { stream: true })
+    const stream = createLlmStream(llmMessages, { ...llmConfig, stream: true })
     const reader = stream.getReader()
     let fullContent = ''
 

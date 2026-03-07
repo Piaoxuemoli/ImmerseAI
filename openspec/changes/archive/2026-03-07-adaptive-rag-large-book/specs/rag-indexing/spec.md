@@ -1,4 +1,4 @@
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 文本切分
 系统 SHALL 根据书籍总字符数动态计算 `CHUNK_SIZE` 和 `CHUNK_OVERLAP`（详见 `rag-adaptive-chunking` 规范），而非使用固定值 500/50。切分分隔符 SHALL 保持 `["\n\n", "\n", "。", " "]` 不变。每个 chunk SHALL 继承其所属段落的 `paragraphIndex`（用于追踪位置）。
@@ -15,23 +15,7 @@
 - **WHEN** 段落字符数 ≤ 该书的 CHUNK_SIZE
 - **THEN** 该段落作为单个 chunk 保留，不产生额外切分
 
-### Requirement: 批量向量化
-系统 SHALL 将切分后的 chunks 按 batch size 32 分批调用 `embed()` 函数生成 384 维向量。每个 batch 处理完成后再处理下一个 batch。
-
-#### Scenario: 标准批次处理
-- **WHEN** ingest 产生 100 个 chunks
-- **THEN** 系统分为 4 个 batch（32 + 32 + 32 + 4）依次处理
-- **AND** 每个 batch 调用一次 `embed(batchTexts)`
-- **AND** 返回的每个向量为 384 维 `number[]`
-
-#### Scenario: 小于一个 batch
-- **WHEN** ingest 产生 10 个 chunks（不足 32）
-- **THEN** 系统以 1 个 batch 处理全部 10 个 chunks
-
-#### Scenario: 内存安全
-- **WHEN** 大书产生 1000+ chunks
-- **THEN** 系统仍按 32 个一组依次处理
-- **AND** 每个 batch 完成后释放前一次的中间结果
+---
 
 ### Requirement: 两阶段索引流程
 `ragIngest` SHALL 根据 chunk 总数判断是否进入两阶段模式：
@@ -73,6 +57,8 @@
 - **AND** 不向前端发送 upgrade-complete
 - **AND** 记录错误日志，但不影响用户当前的词法检索功能
 
+---
+
 ### Requirement: 缓存版本管理
 `CACHE_VERSION` SHALL 为 3。`loadCache` 读取缓存文件时，若版本号不为 3 SHALL 删除该文件并返回 `null`，触发重新索引。
 
@@ -85,6 +71,8 @@
 #### Scenario: 当前版本缓存正常加载
 - **WHEN** `loadCache` 读取到 `version: 3` 的缓存文件
 - **THEN** 系统正常返回缓存数据，不执行重新索引
+
+---
 
 ### Requirement: 进度上报（两级）
 系统 SHALL 区分"初次索引进度"和"后台语义升级进度"两个独立进度流，使用不同 IPC 事件名，避免前端进度条跳变。

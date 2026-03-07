@@ -87,7 +87,7 @@ async function tryWriteWithRetry(
 ): Promise<void> {
   try {
     await window.electronAPI.mcp.writeFile(filePath, content)
-  } catch (firstError) {
+  } catch {
     // 可能是 notes/ 目录不存在，尝试创建后重试
     const base = bookshelfPath.replace(/\\/g, '/')
     const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base

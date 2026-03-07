@@ -1,24 +1,13 @@
 /**
  * PersonaGenerator — RAG + LLM 角色人设生成管道
  *
- * 流程: 索引检查 → 并发三维度 RAG 检索 → Prompt 组装 → LLM 调用 → JSON 解析 → systemPrompt 生成
- *
- * 核心原则:
- * - P-2: RAG 检索通过 Web Worker postMessage，不在渲染进程执行
- * - P-1: 仅 LLM API 调用产生出站流量
+ * 架构升级：RAG 检索通过 IPC 调用主进程实现，不再依赖 Web Worker。
+ * 主进程运行在 Node.js 中，不受 file:// 协议限制。
  */
 
-import type { Message, LlmConfig } from '@/shared/types'
+import { useStore } from '@/shared/store'
+import type { Citation, Message, LlmConfig, StoreLlmConfig, RagSearchResult, RagParagraph } from '@/shared/types'
 import { createLlmStream } from '@/shared/utils/llm-stream'
-import type {
-  SearchResult,
-  SearchMessage,
-  SearchResultResponse,
-  StatusMessage,
-  StatusResultResponse,
-  ErrorResponse,
-  WorkerResponse,
-} from '@/workers/rag-types'
 
 // ============================================
 // 接口定义
@@ -39,141 +28,67 @@ export interface GeneratedPersonaData {
 
 const ERROR_CODES = {
   BOOK_NOT_INDEXED: 'BOOK_NOT_INDEXED',
-  RAG_TIMEOUT: 'RAG_TIMEOUT',
   NO_RELEVANT_CONTENT: 'NO_RELEVANT_CONTENT',
   LLM_ERROR: 'LLM_ERROR',
   PERSONA_PARSE_ERROR: 'PERSONA_PARSE_ERROR',
 } as const
 
-/** RAG Worker 通信超时时间 (ms) */
-const RAG_TIMEOUT_MS = 10_000
-
-/** 检索结果 score 最低阈值 */
-const MIN_SCORE_THRESHOLD = 0.3
+const MIN_SCORE_THRESHOLD = 0
+const PERSONA_CONTEXT_LIMIT = 25
+export const RAG_CONTEXT_PLACEHOLDER = '{rag_context}'
 
 // ============================================
-// 1. Worker 通信封装
+// 1. RAG IPC 封装
 // ============================================
 
 /**
- * 封装 Worker postMessage/onmessage 为 Promise 的 RAG 搜索调用
- * 使用 requestId 防止并发调用时的消息混淆
+ * 通过 IPC 调用主进程 RAG 检索
+ * contentHash 从 Zustand store 中的 book.contentHash 获取
  */
-let _requestCounter = 0
-function searchRag(
-  worker: Worker,
+async function searchRagViaIpc(
   bookId: string,
   query: string,
-  topK: number = 5
-): Promise<SearchResult[]> {
-  const requestId = `search_${++_requestCounter}_${Date.now()}`
-  return new Promise<SearchResult[]>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      cleanup()
-      reject(new Error(ERROR_CODES.RAG_TIMEOUT))
-    }, RAG_TIMEOUT_MS)
-
-    function handler(event: MessageEvent<WorkerResponse>): void {
-      const data = event.data
-      if (data.type === 'search:result') {
-        const result = data as SearchResultResponse
-        // 仅匹配当前 requestId 的响应（向后兼容：无 requestId 时也接受）
-        if (!result.requestId || result.requestId === requestId) {
-          cleanup()
-          resolve(result.results)
-        }
-      } else if (data.type === 'error') {
-        cleanup()
-        reject(new Error((data as ErrorResponse).message))
-      }
-    }
-
-    function cleanup(): void {
-      clearTimeout(timer)
-      worker.removeEventListener('message', handler)
-    }
-
-    worker.addEventListener('message', handler)
-
-    const msg: SearchMessage = { type: 'search', bookId, query, topK, requestId }
-    worker.postMessage(msg)
-  })
+  topK = 5,
+): Promise<RagSearchResult[]> {
+  const book = useStore.getState().books.find((b) => b.id === bookId)
+  if (!book?.contentHash) return []
+  return window.electronAPI.rag.search(book.contentHash, query, topK)
 }
 
 /**
- * 通过 StatusMessage 检查书籍是否已完成向量化索引
+ * 检查书籍是否已在主进程 RAG 缓存中存在
+ * 支持两种情况：
+ * 1. book.contentHash 存在 → 直接查询 rag:status
+ * 2. book.contentHash 不存在 → 返回 false（需重新索引）
  */
-function checkBookIndexed(worker: Worker, bookId: string): Promise<boolean> {
-  const requestId = `status_${++_requestCounter}_${Date.now()}`
-  return new Promise<boolean>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      cleanup()
-      reject(new Error(ERROR_CODES.RAG_TIMEOUT))
-    }, RAG_TIMEOUT_MS)
-
-    function handler(event: MessageEvent<WorkerResponse>): void {
-      const data = event.data
-      if (data.type === 'status:result') {
-        const result = data as StatusResultResponse
-        if (result.bookId === bookId && (!result.requestId || result.requestId === requestId)) {
-          cleanup()
-          resolve(result.isIndexed)
-        }
-      } else if (data.type === 'error') {
-        cleanup()
-        reject(new Error((data as ErrorResponse).message))
-      }
-    }
-
-    function cleanup(): void {
-      clearTimeout(timer)
-      worker.removeEventListener('message', handler)
-    }
-
-    worker.addEventListener('message', handler)
-
-    const msg: StatusMessage = { type: 'status', bookId, requestId }
-    worker.postMessage(msg)
-  })
+export async function checkBookIndexedStatus(bookId: string): Promise<boolean> {
+  const book = useStore.getState().books.find((b) => b.id === bookId)
+  if (!book?.contentHash) return false
+  return window.electronAPI.rag.status(book.contentHash)
 }
 
 // ============================================
 // 2. RAG 检索管道
 // ============================================
 
-/**
- * 并发三维度 RAG 检索，合并去重并过滤低分结果
- */
-async function fetchRagContext(
-  worker: Worker,
-  bookId: string,
-  characterName: string
-): Promise<SearchResult[]> {
-  const queries = [
-    `${characterName} 性格特征 性格 为人`,
-    `${characterName} 台词 说话 名言`,
-    `${characterName} 经历 事件 结局`,
-  ]
-
-  const allSearchResults = await Promise.all(
-    queries.map((q) => searchRag(worker, bookId, q, 5))
-  )
-
-  // 合并所有结果
-  const allResults = allSearchResults.flat()
-
-  // 按 text 去重
+function normalizeSearchResults(
+  results: RagSearchResult[],
+  limit: number,
+  minScoreThreshold = MIN_SCORE_THRESHOLD,
+): RagSearchResult[] {
   const seen = new Set<string>()
-  const unique: SearchResult[] = []
-  for (const r of allResults) {
+  const unique: RagSearchResult[] = []
+  for (const r of results) {
     if (!seen.has(r.text)) {
       seen.add(r.text)
       unique.push(r)
     }
   }
 
-  // 过滤低分结果
-  const filtered = unique.filter((r) => r.score >= MIN_SCORE_THRESHOLD)
+  const filtered = unique
+    .filter((r) => r.score >= minScoreThreshold)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
 
   if (filtered.length === 0) {
     throw new Error(ERROR_CODES.NO_RELEVANT_CONTENT)
@@ -182,11 +97,18 @@ async function fetchRagContext(
   return filtered
 }
 
+async function fetchPersonaRagContext(
+  bookId: string,
+  characterName: string,
+): Promise<RagSearchResult[]> {
+  const results = await searchRagViaIpc(bookId, characterName, PERSONA_CONTEXT_LIMIT)
+  return normalizeSearchResults(results, PERSONA_CONTEXT_LIMIT)
+}
+
 // ============================================
 // 3. LLM Prompt 与调用
 // ============================================
 
-/** System Prompt：角色分析专家指令 */
 const ANALYSIS_SYSTEM_PROMPT = `你是一个专业的文学角色分析专家。你的任务是根据提供的书籍原文片段，分析并生成角色的详细设定。
 
 你必须只返回一个合法的 JSON 对象，不要添加任何额外的文字说明、markdown 标记或代码块。
@@ -196,26 +118,32 @@ JSON 对象必须包含以下字段：
 - "personality": 角色的性格特征描述
 - "speechStyle": 角色的说话风格和语言特点
 - "background": 角色的背景故事和经历
-- "keyQuotes": 角色的代表性台词数组（3-5句）`
+- "keyQuotes": 角色的代表性台词数组（3-5句）
+- "systemPrompt": 面向对话模型的完整系统提示词，必须让模型以该角色身份进行沉浸式回答`
 
-/**
- * 组装 LLM 消息数组
- */
 function buildPromptMessages(
+  bookTitle: string,
   characterName: string,
-  contextChunks: SearchResult[]
+  contextChunks: RagSearchResult[],
 ): Message[] {
   const contextText = contextChunks
-    .map((c, i) => `[片段${i + 1} - ${c.chapter}]\n${c.text}`)
+    .map((c, i) => `[片段${i + 1} - 段落 ${c.paragraphIndex}]\n${c.text}`)
     .join('\n\n---\n\n')
 
-  const userContent = `请分析角色「${characterName}」。
+  const userContent = `请为书籍《${bookTitle}》中的角色「${characterName}」生成沉浸式对话人设。
 
-以下是与该角色相关的书籍原文片段：
+以下是与该角色直接相关的 25 条书籍原文片段：
 
 ${contextText}
 
-请基于以上原文片段，生成该角色的详细设定。只返回 JSON 对象。`
+请严格基于这些原文内容完成分析，并返回一个 JSON 对象。
+
+要求：
+1. systemPrompt 必须可直接作为聊天系统提示词使用。
+2. systemPrompt 必须明确角色身份、说话方式、行为边界，以及"优先依据原文片段回答"的要求。
+3. 如果片段不足以支持某些信息，请在 systemPrompt 中要求模型谨慎推断，不得编造确定事实。
+4. systemPrompt 中必须原样包含占位符 ${RAG_CONTEXT_PLACEHOLDER}，用于后续注入实时检索上下文。
+5. 不要输出 markdown，不要输出代码块。`
 
   return [
     {
@@ -233,15 +161,12 @@ ${contextText}
   ]
 }
 
-/**
- * 调用 LLM API 并收集完整流式响应
- */
-async function callLlm(messages: Message[]): Promise<string> {
+async function callLlm(messages: Message[], llmConfig: StoreLlmConfig): Promise<string> {
   const config: LlmConfig = {
+    ...llmConfig,
     temperature: 0.3,
     maxTokens: 2048,
   }
-
   const stream = createLlmStream(messages, config)
   const reader = stream.getReader()
   let fullText = ''
@@ -270,35 +195,26 @@ async function callLlm(messages: Message[]): Promise<string> {
 // 4. 响应解析
 // ============================================
 
-/**
- * 宽容解析 LLM 返回的 JSON
- * 策略: 直接 parse → 正则提取 → 抛错
- */
 function parsePersonaJson(rawText: string): Record<string, unknown> {
-  // 尝试直接解析
   try {
     return JSON.parse(rawText) as Record<string, unknown>
   } catch {
-    // 继续尝试正则提取
+    // continue
   }
 
-  // 正则提取第一个 JSON 对象
   const match = rawText.match(/\{[\s\S]*\}/)
   if (match) {
     try {
       return JSON.parse(match[0]) as Record<string, unknown>
     } catch {
-      // 继续到错误
+      // continue
     }
   }
 
   throw new Error(ERROR_CODES.PERSONA_PARSE_ERROR)
 }
 
-/**
- * 校验并填充默认值，返回合规的角色数据
- */
-function validateAndFillDefaults(parsed: Record<string, unknown>): Omit<GeneratedPersonaData, 'systemPrompt'> {
+function validateAndFillDefaults(parsed: Record<string, unknown>): GeneratedPersonaData {
   const str = (v: unknown): string => (typeof v === 'string' ? v : '')
   const strArr = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((item): item is string => typeof item === 'string') : []
@@ -309,118 +225,120 @@ function validateAndFillDefaults(parsed: Record<string, unknown>): Omit<Generate
     speechStyle: str(parsed['speechStyle']),
     background: str(parsed['background']),
     keyQuotes: strArr(parsed['keyQuotes']),
+    systemPrompt: str(parsed['systemPrompt']),
   }
 }
 
-// ============================================
-// 5. systemPrompt 生成
-// ============================================
+function buildFallbackSystemPrompt(bookTitle: string, characterName: string): string {
+  return `你现在是《${bookTitle}》中的角色 ${characterName}。
 
-/**
- * 宪法 4.3.4 定义的不可变沉浸式 System Prompt 模板
- */
-const IMMERSIVE_SYSTEM_PROMPT = `你现在是 {role_name}。以下是你的角色设定：
+请完全以该角色身份进行沉浸式回答，优先依据当前提供的书籍原文片段作答。
 
-【身份背景】
-{persona_background}
+当前上下文：
+${RAG_CONTEXT_PLACEHOLDER}
 
-【性格特征】
-{persona_personality}
+要求：
+1. 使用第一人称回答。
+2. 保持与原文中呈现出的经历、性格和语言风格一致。
+3. 若用户提问超出原文范围，可以谨慎推测，但必须明确说明这是推测。
+4. 不要暴露你是 AI。
+5. 当系统提供书籍片段时，优先引用和依赖这些片段。`
+}
 
-【说话风格】
-{persona_speech_style}
-
-【当前上下文（来自书籍原文）】
----
-{rag_context}
----
-
-【行为准则】
-1. 你必须完全带入角色，用第一人称回答。
-2. 你的回答必须与书中角色的性格和经历一致。
-3. 如果用户问到书中未涉及的内容，你可以基于角色性格合理推演，但需注明"这是我的推测"。
-4. 绝对不要暴露你是 AI，不要使用"作为一个AI"等表述。
-5. 当引用书中原文时，保持原句不变。`
-
-/**
- * 将模板占位符替换为角色数据，{rag_context} 保留用于对话时动态填充
- */
-function buildSystemPrompt(
-  name: string,
-  persona: Omit<GeneratedPersonaData, 'systemPrompt'>
-): string {
-  return IMMERSIVE_SYSTEM_PROMPT
-    .replace('{role_name}', name)
-    .replace('{persona_background}', persona.background)
-    .replace('{persona_personality}', persona.personality)
-    .replace('{persona_speech_style}', persona.speechStyle)
+function ensureRagPlaceholder(systemPrompt: string): string {
+  if (systemPrompt.includes(RAG_CONTEXT_PLACEHOLDER)) {
+    return systemPrompt
+  }
+  return `${systemPrompt}\n\n当前上下文：\n${RAG_CONTEXT_PLACEHOLDER}`
 }
 
 // ============================================
-// 6. 主函数
+// 5. 主函数
 // ============================================
 
 /**
- * 生成角色人设 — 完整的 RAG + LLM 管道
- *
- * @param bookId - 书籍 ID
- * @param characterName - 角色名称
- * @param worker - 可选的 RAG Worker 实例（不传入则内部创建临时 Worker）
- * @returns 包含所有角色数据和 systemPrompt 的 GeneratedPersonaData
- *
- * @throws BOOK_NOT_INDEXED - 书籍未完成索引
- * @throws RAG_TIMEOUT - Worker 通信超时
- * @throws NO_RELEVANT_CONTENT - 未找到角色相关内容
- * @throws LLM_ERROR - LLM API 调用失败
- * @throws PERSONA_PARSE_ERROR - LLM 返回格式无法解析
+ * 生成角色人设 — RAG 检索 + LLM 分析管道
  */
 export async function generatePersona(
   bookId: string,
+  bookTitle: string,
   characterName: string,
-  worker?: Worker | undefined
+  llmConfig: StoreLlmConfig,
 ): Promise<GeneratedPersonaData> {
-  // 获取或创建 Worker
-  let w: Worker
-  let isTemporary = false
-
-  if (worker) {
-    w = worker
-  } else {
-    w = new Worker(new URL('@/workers/rag.worker.ts', import.meta.url), { type: 'module' })
-    isTemporary = true
+  const isIndexed = await checkBookIndexedStatus(bookId)
+  if (!isIndexed) {
+    throw new Error(ERROR_CODES.BOOK_NOT_INDEXED)
   }
 
-  try {
-    // Step 1: 检查书籍索引状态
-    const isIndexed = await checkBookIndexed(w, bookId)
-    if (!isIndexed) {
-      throw new Error(ERROR_CODES.BOOK_NOT_INDEXED)
-    }
+  const contextChunks = await fetchPersonaRagContext(bookId, characterName)
+  const messages = buildPromptMessages(bookTitle, characterName, contextChunks)
+  const rawResponse = await callLlm(messages, llmConfig)
+  const parsed = parsePersonaJson(rawResponse)
+  const personaData = validateAndFillDefaults(parsed)
 
-    // Step 2: 并发三维度 RAG 检索
-    const contextChunks = await fetchRagContext(w, bookId, characterName)
+  return {
+    ...personaData,
+    systemPrompt: ensureRagPlaceholder(
+      personaData.systemPrompt || buildFallbackSystemPrompt(bookTitle, characterName),
+    ),
+  }
+}
 
-    // Step 3: 组装 LLM Prompt
-    const messages = buildPromptMessages(characterName, contextChunks)
+// ============================================
+// 6. 辅助工具函数
+// ============================================
 
-    // Step 4: 调用 LLM 并收集响应
-    const rawResponse = await callLlm(messages)
+export function buildRagContext(results: RagSearchResult[]): string {
+  if (results.length === 0) return '当前没有检索到相关书籍上下文。'
+  return results
+    .map((result, index) => `[片段${index + 1} - 段落 ${result.paragraphIndex}]\n${result.text}`)
+    .join('\n\n---\n\n')
+}
 
-    // Step 5: 解析 JSON 响应
-    const parsed = parsePersonaJson(rawResponse)
-    const personaData = validateAndFillDefaults(parsed)
+export function injectRagContext(systemPrompt: string, results: RagSearchResult[]): string {
+  return systemPrompt.replace(RAG_CONTEXT_PLACEHOLDER, buildRagContext(results))
+}
 
-    // Step 6: 生成 systemPrompt
-    const systemPrompt = buildSystemPrompt(characterName, personaData)
+export function buildCitations(results: RagSearchResult[]): Citation[] {
+  return results.map((result) => ({
+    paragraphIndex: result.paragraphIndex,
+    offset: result.offset,
+    text: result.text,
+    score: result.score,
+  }))
+}
 
-    return {
-      ...personaData,
-      systemPrompt,
-    }
-  } finally {
-    // 清理临时 Worker
-    if (isTemporary) {
-      w.terminate()
+export function splitContentToParagraphs(content: string): RagParagraph[] {
+  const paragraphs = content
+    .split(/\n\s*\n+/)
+    .map((text) => text.trim())
+    .filter(Boolean)
+
+  return paragraphs.map((text, index) => ({
+    index,
+    text,
+    offset: 0,
+  }))
+}
+
+/**
+ * 通过 IPC 检索书籍相关上下文片段
+ */
+export async function searchBookContext(
+  bookId: string,
+  query: string,
+  topK = 5,
+): Promise<RagSearchResult[]> {
+  const results = await searchRagViaIpc(bookId, query, topK)
+  if (results.length === 0) return []
+
+  const seen = new Set<string>()
+  const unique: RagSearchResult[] = []
+  for (const r of results) {
+    if (!seen.has(r.text)) {
+      seen.add(r.text)
+      unique.push(r)
     }
   }
+  return unique.sort((a, b) => b.score - a.score).slice(0, topK)
 }

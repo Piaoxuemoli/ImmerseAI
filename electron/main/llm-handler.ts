@@ -157,9 +157,12 @@ export async function handleLlmChat(
   messages: Message[],
   config: LlmConfig
 ): Promise<void> {
-  // 合并默认配置
-  const temperature = DEFAULT_LLM_CONFIG.temperature
-  const maxTokens = DEFAULT_LLM_CONFIG.maxTokens
+  const mergedConfig = {
+    ...DEFAULT_LLM_CONFIG,
+    ...config,
+  }
+  const temperature = mergedConfig.temperature
+  const maxTokens = mergedConfig.maxTokens
   const baseUrl = (config.baseUrl ?? '').trim()
   const model = (config.model ?? '').trim()
 
