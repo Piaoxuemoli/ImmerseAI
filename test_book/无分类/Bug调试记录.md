@@ -439,3 +439,312 @@ RRF 是一种无参数的排名融合算法，公式为 `score = Σ 1/(k + rank_
 > 核心思路是**分层覆盖**：全量 chunk 做词法索引（BM25/TF-IDF），保证覆盖率；语义向量化只覆盖采样子集（头/中/尾各取若干 chunk），控制成本。采样策略优先保证文本的结构代表性：头部 chunk 通常包含人物介绍/设定，尾部 chunk 包含高潮/结局，均匀分布的中间 chunk 覆盖情节发展，这三段的语义密度通常高于随机采样。检索时用 RRF 融合语义（高精度但局部覆盖）和词法（低精度但全量覆盖）的结果，互补缺陷。对于极超大文档（> 10M 字），还可以进一步增大 `chunkSize` 来减少 chunk 总数，用更粗粒度的语义单元降低向量化成本。
 
 ---
+
+## BUG-004: 打开书籍白屏 + 页面切换无过渡
+
+**日期**: 2026-03-07 | **技术栈**: React / framer-motion / React Router | **严重程度**: 低 | **状态**: 已修复
+
+### 问题发现
+
+操作步骤：
+1. 启动应用，书架正常展示
+2. 点击任意书籍卡片，跳转到 `/reader/:id`
+3. 阅读器页面**内容区域完全空白**，等待数秒后文字才突然出现（大文件尤为明显）
+4. 返回书架或切换到设置页时，页面**瞬间跳变**，无任何过渡动画
+
+### 问题描述
+
+打开较大的书籍（如 800 万字的《凡人修仙传》）时，阅读器主内容区会长时间显示空白白屏，用户无法感知加载是否在进行、是否卡死；与此同时，书架 → 阅读器 → 设置等页面之间的导航是生硬的瞬间切换，没有任何动画过渡，体验割裂。
+
+### 根因分析
+
+**原因一：loading 期间向 TextViewer 传入空字符串**
+
+`ReaderPage` 在 `useReader` 返回 `loading === true` 期间，将 `content={loading ? '' : content}` 传给 `TextViewer`。`TextViewer` 接到空字符串后渲染一个空白容器，没有任何占位 UI，导致用户看到纯白区域：
+
+```tsx
+// ReaderPage.tsx — 问题代码
+<TextViewer
+  content={loading ? '' : content}   // ← 空字符串 = 白屏
+  bookPath={book?.path ?? ''}
+  ...
+/>
+```
+
+IPC 调用 `mcp.readFile` 是异步的，大文件耗时几百毫秒到数秒，这段时间内用户毫无视觉反馈。
+
+**原因二：路由层没有 AnimatePresence 包裹**
+
+`router.tsx` 使用平铺的路由数组，每个页面是独立组件：
+
+```tsx
+// 问题代码 — 无过渡
+const routes = [
+  { path: '/bookshelf', element: <BookshelfPage /> },
+  { path: '/reader/:id', element: <ReaderPage /> },
+  { path: '/settings', element: <SettingsPage /> },
+]
+```
+
+路由切换时 React Router 直接卸载旧组件、挂载新组件，DOM 瞬间替换，没有任何动画帧，视觉上形成"硬切"。`framer-motion` 已在项目中引入（供 `ReaderPage` 内部的 read ↔ chat 模式切换使用），但未扩展到路由层。
+
+### 解决方案
+
+**修改文件**:
+- `src/features/reader/components/ReadingLoadingSkeleton.tsx`（新建）
+- `src/shared/components/PageTransitionLayout.tsx`（新建）
+- `src/features/reader/ReaderPage.tsx`
+- `src/app/router.tsx`
+
+**Fix 1：阅读器骨架屏**
+
+新建 `ReadingLoadingSkeleton` 组件，用 Tailwind `animate-pulse` 模拟文章段落排版（标题行 + 多段落灰色占位块），在 `loading === true` 时渲染：
+
+```diff
+- <TextViewer
+-   content={loading ? '' : content}
+-   ...
+- />
++ {loading ? (
++   <ReadingLoadingSkeleton />
++ ) : (
++   <TextViewer content={content} ... />
++ )}
+```
+
+**Fix 2：路由过渡 Layout**
+
+新建 `PageTransitionLayout` 组件，利用 `useLocation` 的 `location.key`（每次导航唯一）作为 `AnimatePresence` 子元素的 key，触发 framer-motion 的 enter/exit 动画：
+
+```tsx
+// PageTransitionLayout.tsx
+export function PageTransitionLayout() {
+  const location = useLocation()
+  const outlet = useOutlet()
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={location.key}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.18, ease: 'easeInOut' }}
+        style={{ minHeight: '100vh' }}
+      >
+        {outlet}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+```
+
+将 `router.tsx` 所有路由改为 `PageTransitionLayout` 的子路由：
+
+```diff
+- const routes = [
+-   { path: '/bookshelf', element: <BookshelfPage /> },
+-   ...
+- ]
++ const routes = [
++   {
++     element: <PageTransitionLayout />,
++     children: [
++       { path: '/bookshelf', element: <BookshelfPage /> },
++       ...
++     ],
++   },
++ ]
+```
+
+### 解决效果
+
+- 打开任意书籍：立即显示灰色骨架屏（段落占位），文件加载完成后内容淡入替换，不再白屏
+- 书架 ↔ 阅读器 ↔ 设置页之间：0.18s 淡入 + 微小 Y 轴位移过渡，视觉流畅
+
+---
+
+### 涉及知识点
+
+**CSS Skeleton Screen 与 animate-pulse**
+
+骨架屏（Skeleton Screen）是一种加载占位模式：在真实内容到来之前，用与内容形状相近的灰色色块填充版面，结合 CSS `animation: pulse`（Tailwind 的 `animate-pulse`，即周期性透明度变化）给用户"正在加载"的感知，相比空白或 Spinner 更能减少感知等待时间。骨架屏的设计准则是"形状相似"——段落用水平长条、标题用较粗短条，让用户在内容出现前就建立起页面结构认知。
+
+**React Router v6 Data Router 的嵌套布局路由**
+
+React Router v6 的 `createHashRouter`/`createBrowserRouter` 支持嵌套路由（Nested Routes）：父路由的 `element` 通过 `useOutlet()` 渲染子路由的组件，类似传统的"Layout 组件"模式。将 `AnimatePresence` 放在父 Layout 中、将 `location.key` 作为子元素 key，可以在每次路由变化时触发 framer-motion 的 exit → enter 动画序列，而无需在每个页面组件内部重复编写动画代码。
+
+**framer-motion AnimatePresence 的 `mode="wait"` 与 `initial={false}`**
+
+`mode="wait"` 使 `AnimatePresence` 在旧元素 exit 动画完成后再开始新元素的 enter 动画（串行）；`initial={false}` 跳过首次渲染的 enter 动画（避免应用打开时出现不必要的淡入效果）。对于页面级切换，`mode="wait"` + 短时 exit（如 0.1s）+ 稍长 enter（0.18s）是体验最佳的组合：旧页面快速消失，新页面平滑出现。
+
+---
+
+### 面试问答
+
+**Q: React Router v6 中如何为路由切换添加页面过渡动画？关键设计点是什么？**
+
+> 在 Data Router（`createHashRouter`/`createBrowserRouter`）中，正确做法是创建一个父 Layout 路由，其 `element` 包含 `AnimatePresence`，通过 `useOutlet()` 渲染子路由。关键点有三：① 使用 `location.key`（而非 `location.pathname`）作为 `motion.div` 的 key——`pathname` 在同路径重复导航时不变，而 `key` 每次导航都唯一，能可靠触发 exit/enter；② `AnimatePresence` 必须在 **Router 内部**（因为需要 `useLocation`），不能放在 `RouterProvider` 外层；③ 父 Layout 的 `element` 通过 `useOutlet()` 而非 `{children}` 获取子路由，这是 Data Router 嵌套路由的标准 API。
+
+**Q: 骨架屏和 Loading Spinner 各自适合什么场景？**
+
+> Loading Spinner 适合**不确定加载时长**或**加载结果与当前页面形态差异大**的场景（如模态框、全屏遮罩），它告诉用户"有东西在加载，但我不知道是什么形态"。骨架屏适合**内容结构可预知**的场景（如文章列表、详情页），它提前透露页面布局，让用户产生"内容马上就来"的预期，从而降低感知等待时间。在内容形态确定的阅读器场景（固定的标题 + 段落结构），骨架屏明显优于 Spinner：用户打开书籍时就看到"这是一篇文章的样子"，体验更连贯。
+
+---
+
+## BUG-005: 书架 UI 信息冗余 + 视图单一 + 窗口缩放失衡
+
+**日期**: 2026-03-07 | **技术栈**: React / TailwindCSS | **严重程度**: 低 | **状态**: 已修复
+
+### 问题发现
+
+操作步骤：
+1. 打开书架，查看书籍卡片
+2. 卡片封面区域显示书名，封面下方 Info 区再次显示书名和**作者**（重复且占空间）
+3. 封面比例 `2/3`（竖长），最小列宽 160px，整体卡片偏大，一屏内展示数量少
+4. 无法切换为列表视图
+5. 拖动缩小窗口时，右侧工具栏按钮文字与左侧目录路径争抢空间，TopBar 标题可能将按钮推出视口
+
+### 问题描述
+
+书卡显示了多余的作者信息（ImmerseAI 的书籍来自本地文件，作者字段通常为空或意义不大），封面过大导致一屏只能展示 6-8 本书；只有宫格布局，没有列表视图选项；窗口缩小时工具栏区域出现视觉失衡，按钮可能溢出或被压缩。
+
+### 根因分析
+
+**原因一：BookCard 双重显示书名 + 作者**
+
+`BookCard.tsx` 封面区域渲染 `book.title`（居中白色文字），封面下方的 Info 区再次渲染 `book.title`（`font-semibold`）和 `book.author`（`text-slate-500`）：
+
+```tsx
+// 问题代码 — BookCard.tsx
+<div className={`${coverColor} flex aspect-[2/3] ...`}>
+  <span>{book.title}</span>          {/* 封面内显示书名 */}
+</div>
+<div className="px-3 py-2">
+  <p>{book.title}</p>                {/* ← 重复显示书名 */}
+  <p>{book.author}</p>               {/* ← 作者无意义 */}
+</div>
+```
+
+`book.author` 在本项目中通常为文件名去扩展名，显示意义不大。
+
+**原因二：BookGrid 固定列宽过大**
+
+`BookGrid` 使用 `grid-cols-[repeat(auto-fill,minmax(160px,1fr))]`，最小列宽 160px，封面 `aspect-[2/3]` 高约 240px，卡片偏大，信息密度低。
+
+**原因三：缺少列表视图和视图切换入口**
+
+`BookshelfPage` 只渲染 `<BookGrid>`，没有列表视图组件，也没有切换按钮。
+
+**原因四：响应式缺陷**
+
+- `TopBar` 的 `<h1>` 无 `min-w-0`/`truncate`，标题过长时会推挤右侧按钮
+- 侧边栏固定 `w-64 shrink-0`，窄窗口下主内容区被严重压缩
+- 工具栏右侧按钮区无 `flex-wrap`，新增视图切换后更容易溢出
+- 按钮文字在窄窗口下与图标争空间
+
+### 解决方案
+
+**修改文件**:
+- `src/features/bookshelf/components/BookCard.tsx`
+- `src/features/bookshelf/components/BookGrid.tsx`
+- `src/features/bookshelf/components/BookList.tsx`（新建）
+- `src/features/bookshelf/BookshelfPage.tsx`
+- `src/features/bookshelf/components/TopBar.tsx`
+
+**Fix 1：BookCard — 移除作者、缩小封面**
+
+```diff
+- <div className={`${coverColor} flex aspect-[2/3] items-center justify-center ...`}>
++ <div className={`${coverColor} flex aspect-[3/4] items-center justify-center ...`}>
+    <span className="text-center text-xs ...">{book.title}</span>
+  </div>
+  <div className="px-2 py-1.5">
+    <p className="truncate text-xs font-medium text-slate-800">{book.title}</p>
+-   <p className="truncate text-xs text-slate-500">{book.author}</p>
+  </div>
+```
+
+**Fix 2：BookGrid — 缩小最小列宽**
+
+```diff
+- <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-6 px-6 py-6">
++ <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4 px-6 py-4">
+```
+
+**Fix 3：新建 BookList 列表视图**
+
+每行：彩色小色块（40×32px）+ 书名 + 文件名 + 上次阅读日期，信息密度高，适合书多时使用。
+
+**Fix 4：BookshelfPage 添加视图切换**
+
+```diff
++ const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
+  // 工具栏新增切换按钮组
++ <div className="flex rounded-md border overflow-hidden">
++   <button onClick={() => setViewMode('grid')}><LayoutGrid /></button>
++   <button onClick={() => setViewMode('list')}><List /></button>
++ </div>
+
+- <BookGrid books={activeBooks} onBookClick={handleBookClick} />
++ viewMode === 'grid'
++   ? <BookGrid books={activeBooks} onBookClick={handleBookClick} />
++   : <BookList books={activeBooks} onBookClick={handleBookClick} />
+```
+
+**Fix 5：响应式修复**
+
+```diff
+// TopBar.tsx
+- <h1 className="text-xl font-semibold text-slate-900">ImmerseAI</h1>
+- <div className="flex items-center gap-1">
++ <h1 className="min-w-0 truncate text-xl font-semibold text-slate-900 pr-2">ImmerseAI</h1>
++ <div className="flex shrink-0 items-center gap-1">
+
+// BookshelfPage.tsx — 侧边栏收窄
+- <div className="w-64 shrink-0 ...">
++ <div className="w-48 shrink-0 xl:w-56 ...">
+
+// 工具栏按钮 flex-wrap + 窄屏隐藏文字
+- <div className="flex items-center gap-2">
++ <div className="flex shrink-0 flex-wrap items-center gap-2">
+
+- 返回上级
++ <span className="ml-1 hidden sm:inline">返回上级</span>
+```
+
+### 解决效果
+
+- 书卡移除冗余作者行，封面更紧凑（3:4），最小列宽 120px，同屏可展示更多书籍
+- 新增宫格/列表切换按钮，列表视图显示书名 + 文件名 + 上次阅读时间
+- 窗口缩小时 TopBar 标题自动截断，工具栏按钮保持完整，侧边栏占用空间减少
+
+---
+
+### 涉及知识点
+
+**CSS Grid `auto-fill` 与 `minmax` 的响应式原理**
+
+`grid-cols-[repeat(auto-fill,minmax(Xpx,1fr))]` 是实现"无断点响应式网格"的关键模式。`auto-fill` 让浏览器根据容器宽度自动计算列数；`minmax(Xpx, 1fr)` 指定每列最小 X px、最大等分剩余空间。容器宽度 ÷ X 取整就是列数。降低 X 值（如 160→120）可在相同容器宽度下显示更多列，提升信息密度，同时在窗口缩小时更晚触发"换行"，响应式适应性更强。
+
+**React 本地状态驱动 UI 变体（视图切换模式）**
+
+视图切换（宫格/列表）是纯 UI 状态，不需要持久化到全局 store，使用组件本地 `useState<'grid' | 'list'>` 即可。React 中，同一份数据（`books` 数组）通过 `viewMode` 条件渲染不同展示组件（`BookGrid` vs `BookList`），体现了"数据与展示分离"的设计原则：数据层（store 中的 books）不感知 UI 视图模式，展示层可以自由切换渲染形态。
+
+**Flexbox 响应式防溢出技巧**
+
+防止 Flex 容器溢出有几个关键属性：`min-w-0`（允许 flex 子项收缩到 0，解决文字不截断的问题）、`shrink-0`（防止重要元素被压缩，如工具栏按钮区）、`flex-wrap`（允许多个按钮换行而非溢出）。Tailwind 的 `hidden sm:inline` 利用响应式前缀，在窄屏（< 640px）时隐藏按钮文字、仅保留图标，是"渐进式信息密度"的实践——宽屏提供完整信息，窄屏保留核心功能。
+
+---
+
+### 面试问答
+
+**Q: 在 React 中，哪些 UI 状态应该放在全局 store（如 Zustand），哪些应该保留为组件本地状态？**
+
+> 判断标准是**状态是否需要跨组件共享或持久化**。全局 store 适合：跨路由共享的业务数据（书籍列表、LLM 配置）、需要在应用重启后恢复的数据（阅读进度、书架路径）、跨层级通信的状态（当前选中的 bookId）。组件本地 `useState` 适合：纯 UI 交互状态（当前激活的 tab、弹窗开关、视图模式 grid/list）、不需要共享的临时状态（输入框值、loading 标志）。视图切换模式（grid vs list）是典型的本地状态：它只影响当前组件的渲染形式，不需要其他组件感知，放入全局 store 反而引入不必要的复杂度。
+
+**Q: CSS Grid 的 `auto-fill` 和 `auto-fit` 有什么区别？分别在什么场景下使用？**
+
+> `auto-fill` 和 `auto-fit` 都会根据容器宽度自动填充尽可能多的列，区别在于**容器内元素少于最大列数时的行为**：`auto-fill` 保留空列（保持网格轨道，容器右侧出现空白占位）；`auto-fit` 折叠空列（将剩余空间分配给现有元素，元素会拉伸到更宽）。在书籍宫格这类场景，通常用 `auto-fill` + `minmax(Xpx, 1fr)` — 书少时不希望卡片被无限拉宽（那样会很难看），宁可保留空列。若是"始终铺满容器"的设计（如 dashboard 的统计卡片），则用 `auto-fit`。
+
+---
