@@ -77,6 +77,8 @@ let semanticAvailable: boolean | null = null
 
 const memoryCache = new Map<string, CacheFile>()
 const oramaIndexCache = new Map<string, AnyOrama>()
+/** Prevents concurrent ragIngest calls for the same content from running in parallel */
+const inFlightByHash = new Set<string>()
 
 // ============================================================
 // Path helpers
@@ -547,6 +549,14 @@ export async function ragIngest(
 
   const contentHash = computeContentHash(paragraphs)
 
+  // Concurrent deduplication: if this exact content is already being indexed,
+  // drop the duplicate request.  The original call will fire rag:ingest-complete
+  // when done; there is no need to start a second identical pipeline.
+  if (inFlightByHash.has(contentHash)) {
+    console.log(`[RAG] Duplicate ingest ignored (already in-flight): ${bookId} hash=${contentHash.slice(0, 8)}`)
+    return { contentHash, chunkCount: 0 }
+  }
+
   // Cache hit: validate mode before reusing
   const cached = await loadCache(contentHash)
   if (cached) {
@@ -572,72 +582,79 @@ export async function ragIngest(
     return { contentHash, chunkCount: cached.chunkCount }
   }
 
-  // No cache: compute adaptive chunk size
-  const totalChars = paragraphs.reduce((sum, p) => sum + p.text.length, 0)
-  const { chunkSize, chunkOverlap } = adaptiveChunkSize(totalChars)
+  // No cache: register as in-flight before starting real work
+  inFlightByHash.add(contentHash)
 
-  sender.send('rag:ingest-progress', { bookId, progress: 0 })
-  const chunks = chunkParagraphs(paragraphs, chunkSize, chunkOverlap)
-  sender.send('rag:ingest-progress', { bookId, progress: 5 })
+  try {
+    // Compute adaptive chunk size
+    const totalChars = paragraphs.reduce((sum, p) => sum + p.text.length, 0)
+    const { chunkSize, chunkOverlap } = adaptiveChunkSize(totalChars)
 
-  // ── Large book: two-phase indexing ─────────────────────────
-  if (chunks.length > SEMANTIC_FULL_THRESHOLD) {
-    console.log(
-      `[RAG] Large book (${chunks.length} chunks > ${SEMANTIC_FULL_THRESHOLD}) — building lexical index immediately`,
-    )
-    await saveCache({ version: CACHE_VERSION, contentHash, mode: 'lexical', chunkCount: chunks.length, chunks })
-    sender.send('rag:ingest-progress', { bookId, progress: 100 })
-    sender.send('rag:ingest-complete', { bookId, contentHash, chunkCount: chunks.length, mode: 'lexical' })
-    console.log(`[RAG] Lexical index ready: ${bookId} | chunks=${chunks.length}`)
+    sender.send('rag:ingest-progress', { bookId, progress: 0 })
+    const chunks = chunkParagraphs(paragraphs, chunkSize, chunkOverlap)
+    sender.send('rag:ingest-progress', { bookId, progress: 5 })
 
-    // Kick off background semantic upgrade if model is available
-    const semanticAvail = await tryLoadEmbeddingModel()
-    if (semanticAvail) {
-      setImmediate(() => {
-        backgroundReindexSemantic(bookId, paragraphs, contentHash, sender).catch((err) => {
-          console.error('[RAG] Background semantic reindex failed:', err)
+    // ── Large book: two-phase indexing ─────────────────────────
+    if (chunks.length > SEMANTIC_FULL_THRESHOLD) {
+      console.log(
+        `[RAG] Large book (${chunks.length} chunks > ${SEMANTIC_FULL_THRESHOLD}) — building lexical index immediately`,
+      )
+      await saveCache({ version: CACHE_VERSION, contentHash, mode: 'lexical', chunkCount: chunks.length, chunks })
+      sender.send('rag:ingest-progress', { bookId, progress: 100 })
+      sender.send('rag:ingest-complete', { bookId, contentHash, chunkCount: chunks.length, mode: 'lexical' })
+      console.log(`[RAG] Lexical index ready: ${bookId} | chunks=${chunks.length}`)
+
+      // Kick off background semantic upgrade if model is available
+      const semanticAvail = await tryLoadEmbeddingModel()
+      if (semanticAvail) {
+        setImmediate(() => {
+          backgroundReindexSemantic(bookId, paragraphs, contentHash, sender).catch((err) => {
+            console.error('[RAG] Background semantic reindex failed:', err)
+          })
         })
-      })
-    }
-    return { contentHash, chunkCount: chunks.length }
-  }
-
-  // ── Small book: full semantic (original flow) ───────────────
-  let mode: 'semantic' | 'lexical' = 'lexical'
-  const useSemanticMode = await tryLoadEmbeddingModel()
-
-  if (useSemanticMode) {
-    let embeddingFailed = false
-    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-      if (embeddingFailed) break
-      const batch = chunks.slice(i, i + BATCH_SIZE)
-      try {
-        const embeddings = await computeEmbeddings(batch.map((c) => c.text))
-        for (let j = 0; j < batch.length; j++) {
-          if (embeddings[j]) {
-            batch[j].embedding = embeddings[j]
-            batch[j].isSemanticSampled = true
-          }
-        }
-      } catch (err) {
-        console.error('[RAG] Embedding batch failed:', err)
-        for (const chunk of chunks) { delete chunk.embedding }
-        embeddingFailed = true
-        semanticAvailable = false
       }
-      const progress = Math.round(10 + ((i + batch.length) / chunks.length) * 85)
-      sender.send('rag:ingest-progress', { bookId, progress: Math.min(progress, 95) })
+      return { contentHash, chunkCount: chunks.length }
     }
-    if (!embeddingFailed && chunks.some((c) => c.embedding)) {
-      mode = 'semantic'
-    }
-  }
 
-  await saveCache({ version: CACHE_VERSION, contentHash, mode, chunkCount: chunks.length, chunks })
-  sender.send('rag:ingest-progress', { bookId, progress: 100 })
-  sender.send('rag:ingest-complete', { bookId, contentHash, chunkCount: chunks.length, mode })
-  console.log(`[RAG] Indexed: ${bookId} | mode=${mode} | chunks=${chunks.length}`)
-  return { contentHash, chunkCount: chunks.length }
+    // ── Small book: full semantic (original flow) ───────────────
+    let mode: 'semantic' | 'lexical' = 'lexical'
+    const useSemanticMode = await tryLoadEmbeddingModel()
+
+    if (useSemanticMode) {
+      let embeddingFailed = false
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        if (embeddingFailed) break
+        const batch = chunks.slice(i, i + BATCH_SIZE)
+        try {
+          const embeddings = await computeEmbeddings(batch.map((c) => c.text))
+          for (let j = 0; j < batch.length; j++) {
+            if (embeddings[j]) {
+              batch[j].embedding = embeddings[j]
+              batch[j].isSemanticSampled = true
+            }
+          }
+        } catch (err) {
+          console.error('[RAG] Embedding batch failed:', err)
+          for (const chunk of chunks) { delete chunk.embedding }
+          embeddingFailed = true
+          semanticAvailable = false
+        }
+        const progress = Math.round(10 + ((i + batch.length) / chunks.length) * 85)
+        sender.send('rag:ingest-progress', { bookId, progress: Math.min(progress, 95) })
+      }
+      if (!embeddingFailed && chunks.some((c) => c.embedding)) {
+        mode = 'semantic'
+      }
+    }
+
+    await saveCache({ version: CACHE_VERSION, contentHash, mode, chunkCount: chunks.length, chunks })
+    sender.send('rag:ingest-progress', { bookId, progress: 100 })
+    sender.send('rag:ingest-complete', { bookId, contentHash, chunkCount: chunks.length, mode })
+    console.log(`[RAG] Indexed: ${bookId} | mode=${mode} | chunks=${chunks.length}`)
+    return { contentHash, chunkCount: chunks.length }
+  } finally {
+    inFlightByHash.delete(contentHash)
+  }
 }
 
 /**

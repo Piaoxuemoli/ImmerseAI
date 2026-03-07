@@ -96,7 +96,12 @@ export function ReaderPage() {
   }, [bookId, setCurrentSession])
 
   useEffect(() => {
-    if (!bookId || !book || !content || loading) return
+    // Read book from store directly inside the effect so that scroll-driven
+    // setBooks() updates (which change the book object reference) do NOT
+    // re-trigger this effect.  Only bookId / content / loading changes should
+    // trigger a re-index attempt.
+    const currentBook = useStore.getState().books.find((b) => b.id === bookId)
+    if (!bookId || !currentBook || !content || loading) return
 
     let cancelled = false
 
@@ -131,7 +136,10 @@ export function ReaderPage() {
     return () => {
       cancelled = true
     }
-  }, [book, bookId, content, ingest, loading, setBooks])
+    // Intentionally excludes `book` — reading it via useStore.getState() inside
+    // the effect prevents scroll-driven books updates from retriggering ingest.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookId, content, ingest, loading, setBooks])
 
   return (
     <div className="flex h-screen flex-col bg-slate-50">
