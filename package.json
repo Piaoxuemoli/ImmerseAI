@@ -35,7 +35,7 @@
       "target": [
         "nsis"
       ],
-      "icon": "favicon.ico"
+      "icon": "build/icon.png"
     },
     "mac": {
       "target": [

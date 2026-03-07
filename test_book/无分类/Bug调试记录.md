@@ -748,3 +748,157 @@ React Router v6 的 `createHashRouter`/`createBrowserRouter` 支持嵌套路由�
 > `auto-fill` 和 `auto-fit` 都会根据容器宽度自动填充尽可能多的列，区别在于**容器内元素少于最大列数时的行为**：`auto-fill` 保留空列（保持网格轨道，容器右侧出现空白占位）；`auto-fit` 折叠空列（将剩余空间分配给现有元素，元素会拉伸到更宽）。在书籍宫格这类场景，通常用 `auto-fill` + `minmax(Xpx, 1fr)` — 书少时不希望卡片被无限拉宽（那样会很难看），宁可保留空列。若是"始终铺满容器"的设计（如 dashboard 的统计卡片），则用 `auto-fit`。
 
 ---
+
+## BUG-006: Markdown 文件触发重复 RAG 建索引（最多 18 次并发）
+
+**日期**: 2026-03-07 | **技术栈**: React / Zustand / Electron IPC | **严重程度**: 高 | **状态**: 已修复
+
+### 问题发现
+
+操作步骤：
+1. 打开一本 `.md` 格式的书籍（如 Bug调试记录.md）
+2. 等待内容加载完成，阅读器进入正常显示状态
+3. 正常滚动阅读一段时间后，切换到 Chat 模式
+4. 主进程控制台出现 `rag:ingest called` 日志 **18 次**（同一 bookId、同一 paragraphs 数量）
+5. 模型加载完成后，18 个 `[RAG] Indexed:` 日志同时涌现
+
+`.txt` 格式书籍（如《凡人修仙传》）不受影响，仅 1 次 ingest 调用。
+
+### 问题描述
+
+打开 Markdown 书籍后，用户滚动阅读期间，RAG 建索引请求被重复触发 18 次。主进程对每一次请求都独立运行完整的向量化流程，导致：同一内容被并发构建 18 份相同的索引、显存/CPU 被占满、模型加载期间 Node.js 主线程重度负载、18 个 `rag:ingest-complete` 事件依次触发 `markBookIndexed` → `books` 状态更新循环。
+
+### 根因分析
+
+**两个原因叠加，缺一不可：**
+
+**原因一（主因）：`ensureIndexed` effect 依赖了不稳定的 `book` 对象引用**
+
+`ReaderPage` 中，`book` 是在渲染函数里内联计算的：
+
+```tsx
+const book = books.find((b) => b.id === bookId)
+```
+
+该 `book` 对象被放入 `ensureIndexed` useEffect 的依赖数组：
+
+```tsx
+}, [book, bookId, content, ingest, loading, setBooks])
+```
+
+当用户**滚动阅读**时，`TextViewer` 的 scroll 事件监听器调用 `onProgressChange(paragraphIndex, offset)`，后者调用 `handleProgressChange`，其内部执行：
+
+```tsx
+setBooks(books.map((b) =>
+  b.id === bookId
+    ? { ...b, lastReadParagraphIndex: newParagraphIndex, lastReadAt: Date.now() }
+    : b,
+))
+```
+
+`setBooks` 创建了一个新的 `books` 数组，其中包含一个新的 `book` 对象（spread 创建）。新的 `book` 引用不等于旧引用，导致 `ensureIndexed` effect 重新触发。此时书籍尚未建索引（`contentHash` 为 null），`checkBookIndexedStatus` 立即返回 `false`，`ingest()` 被再次调用。
+
+**为什么 `.txt` 不受影响**：txt 渲染为 `whiteSpace: pre-wrap` 纯文本，`querySelectorAll('p, h1, h2, ...')` 找不到任何段落元素，scroll 监听器不会调用 `onProgressChange`，`setBooks` 不被触发，`book` 引用不变。
+
+```
+用户滚动 → scroll 事件 → onProgressChange → setBooks(newBooks)
+                                                        │
+                                          books 引用变化 → book 引用变化
+                                                        │
+                                          ensureIndexed effect 重触发
+                                                        │
+                                          checkBookIndexedStatus → false (无 contentHash)
+                                                        │
+                                                  ingest() 再次调用 ← 循环
+```
+
+**原因二（放大器）：主进程无并发去重**
+
+`ipcMain.on('rag:ingest', ...)` 直接调用异步 `ragIngest()`，没有任何去重机制。18 个 IPC 消息对应 18 个独立的 `ragIngest()` 并发调用，模型加载完成后同时处理完毕，产生 18 个 `rag:ingest-complete` 事件，进一步引发 18 次 `markBookIndexed`。
+
+### 解决方案
+
+**修改文件**:
+- `src/features/reader/ReaderPage.tsx`
+- `electron/main/rag-handler.ts`
+
+**Fix 1：将 `book` 从 effect 依赖数组中移除（渲染层根治）**
+
+改为在 effect 内部通过 `useStore.getState()` 读取，使 scroll 驱动的 `setBooks` 不再重触发该 effect：
+
+```diff
+  useEffect(() => {
+-   if (!bookId || !book || !content || loading) return
++   // 在 effect 内读取，不订阅 book 引用变化
++   const currentBook = useStore.getState().books.find((b) => b.id === bookId)
++   if (!bookId || !currentBook || !content || loading) return
+
+    // ...
+
+-   }, [book, bookId, content, ingest, loading, setBooks])
++   // eslint-disable-next-line react-hooks/exhaustive-deps
++   }, [bookId, content, ingest, loading, setBooks])
+```
+
+Effect 现在只在 `bookId`、`content`（文件内容）、`loading` 变化时重触发，完全不受 `setBooks` 影响。
+
+**Fix 2：主进程 contentHash 级别的并发去重（防御性保护）**
+
+```diff
++ const inFlightByHash = new Set<string>()
+
+  export async function ragIngest(bookId, paragraphs, sender) {
+    const contentHash = computeContentHash(paragraphs)
+
++   // 同一 contentHash 已在处理中，忽略重复请求
++   if (inFlightByHash.has(contentHash)) {
++     console.log(`[RAG] Duplicate ingest ignored: ${bookId} hash=${contentHash.slice(0, 8)}`)
++     return { contentHash, chunkCount: 0 }
++   }
++   inFlightByHash.add(contentHash)
+
+    try {
+      // ... 原有处理逻辑
++   } finally {
++     inFlightByHash.delete(contentHash)
+    }
+  }
+```
+
+### 解决效果
+
+修复后，打开 Markdown 书籍并滚动阅读，控制台只出现 **1 次** `rag:ingest called`，模型加载后只出现 **1 次** `[RAG] Indexed`，18 次并发现象彻底消失。即使渲染层偶尔仍发出重复请求，主进程的 `inFlightByHash` 也会拦截。
+
+---
+
+### 涉及知识点
+
+**React useEffect 依赖数组与对象引用稳定性**
+
+React 的 `useEffect` 使用 `Object.is` 比较依赖数组的每一项。当依赖项是对象时，即使对象内容完全相同，只要引用不同（如通过 `Array.map`、对象展开创建的新对象），effect 就会重新执行。在 Zustand 场景下，任何 `set({ books: ... })` 调用都会产生一个新的 `books` 数组，其中每个通过 spread 创建的 book 对象也是新引用。要避免此类问题，应只将"稳定标识符"（如 id 字符串）而非"派生对象"（如 `books.find(...)` 的结果）放入 effect 依赖数组；如需在 effect 内读取最新状态，使用 `useStore.getState()` 替代响应式订阅。
+
+**useStore.getState() vs useStore(selector) 的使用场景区分**
+
+`useStore(selector)` 是响应式订阅：每当被选中的状态变化时，组件重新渲染。`useStore.getState()` 是静态读取：获取当前时刻的状态快照，不触发任何订阅或重渲染。在 `useEffect` 的回调体内，若需要访问 store 中的某个值但不希望该值的变化重触发 effect，应使用 `useStore.getState()` 读取，同时将其从 effect 的依赖数组中排除。这是 Zustand 文档推荐的避免"effect 订阅-重触发"陷阱的标准模式。
+
+**Electron IPC `ipcMain.on` 的并发特性与防重要求**
+
+`ipcMain.on(channel, handler)` 是非阻塞的事件监听器。每条 `ipcRenderer.send(channel, ...)` 消息都会独立触发 handler，多个消息并发到达时，handler 被并发调用多次。由于 `ragIngest` 是 async 函数，并发调用意味着多个 Promise 同时在 Node.js 事件循环中等待，造成重复的 CPU/内存消耗。防御方式：使用 `Set` 或 `Map` 追踪"进行中的任务"，在 handler 入口处做幂等检查，在 `finally` 块中清除标记（保证异常时也能清理）。
+
+---
+
+### 面试问答
+
+**Q: 如何识别 React useEffect 的"无限重触发"陷阱？依赖对象引用不稳定时应如何处理？**
+
+> 识别方法：① 在 effect 内打印 "effect triggered"，若日志持续刷出说明有循环；② 使用 React DevTools Profiler 查看哪个 state 变化导致重渲染；③ 检查 effect 依赖数组中是否有对象/数组类型（它们每次渲染几乎必然是新引用）。处理方案按优先级排序：① 只把"稳定标识符"（id、string、number）放入依赖数组，衍生对象在 effect 内部用 `getState()` 读取；② 用 `useMemo` 稳定对象引用（适合需要响应性时）；③ 用 `useRef` 持有最新值（适合不需要触发 effect 但需要访问最新值时）；④ 最后才考虑 `// eslint-disable-next-line react-hooks/exhaustive-deps`（需注释清楚原因）。
+
+**Q: Zustand 中 `useStore.getState()` 和 `useStore(selector)` 分别在什么时候使用？**
+
+> `useStore(selector)` 用于需要"数据变化 → 组件重渲染"的场景，是响应式数据绑定的标准方式。`useStore.getState()` 用于"只需要读一次最新值，不想建立订阅关系"的场景：① `useEffect` 回调内读取不希望触发 effect 重运行的状态；② 事件处理函数中读取最新状态（避免 stale closure）；③ 工具函数/服务层中读取 store 状态（不在 React 组件树内）。原则是：在 React render 阶段（渲染函数、useMemo、事件绑定的 JSX 内）用 selector，在"命令式"代码路径（effect 回调、事件处理、定时器）用 getState()。
+
+**Q: 在 Electron 主进程设计 IPC handler 时，如何防止同一操作被并发重复执行？**
+
+> 核心模式是"幂等入口 + 追踪进行中的任务"。具体实现：① 用 `Map<key, Promise>` 或 `Set<key>` 在 handler 入口处检查是否已有相同 key 的任务在运行；② 若已有，直接 return（或等待已有 Promise，对需要获取结果的调用者使用 `Map<key, Promise>`）；③ 任务完成后在 `finally` 块中删除 key，保证异常时也能清理；④ key 的选取应反映操作的"业务唯一性"——本例中选用内容哈希（contentHash）而非 bookId，因为同一内容不同路径的书籍复用同一份索引，比 bookId 更精确。这与数据库事务的"幂等写入"设计思想一致。
+
+---

@@ -2,15 +2,23 @@
 
 > 把书里的人物请出来，和他们聊天。
 
-ImmerseAI 是一款 **Local-First** 桌面应用。它通过 MCP 协议接管你的本地书库，在设备端完成 RAG 向量化，让你可以生成书中角色的人设并与其进行沉浸式对话——所有书籍与向量索引永远留在本地，唯一出站的只有你主动发起的 LLM 请求。
+ImmerseAI 是一款 **Local-First** 桌面应用。通过 MCP 协议接管本地书库，在设备端完成 RAG 向量化，生成书中角色的人设并进行沉浸式对话。所有书籍与向量索引永远留在本地，唯一出站的只有你主动发起的 LLM 请求。
 
 ---
 
-## 它能做什么
+## 功能概览
 
-拖入一个装满 `.md` / `.txt` 文档的文件夹，ImmerseAI 会自动扫描、索引、建立书架。选中任意一本，切换到 Chat 模式，就可以为它配置一个角色人设，然后开始对话。AI 的每一句回应都经过 RAG 检索，有据可查——点击引用可以直接跳回原文。
-
-你还可以用自然语言指挥底部的 **Librarian Agent** 管理书架：「把这本书移到科幻文件夹」、「列出无分类里有什么」，它会调用 MCP 工具完成文件操作，并实时刷新视图。
+| 功能 | 说明 |
+|------|------|
+| **本地书架** | 挂载任意本地目录，自动扫描 `.md` / `.txt`，支持多层文件夹结构 |
+| **宫格 / 列表视图** | 可切换两种书架布局，拖动窗口自适应响应式排版 |
+| **端侧 RAG** | 自适应分块 + 主进程 embedding（all-MiniLM-L6-v2）+ Orama BM25，混合 RRF 检索 |
+| **两阶段索引** | 大书（> 5000 chunks）立即完成词法索引可用，后台异步升级语义 |
+| **角色人设** | 用 LLM + RAG 检索自动生成角色描述、性格、台词风格、背景 |
+| **沉浸式对话** | 流式输出 + RAG 上下文注入，回应附带原文引用，点击跳回原文 |
+| **Librarian Agent** | 自然语言指挥文件管理：移动书籍、创建/删除文件夹、批量操作 |
+| **页面过渡动画** | framer-motion 全局路由过渡 + 阅读器骨架屏，消除白屏体验 |
+| **安全存储** | API Key 通过 Electron `safeStorage` 加密，不写入任何明文文件 |
 
 ---
 
@@ -18,7 +26,7 @@ ImmerseAI 是一款 **Local-First** 桌面应用。它通过 MCP 协议接管你
 
 | 层级 | 技术选型 |
 |------|---------|
-| 运行时 | Electron 28+ |
+| 运行时 | Electron 28 |
 | 前端 | React 18 + TypeScript strict |
 | 构建 | Vite 5 + electron-vite |
 | UI | TailwindCSS 3 + shadcn/ui + framer-motion |
@@ -27,7 +35,9 @@ ImmerseAI 是一款 **Local-First** 桌面应用。它通过 MCP 协议接管你
 | 端侧 RAG | @huggingface/transformers（主进程 Node.js）+ @orama/orama |
 | LLM | OpenAI Compatible API，用户自定义 Base URL / Model |
 
-架构分为三层：**渲染进程（React UI）→ 主进程（RAG + IPC 桥接 + MCP）→ 外部（LLM API）**。RAG 计算在主进程 Node.js 中执行，彻底规避渲染进程 `file://` 协议限制；UI 层通过 IPC fire-and-forget 模式异步获取进度，始终不阻塞。
+**架构分层**：渲染进程（React UI）→ 主进程（RAG + IPC 桥接 + MCP）→ 外部（LLM API）
+
+RAG 向量化在主进程 Node.js 中执行，规避渲染进程 `file://` 协议限制；UI 层通过 IPC fire-and-forget 异步获取进度，始终不阻塞界面。
 
 ---
 
@@ -37,10 +47,10 @@ ImmerseAI 是一款 **Local-First** 桌面应用。它通过 MCP 协议接管你
 npm install
 npm run dev      # 开发模式（热重载）
 npm run build    # 类型检查 + 构建
-npm run pack     # electron-builder 打包
+npm run pack     # electron-builder 打包为安装包
 ```
 
-首次启动后，在设置页填入 API Key、Base URL 和 Model 名称，然后选择一个本地目录挂载书架即可。配置通过 Zustand persist 缓存，重启后自动恢复。API Key 使用 Electron `safeStorage` 加密存储，不写入任何明文文件。
+首次启动后，在**设置页**填入 API Key、Base URL 和 Model 名称，然后点击书架页的目录按钮选择本地文件夹挂载书架。配置通过 Zustand persist 缓存，重启后自动恢复。
 
 ---
 
@@ -52,43 +62,35 @@ immerseai/
 │   ├── main/          # ipc-handlers · llm-handler · rag-handler · mcp-manager · safe-storage
 │   └── preload/       # contextBridge 安全 API（白名单 channel）
 ├── src/
-│   ├── app/           # 路由 · Provider
+│   ├── app/           # 路由（PageTransitionLayout）· Provider
 │   ├── features/      # bookshelf · reader · chat · persona · settings
-│   ├── shared/        # 通用组件 · Store · 类型 · hooks
-│   └── workers/       # （已迁移至主进程，目录保留供未来扩展）
+│   └── shared/        # 通用组件 · Store · 类型 · hooks · utils
 ├── openspec/          # 规格驱动开发文档与归档变更
-├── test_book/         # 调试记录与跨设备验证样本
-└── docs/              # 设计文档 · Spike 实验 · API 参考
+└── test_book/         # 调试记录（Bug调试记录.md）与测试样本
 ```
 
 ---
 
 ## 开发进度
 
-> 更新：2026-03-07 · 已归档 Changes：**18** · AT-01 ~ AT-14 全部通过
+> 更新：2026-03-07
 
 | Phase | 内容 | 状态 |
 |-------|------|------|
 | 1 基建 | IPC 桥接 / Zustand Store / 路由 / 类型系统 | ✅ |
-| 2 书架 | MCP Manager / BookshelfPage / 目录挂载流程 / Librarian Agent | ✅ |
-| 3 大脑 | RAG 主进程 / 自适应分块 / 两阶段索引 / 混合搜索 | ✅ |
-| 4 灵魂 | LLM 流式对话 / Chat UI / 角色人设生成 / 阅读器 / 设置页 | ✅ |
-| 5 整合 | 引用跳转 / 测试 Skill / 打包 / Bug 调试记录体系 | ✅ |
-
-已归档 changes（节选）：`init-scaffold` · `mcp-manager` · `bookshelf-ui` · `rag-worker-setup` · `rag-indexing` · `rag-search` · `llm-handler` · `chat-ui` · `persona-ui` · `persona-generator` · `settings-page` · `citation-jump` · `test-and-fix-skill` · `app-packaging` · `adaptive-rag-large-book`
+| 2 书架 | MCP Manager / BookshelfPage / Librarian Agent / 响应式布局 / 宫格+列表视图 | ✅ |
+| 3 大脑 | RAG 主进程迁移 / 自适应分块 / 两阶段索引 / 混合 RRF 检索 / 并发去重 | ✅ |
+| 4 灵魂 | LLM 流式对话 / Chat UI / 角色人设生成 / 阅读器 / 引用跳转 / 骨架屏 | ✅ |
+| 5 质量 | React 最佳实践审查 / 性能优化 / Bug 调试体系 / 打包发布 | ✅ |
 
 ---
 
-## 规格与工程实践
+## 工程实践
 
-开发流程遵循 **OpenSpec** 规格驱动范式：`proposal → design → specs → tasks → apply → verify → archive`。每个功能变更都有对应的 spec 文档和归档记录（`openspec/changes/archive/`）。
+**OpenSpec 规格驱动开发**：每个功能变更遵循 `proposal → design → specs → tasks → apply → verify → archive` 流程，变更文档归档于 `openspec/changes/archive/`。
 
-测试由 `qoobee-t&f-skill` 驱动，支持自动化代码审计（AT-01 ~ AT-14）与人工测试报告修复两种模式。调试记录维护在 `test_book/无分类/Bug调试记录.md`，每条记录附带根因分析、代码 diff 和面向面试的知识点问答。
+**测试体系**：`qoobee-t&f-skill` 支持自动化代码审计（AT-01 ~ AT-14）与人工测试报告修复。AT-01 ~ AT-14 全部通过。
 
-Agent Skills 扩展（`.cursor/skills/`）包含测试修复、bug 调试记录、Vercel 工程实践等能力包，均通过关键词触发，不影响核心运行链路。
+**Bug 调试记录**：每个 Bug 均记录根因分析、代码 diff、知识点与面试问答，维护于 `test_book/无分类/Bug调试记录.md`（当前 BUG-001 ~ BUG-006）。
 
----
-
-## License
-
-MIT
+**Agent Skills**：`.cursor/skills/` 内置测试修复、Bug 调试记录、Vercel React 最佳实践等能力包，关键词触发，不影响核心运行链路。
