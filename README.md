@@ -2,6 +2,8 @@
 
 > 把书里的人物请出来，和他们聊天。
 
+![书架页面截图](docs/screenshots/bookshelf.png)
+
 ImmerseAI 是一款 **Local-First** 桌面应用。通过 MCP 协议接管本地书库，在设备端完成 RAG 向量化，生成书中角色的人设并进行沉浸式对话。所有书籍与向量索引永远留在本地，唯一出站的只有你主动发起的 LLM 请求。
 
 ---
@@ -91,6 +93,6 @@ immerseai/
 
 **测试体系**：`qoobee-t&f-skill` 支持自动化代码审计（AT-01 ~ AT-14）与人工测试报告修复。AT-01 ~ AT-14 全部通过。
 
-**Bug 调试记录**：每个 Bug 均记录根因分析、代码 diff、知识点与面试问答，维护于 `test_book/无分类/Bug调试记录.md`（当前 BUG-001 ~ BUG-006）。
+**Bug 调试记录**：每个 Bug 均记录根因分析、代码 diff、知识点与面试问答，维护于 `test_book/无分类/Bug调试记录.md`（当前 BUG-001 ~ BUG-007）。
 
 **Agent Skills**：`.cursor/skills/` 内置测试修复、Bug 调试记录、Vercel React 最佳实践等能力包，关键词触发，不影响核心运行链路。
