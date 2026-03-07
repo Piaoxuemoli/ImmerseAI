@@ -5,18 +5,18 @@ interface TextViewerProps {
   content: string
   bookPath: string
   initialParagraphIndex?: number
-  initialOffset?: number
+  _initialOffset?: number
   onProgressChange?: (paragraphIndex: number, offset: number) => void
-  onJumpRequest?: (paragraphIndex: number) => void
+  _onJumpRequest?: (paragraphIndex: number) => void
 }
 
 export const TextViewer: React.FC<TextViewerProps> = ({
   content,
   bookPath,
   initialParagraphIndex,
-  initialOffset,
+  _initialOffset,
   onProgressChange,
-  onJumpRequest,
+  _onJumpRequest,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const isMarkdown = bookPath.endsWith('.md')
@@ -36,7 +36,6 @@ export const TextViewer: React.FC<TextViewerProps> = ({
       if (!containerRef.current || !onProgressChange) return
 
       const paragraphs = containerRef.current.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
-      const scrollTop = containerRef.current.scrollTop
       const containerTop = containerRef.current.getBoundingClientRect().top
 
       for (let i = 0; i < paragraphs.length; i++) {
