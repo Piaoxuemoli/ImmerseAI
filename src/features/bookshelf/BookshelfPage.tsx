@@ -53,13 +53,16 @@ export function BookshelfPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   // 应用启动时若有已保存路径则自动重连；若已连接则直接刷新目录树
+  const didInitRef = useRef(false)
   useEffect(() => {
+    if (didInitRef.current) return
+    didInitRef.current = true
     if (connectionStatus === 'connected') {
       refreshBooks()
     } else {
       autoConnect()
     }
-  }, [])
+  }, [connectionStatus, refreshBooks, autoConnect])
 
   // 用于跟踪上一次的 connectionStatus，避免初始 render 时误弹 Toast
   const prevStatusRef = useRef(connectionStatus)
@@ -115,13 +118,11 @@ export function BookshelfPage() {
       path: book.path,
       size: 0,
       type: book.path.endsWith('.md') ? 'md' as const : book.path.endsWith('.txt') ? 'txt' as const : 'unknown' as const,
-      lastModified: Date.now(),
+      lastModified: 0,
     }))
   }, [books])
 
-  const rootFolders = useMemo(() => {
-    return rootEntries.filter((entry) => entry.type === 'directory')
-  }, [rootEntries])
+  const rootFolders = rootEntries.filter((entry) => entry.type === 'directory')
 
   const activeBooks = useMemo(() => {
     if (!activeFolderPath) return []
@@ -129,9 +130,7 @@ export function BookshelfPage() {
     return books.filter((book) => normalizePath(parentPath(book.path)) === normalizedFolderPath)
   }, [activeFolderPath, books])
 
-  const childFolders = useMemo(() => {
-    return activeFolderEntries.filter((entry) => entry.type === 'directory')
-  }, [activeFolderEntries])
+  const childFolders = activeFolderEntries.filter((entry) => entry.type === 'directory')
 
   // 点击书籍卡片
   const handleBookClick = useCallback((bookId: string) => {
@@ -144,11 +143,11 @@ export function BookshelfPage() {
     if (isRefreshing || connectionStatus !== 'connected') return
     setIsRefreshing(true)
     try {
-      await refreshBooks()
       const nextPath = activeFolderPath || defaultFolderPath
-      if (nextPath) {
-        await loadActiveFolderEntries(nextPath)
-      }
+      await Promise.all([
+        refreshBooks(),
+        nextPath ? loadActiveFolderEntries(nextPath) : Promise.resolve(),
+      ])
     } finally {
       setIsRefreshing(false)
     }
@@ -165,25 +164,22 @@ export function BookshelfPage() {
     const filePaths = await window.electronAPI.app.selectFiles()
     if (!filePaths.length) return
 
-    let successCount = 0
-    const errors: string[] = []
-
-      for (const filePath of filePaths) {
-        try {
-          const fileName = filePath.replace(/\\/g, '/').split('/').pop() ?? filePath
-          const destPath = normalizePath(`${targetDir}/${fileName}`)
-          const text = await window.electronAPI.app.readFileText(filePath)
-          await window.electronAPI.mcp.writeFile(destPath, text)
-          successCount++
-        } catch (err) {
-          errors.push(err instanceof Error ? err.message : String(err))
-        }
-      }
+    const results = await Promise.allSettled(
+      filePaths.map(async (filePath) => {
+        const fileName = filePath.replace(/\\/g, '/').split('/').pop() ?? filePath
+        const destPath = normalizePath(`${targetDir}/${fileName}`)
+        const text = await window.electronAPI.app.readFileText(filePath)
+        await window.electronAPI.mcp.writeFile(destPath, text)
+      }),
+    )
+    const successCount = results.filter((r) => r.status === 'fulfilled').length
+    const errors = results
+      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      .map((r) => (r.reason instanceof Error ? r.reason.message : String(r.reason)))
 
     if (successCount > 0) {
       toast.success(`已导入 ${successCount} 本书籍`)
-      await refreshBooks()
-      await loadActiveFolderEntries(targetDir)
+      await Promise.all([refreshBooks(), loadActiveFolderEntries(targetDir)])
     }
     if (errors.length > 0) {
       toast.error(`${errors.length} 个文件导入失败：${errors[0]}`)
@@ -221,8 +217,10 @@ export function BookshelfPage() {
     const newFolderPath = normalizePath(`${basePath}/${sanitizedName}`)
     try {
       await createFolder(newFolderPath)
-      await refreshBooks()
-      await loadActiveFolderEntries(activeFolderPath || defaultFolderPath || basePath)
+      await Promise.all([
+        refreshBooks(),
+        loadActiveFolderEntries(activeFolderPath || defaultFolderPath || basePath),
+      ])
       toast.success(`已创建文件夹：${sanitizedName}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '创建文件夹失败')
@@ -235,11 +233,12 @@ export function BookshelfPage() {
       if (!window.confirm(`确认删除文件夹 "${folderName}" 吗？此操作不可撤销。`)) return
       try {
         await deleteFolder(folderPath)
-        await refreshBooks()
         const fallbackPath = activeFolderPath === normalizePath(folderPath) ? defaultFolderPath : activeFolderPath
         if (fallbackPath) {
           setActiveFolderPath(fallbackPath)
-          await loadActiveFolderEntries(fallbackPath)
+          await Promise.all([refreshBooks(), loadActiveFolderEntries(fallbackPath)])
+        } else {
+          await refreshBooks()
         }
         toast.success(`已删除文件夹：${folderName}`)
       } catch (err) {
@@ -250,11 +249,11 @@ export function BookshelfPage() {
   )
 
   const handleLibrarianSuccess = useCallback(async () => {
-    await refreshBooks()
     const nextPath = activeFolderPath || defaultFolderPath
-    if (nextPath) {
-      await loadActiveFolderEntries(nextPath)
-    }
+    await Promise.all([
+      refreshBooks(),
+      nextPath ? loadActiveFolderEntries(nextPath) : Promise.resolve(),
+    ])
   }, [activeFolderPath, defaultFolderPath, loadActiveFolderEntries, refreshBooks])
 
   // 未连接状态 UI

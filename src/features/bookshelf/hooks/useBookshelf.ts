@@ -8,6 +8,7 @@ import { useState, useCallback } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { useStore } from '@/shared/store'
 import type { Book, BookFile } from '@/shared/types'
+import { WINDOWS_ABSOLUTE_PATH_RE } from '@/shared/utils/path'
 
 const DEFAULT_FOLDER_NAME = '无分类'
 
@@ -33,7 +34,7 @@ function isTextBookFile(file: BookFile): boolean {
 }
 
 function resolveBookPath(rootPath: string, filePath: string): string {
-  const isAbsolute = /^[a-zA-Z]:[\\/]/.test(filePath) || filePath.startsWith('/')
+  const isAbsolute = WINDOWS_ABSOLUTE_PATH_RE.test(filePath) || filePath.startsWith('/')
   if (isAbsolute) return normalizePath(filePath)
   const normalizedRoot = normalizePath(rootPath).replace(/[\\/]+$/, '')
   const normalizedFile = normalizePath(filePath).replace(/^[\\/]+/, '')
@@ -63,12 +64,14 @@ async function ensureDefaultFolderAndMigrateRootBooks(rootPath: string): Promise
   }
 
   const rootBooks = rootEntries.filter((entry) => entry.type !== 'directory' && isTextBookFile(entry))
-  for (const rootBook of rootBooks) {
-    const sourcePath = normalizePath(rootBook.path)
-    const targetPath = buildChildPath(defaultFolderPath, rootBook.name)
-    if (sourcePath === normalizePath(targetPath)) continue
-    await window.electronAPI.mcp.moveFile(sourcePath, targetPath)
-  }
+  const booksToMove = rootBooks.filter(
+    (b) => normalizePath(b.path) !== normalizePath(buildChildPath(defaultFolderPath, b.name)),
+  )
+  await Promise.all(
+    booksToMove.map((b) =>
+      window.electronAPI.mcp.moveFile(normalizePath(b.path), buildChildPath(defaultFolderPath, b.name)),
+    ),
+  )
 }
 
 async function scanBooksRecursively(rootPath: string): Promise<{ books: Book[]; rootEntries: BookFile[] }> {

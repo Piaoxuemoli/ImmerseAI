@@ -1,5 +1,36 @@
 import React, { useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
+import type { Components } from 'react-markdown'
+
+const MARKDOWN_COMPONENTS: Components = {
+  h1: ({ children }) => (
+    <h1 className="text-3xl font-semibold text-slate-900 mt-8 mb-4">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-2xl font-semibold text-slate-900 mt-6 mb-3">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-xl font-semibold text-slate-900 mt-4 mb-2">{children}</h3>
+  ),
+  p: ({ children }) => <p className="mb-4 text-slate-900">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc pl-6 mb-4 text-slate-900">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 text-slate-900">{children}</ol>,
+  code: ({ className, children }) => {
+    const isInline = !className
+    if (isInline) {
+      return (
+        <code className="bg-slate-100 px-1.5 py-0.5 rounded text-sm font-mono text-slate-800">
+          {children}
+        </code>
+      )
+    }
+    return (
+      <code className="block bg-slate-900 text-slate-50 p-4 rounded-lg overflow-x-auto font-mono text-sm mb-4">
+        {children}
+      </code>
+    )
+  },
+}
 
 interface TextViewerProps {
   content: string
@@ -68,37 +99,7 @@ export const TextViewer: React.FC<TextViewerProps> = ({
         }}
       >
         <div className="prose prose-slate max-w-none">
-          <ReactMarkdown
-            components={{
-            h1: ({ children }) => (
-              <h1 className="text-3xl font-semibold text-slate-900 mt-8 mb-4">{children}</h1>
-            ),
-            h2: ({ children }) => (
-              <h2 className="text-2xl font-semibold text-slate-900 mt-6 mb-3">{children}</h2>
-            ),
-            h3: ({ children }) => (
-              <h3 className="text-xl font-semibold text-slate-900 mt-4 mb-2">{children}</h3>
-            ),
-            p: ({ children }) => <p className="mb-4 text-slate-900">{children}</p>,
-            ul: ({ children }) => <ul className="list-disc pl-6 mb-4 text-slate-900">{children}</ul>,
-            ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 text-slate-900">{children}</ol>,
-            code: ({ className, children }) => {
-              const isInline = !className
-              if (isInline) {
-                return (
-                  <code className="bg-slate-100 px-1.5 py-0.5 rounded text-sm font-mono text-slate-800">
-                    {children}
-                  </code>
-                )
-              }
-              return (
-                <code className="block bg-slate-900 text-slate-50 p-4 rounded-lg overflow-x-auto font-mono text-sm mb-4">
-                  {children}
-                </code>
-              )
-            },
-            }}
-          >
+          <ReactMarkdown components={MARKDOWN_COMPONENTS}>
             {content}
           </ReactMarkdown>
         </div>

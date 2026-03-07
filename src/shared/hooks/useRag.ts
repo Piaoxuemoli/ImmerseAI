@@ -55,10 +55,10 @@ export function useRag(options?: UseRagOptions): UseRagResult {
   const [isUpgrading, setIsUpgrading] = useState(false)
 
   // Keep refs in sync with latest callbacks (avoids stale closures in listeners)
-  useEffect(() => { onProgressRef.current = options?.onIngestProgress }, [options?.onIngestProgress])
-  useEffect(() => { onCompleteRef.current = options?.onIngestComplete }, [options?.onIngestComplete])
-  useEffect(() => { onUpgradeProgressRef.current = options?.onUpgradeProgress }, [options?.onUpgradeProgress])
-  useEffect(() => { onUpgradeCompleteRef.current = options?.onUpgradeComplete }, [options?.onUpgradeComplete])
+  onProgressRef.current = options?.onIngestProgress
+  onCompleteRef.current = options?.onIngestComplete
+  onUpgradeProgressRef.current = options?.onUpgradeProgress
+  onUpgradeCompleteRef.current = options?.onUpgradeComplete
 
   useEffect(() => {
     const unsubProgress = window.electronAPI.rag.onIngestProgress((data) => {

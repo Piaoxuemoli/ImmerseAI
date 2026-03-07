@@ -49,10 +49,8 @@ export function useChat(): UseChatReturn {
   // ref 追踪 streamingContent 用于 cleanup/stop 时获取最新值
   const streamingContentRef = useRef('')
 
-  // 同步 streamingContent 到 ref
-  useEffect(() => {
-    streamingContentRef.current = streamingContent
-  }, [streamingContent])
+  // 同步 streamingContent 到 ref（直接赋值，无需 useEffect）
+  streamingContentRef.current = streamingContent
 
   const messages = currentSession?.messages ?? []
 

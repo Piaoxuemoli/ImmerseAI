@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '@/shared/store'
@@ -34,9 +34,10 @@ export function ReaderPage() {
   const markBookIndexed = useStore((s) => s.markBookIndexed)
   const [personaDialogOpen, setPersonaDialogOpen] = useState(false)
 
-  const activePersona = activePersonaId
-    ? personas.find((p) => p.id === activePersonaId && p.bookId === bookId)
-    : undefined
+  const activePersona = useMemo(
+    () => (activePersonaId ? personas.find((p) => p.id === activePersonaId && p.bookId === bookId) : undefined),
+    [activePersonaId, bookId, personas],
+  )
 
   const {
     content,

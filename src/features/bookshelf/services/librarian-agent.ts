@@ -8,6 +8,7 @@
  */
 
 import type { Message, AgentIntent, AgentOperation, BookFile, LlmConfig } from '@/shared/types'
+import { WINDOWS_ABSOLUTE_PATH_RE } from '@/shared/utils/path'
 import { buildLibrarianSystemPrompt } from '../utils/librarian-prompt'
 import { createLlmStream } from '@/shared/utils/llm-stream'
 
@@ -39,7 +40,7 @@ function normalizePath(path: string): string {
 }
 
 function isAbsolutePath(path: string): boolean {
-  return /^[a-zA-Z]:[\\/]/.test(path) || path.startsWith('/')
+  return WINDOWS_ABSOLUTE_PATH_RE.test(path) || path.startsWith('/')
 }
 
 function toAbsolutePath(inputPath: string, bookshelfPath: string): string {
@@ -264,14 +265,14 @@ async function executeListFiles(
         }
       }
 
-      // 展开每个子文件夹
-      for (const folder of folders) {
-        let subEntries: typeof entries = []
-        try {
-          subEntries = await window.electronAPI.mcp.listFiles(folder.path)
-        } catch {
-          subEntries = []
-        }
+      // 并行展开每个子文件夹
+      const folderResults = await Promise.allSettled(
+        folders.map((f) => window.electronAPI.mcp.listFiles(f.path))
+      )
+      for (let i = 0; i < folders.length; i++) {
+        const folder = folders[i]
+        const subEntries: typeof entries =
+          folderResults[i].status === 'fulfilled' ? folderResults[i].value : []
         const subBooks = subEntries.filter((e) => e.type !== 'directory')
         if (subBooks.length > 0) {
           lines.push(`📁 ${folder.name}（${subBooks.length} 本）：`)

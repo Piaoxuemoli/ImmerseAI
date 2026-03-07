@@ -180,12 +180,10 @@ export const useStore = create<ImmerseStore>()(
       // === Librarian Agent Actions ===
       addAgentOperation: (operation) =>
         set((state) => {
-          const newHistory = [...state.agentHistory, operation]
-          // 保留最多 10 条记录，移除最早的
-          if (newHistory.length > 10) {
-            newHistory.shift()
-          }
-          return { agentHistory: newHistory }
+          const appended = [...state.agentHistory, operation]
+          // 保留最多 10 条记录，移除最早的（slice 不变异数组）
+          const agentHistory = appended.length > 10 ? appended.slice(appended.length - 10) : appended
+          return { agentHistory }
         }),
       clearAgentHistory: () => set({ agentHistory: [] }),
     }),

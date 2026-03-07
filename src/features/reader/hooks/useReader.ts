@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useStore } from '@/shared/store'
+import { WINDOWS_ABSOLUTE_PATH_RE } from '@/shared/utils/path'
 
 /**
  * useReader — 文本/Markdown 阅读器核心 Hook
@@ -17,10 +18,6 @@ export function useReader(bookId: string) {
   const setCurrentParagraphIndex = useStore((s) => s.setCurrentParagraphIndex)
   const setCurrentOffset = useStore((s) => s.setCurrentOffset)
   const setReaderMode = useStore((s) => s.setReaderMode)
-  const pendingCitationParagraphIndex = useStore((s) => s.pendingCitationParagraphIndex)
-  const setPendingCitationParagraphIndex = useStore((s) => s.setPendingCitationParagraphIndex)
-  const setPendingCitationOffset = useStore((s) => s.setPendingCitationOffset)
-  const readerMode = useStore((s) => s.readerMode)
 
   const book = books.find((b) => b.id === bookId)
   const bookPath = book?.path ?? ''
@@ -50,7 +47,7 @@ export function useReader(bookId: string) {
         setLoading(true)
         setError(null)
 
-        const isAbsolutePath = /^[a-zA-Z]:[\\/]/.test(bookPath) || bookPath.startsWith('/')
+        const isAbsolutePath = WINDOWS_ABSOLUTE_PATH_RE.test(bookPath) || bookPath.startsWith('/')
         const normalizedRoot = bookshelfRootPath.replace(/[\\/]+$/, '')
         const normalizedBookPath = bookPath.replace(/^[\\/]+/, '')
         const resolvedBookPath =
@@ -118,17 +115,22 @@ export function useReader(bookId: string) {
     [setReaderMode, setCurrentParagraphIndex],
   )
 
+  // 用 ref 持有最新的 goToParagraph，避免 subscribe 闭包陈旧
+  const goToParagraphRef = useRef(goToParagraph)
+  goToParagraphRef.current = goToParagraph
+
   // --- 监听 pendingCitationParagraphIndex 变化触发跳转 ---
+  // 使用 Zustand subscribe 而非 useStore 订阅，避免 useReader 因这两个值变化而重渲染
   useEffect(() => {
-    if (
-      pendingCitationParagraphIndex !== null &&
-      readerMode === 'read'
-    ) {
-      goToParagraph(pendingCitationParagraphIndex)
-      setPendingCitationParagraphIndex(null)
-      setPendingCitationOffset(null)
-    }
-  }, [pendingCitationParagraphIndex, readerMode, goToParagraph, setPendingCitationParagraphIndex, setPendingCitationOffset])
+    return useStore.subscribe((state) => {
+      const { pendingCitationParagraphIndex, readerMode } = state
+      if (pendingCitationParagraphIndex !== null && readerMode === 'read') {
+        goToParagraphRef.current(pendingCitationParagraphIndex)
+        useStore.getState().setPendingCitationParagraphIndex(null)
+        useStore.getState().setPendingCitationOffset(null)
+      }
+    })
+  }, [])
 
   return {
     content,

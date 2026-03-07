@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { useStore } from '@/shared/store'
 import type { Persona } from '@/shared/types'
@@ -41,12 +41,6 @@ export function usePersona(bookId: string, bookTitle: string) {
     setForm({ ...INITIAL_FORM })
     setNameError(false)
   }, [])
-
-  useEffect(() => {
-    if (!bookId) {
-      resetForm()
-    }
-  }, [bookId, resetForm])
 
   const generatePersona = useCallback(async (): Promise<boolean> => {
     if (form.name.trim() === '') {
