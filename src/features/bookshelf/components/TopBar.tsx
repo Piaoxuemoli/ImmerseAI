@@ -11,12 +11,12 @@ interface TopBarProps {
 
 export function TopBar({ onSettingsClick, onImportClick, onRefreshClick, isRefreshing }: TopBarProps) {
   return (
-    <header className="flex items-center justify-between border-b border-slate-200 px-6 py-3">
+    <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 min-w-0">
       {/* Logo */}
-      <h1 className="text-xl font-semibold text-slate-900">ImmerseAI</h1>
+      <h1 className="min-w-0 truncate text-xl font-semibold text-slate-900 pr-2">ImmerseAI</h1>
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-1">
+      {/* Action Buttons — shrink-0 ensures icons never get squeezed */}
+      <div className="flex shrink-0 items-center gap-1">
         <Button
           variant="ghost"
           size="icon"

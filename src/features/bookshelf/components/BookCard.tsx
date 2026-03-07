@@ -20,25 +20,22 @@ export function BookCard({ book, index, onClick }: BookCardProps) {
 
   return (
     <div
-      className="cursor-pointer rounded-lg border border-slate-200 transition-transform duration-200 hover:scale-[1.03]"
+      className="cursor-pointer rounded-lg border border-slate-200 bg-white transition-all duration-200 hover:scale-[1.03] hover:shadow-md"
       onClick={onClick}
     >
-      {/* Cover */}
+      {/* 封面 — 缩小为 3:4 比例 */}
       <div
-        className={`${coverColor} flex aspect-[2/3] items-center justify-center rounded-t-lg px-3`}
+        className={`${coverColor} flex aspect-[3/4] items-center justify-center rounded-t-lg px-2`}
       >
-        <span className="text-center text-sm font-semibold text-white">
+        <span className="text-center text-xs font-semibold leading-tight text-white line-clamp-4">
           {book.title}
         </span>
       </div>
 
-      {/* Info */}
-      <div className="px-3 py-2">
-        <p className="truncate text-sm font-semibold text-slate-900">
+      {/* 书名（不显示作者） */}
+      <div className="px-2 py-1.5">
+        <p className="truncate text-xs font-medium text-slate-800">
           {book.title}
-        </p>
-        <p className="truncate text-xs text-slate-500">
-          {book.author}
         </p>
       </div>
     </div>

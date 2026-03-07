@@ -8,7 +8,7 @@ interface BookGridProps {
 
 export function BookGrid({ books, onBookClick }: BookGridProps) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-6 px-6 py-6">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4 px-6 py-4">
       {books.map((book, index) => (
         <BookCard
           key={book.id}

@@ -5,9 +5,10 @@ import type { BookFile } from '@/shared/types'
 import { ScrollArea } from '@/shared/components/ui/scroll-area'
 import { Button } from '@/shared/components/ui/button'
 import { useStore } from '@/shared/store'
-import { FolderOpen, BookOpen, Plus, Loader2, Trash2, ArrowLeft } from 'lucide-react'
+import { FolderOpen, BookOpen, Plus, Loader2, Trash2, ArrowLeft, LayoutGrid, List } from 'lucide-react'
 import { TopBar } from './components/TopBar'
 import { BookGrid } from './components/BookGrid'
+import { BookList } from './components/BookList'
 import { LibrarianBar } from './components/LibrarianBar'
 import { useBookshelf } from './hooks/useBookshelf'
 
@@ -51,6 +52,7 @@ export function BookshelfPage() {
   const [activeFolderEntries, setActiveFolderEntries] = useState<BookFile[]>([])
   const [isFolderLoading, setIsFolderLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   // 应用启动时若有已保存路径则自动重连；若已连接则直接刷新目录树
   const didInitRef = useRef(false)
@@ -340,8 +342,8 @@ export function BookshelfPage() {
 
     // 已连接且有内容（目录化视图）
     return (
-      <div className="mx-auto flex max-w-7xl gap-6 px-6 py-6 pb-20">
-        <div className="w-64 shrink-0 rounded-lg border border-slate-200 p-4">
+      <div className="mx-auto flex max-w-7xl gap-4 px-4 py-6 pb-20">
+        <div className="w-48 shrink-0 rounded-lg border border-slate-200 p-3 xl:w-56">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-700">文件夹</h3>
             <Button variant="ghost" size="icon" onClick={handleCreateFolder} title="新增文件夹">
@@ -375,15 +377,34 @@ export function BookshelfPage() {
                 {activeFolderPath || defaultFolderPath || bookshelfRootPath}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {/* 视图切换 */}
+              <div className="flex rounded-md border border-slate-200 overflow-hidden">
+                <button
+                  className={`flex h-8 w-8 items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:bg-slate-50'}`}
+                  onClick={() => setViewMode('grid')}
+                  title="宫格视图"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  className={`flex h-8 w-8 items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:bg-slate-50'}`}
+                  onClick={() => setViewMode('list')}
+                  title="列表视图"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+              </div>
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleBackToParent}
                 disabled={!activeFolderPath || normalizePath(activeFolderPath) === normalizePath(bookshelfRootPath)}
+                title="返回上级"
               >
-                <ArrowLeft className="mr-1 h-4 w-4" />
-                返回上级
+                <ArrowLeft className="h-4 w-4" />
+                <span className="ml-1 hidden sm:inline">返回上级</span>
               </Button>
               <Button
                 variant="outline"
@@ -391,9 +412,10 @@ export function BookshelfPage() {
                 className="text-red-600 hover:text-red-700"
                 onClick={() => activeFolderPath && void handleDeleteFolder(activeFolderPath)}
                 disabled={!activeFolderPath || normalizePath(activeFolderPath) === normalizePath(defaultFolderPath)}
+                title="删除文件夹"
               >
-                <Trash2 className="mr-1 h-4 w-4" />
-                删除文件夹
+                <Trash2 className="h-4 w-4" />
+                <span className="ml-1 hidden sm:inline">删除文件夹</span>
               </Button>
             </div>
           </div>
@@ -414,7 +436,11 @@ export function BookshelfPage() {
               )}
 
               {activeBooks.length > 0 ? (
-                <BookGrid books={activeBooks} onBookClick={handleBookClick} />
+                viewMode === 'grid' ? (
+                  <BookGrid books={activeBooks} onBookClick={handleBookClick} />
+                ) : (
+                  <BookList books={activeBooks} onBookClick={handleBookClick} />
+                )
               ) : childFolders.length === 0 ? (
                 <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
                   当前文件夹为空，可新增子文件夹后导入书籍，或通过 LLM 指令移动书籍到此目录。

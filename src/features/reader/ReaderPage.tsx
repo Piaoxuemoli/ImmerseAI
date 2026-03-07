@@ -9,6 +9,7 @@ import { useRag } from '@/shared/hooks/useRag'
 import { useReader } from './hooks/useReader'
 import { ReaderHeader } from './components/ReaderHeader'
 import { TextViewer } from './components/TextViewer'
+import { ReadingLoadingSkeleton } from './components/ReadingLoadingSkeleton'
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -162,12 +163,16 @@ export function ReaderPage() {
                 exit="exit"
                 transition={pageTransition}
               >
-                <TextViewer
-                  content={loading ? '' : content}
-                  bookPath={book?.path ?? ''}
-                  initialParagraphIndex={paragraphIndex}
-                  onProgressChange={handleProgressChange}
-                />
+                {loading ? (
+                  <ReadingLoadingSkeleton />
+                ) : (
+                  <TextViewer
+                    content={content}
+                    bookPath={book?.path ?? ''}
+                    initialParagraphIndex={paragraphIndex}
+                    onProgressChange={handleProgressChange}
+                  />
+                )}
               </motion.div>
             ) : (
               <motion.div

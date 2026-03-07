@@ -2,29 +2,20 @@ import { createBrowserRouter, createHashRouter, Navigate } from 'react-router-do
 import { BookshelfPage } from '@/features/bookshelf/BookshelfPage'
 import { ReaderPage } from '@/features/reader/ReaderPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
+import { PageTransitionLayout } from '@/shared/components/PageTransitionLayout'
 
 const routes = [
   {
-    path: '/',
-    element: <Navigate to="/bookshelf" replace />
+    element: <PageTransitionLayout />,
+    children: [
+      { path: '/', element: <Navigate to="/bookshelf" replace /> },
+      { path: '/bookshelf', element: <BookshelfPage /> },
+      { path: '/reader/:id', element: <ReaderPage /> },
+      { path: '/settings', element: <SettingsPage /> },
+      { path: '*', element: <Navigate to="/bookshelf" replace /> },
+    ],
   },
-  {
-    path: '/bookshelf',
-    element: <BookshelfPage />
-  },
-  {
-    path: '/reader/:id',
-    element: <ReaderPage />
-  },
-  {
-    path: '/settings',
-    element: <SettingsPage />
-  },
-  {
-    path: '*',
-    element: <Navigate to="/bookshelf" replace />
-  }
-] as const
+]
 
 const isFileProtocol =
   typeof window !== 'undefined' && window.location.protocol === 'file:'
