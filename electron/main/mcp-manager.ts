@@ -36,18 +36,10 @@ function getMcpServerConfig(localPath: string): {
   env?: Record<string, string>;
 } {
   if (app.isPackaged) {
-    // 打包模式: server-filesystem 在 asar.unpacked/node_modules 中
-    // 使用 ELECTRON_RUN_AS_NODE=1 让 Electron 作为 Node.js 运行
-    const serverPath = path.join(
-      process.resourcesPath,
-      'app.asar.unpacked',
-      'node_modules',
-      '@modelcontextprotocol',
-      'server-filesystem',
-      'dist',
-      'index.js'
-    );
-    console.log(`[McpManager] Packaged mode - server path: ${serverPath}`);
+    // 打包模式: 使用预先 esbuild 打包好的自包含 ESM bundle (mcp-server.mjs)
+    // 该 bundle 位于 extraResources 目录，完全独立，无需 ASAR 内的 node_modules
+    const serverPath = path.join(process.resourcesPath, 'mcp-server.mjs');
+    console.log(`[McpManager] Packaged mode - bundled server path: ${serverPath}`);
     return {
       command: process.execPath,
       args: [serverPath, localPath],

@@ -6,6 +6,12 @@ import { McpManager } from './mcp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// 开发模式使用独立的 userData 目录，避免开发配置（书架路径、API Key 等）
+// 污染或覆盖打包版本的用户数据
+if (!app.isPackaged) {
+  app.setPath('userData', path.join(app.getPath('userData'), '__dev__'))
+}
+
 /** 打包后渲染进程入口（与 electron-builder files 布局一致） */
 function getRendererPath(): string {
   if (app.isPackaged) {
