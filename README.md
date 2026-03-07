@@ -2,7 +2,7 @@
 
 > 把书里的人物请出来，和他们聊天。
 
-![书架页面截图](docs/screenshots/bookshelf.png)
+![书架页面截图](./docs/screenshots/bookshelf.png)
 
 ImmerseAI 是一款 **Local-First** 桌面应用。通过 MCP 协议接管本地书库，在设备端完成 RAG 向量化，生成书中角色的人设并进行沉浸式对话。所有书籍与向量索引永远留在本地，唯一出站的只有你主动发起的 LLM 请求。
 
