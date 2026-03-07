@@ -902,3 +902,125 @@ React 的 `useEffect` 使用 `Object.is` 比较依赖数组的每一项。当依
 > 核心模式是"幂等入口 + 追踪进行中的任务"。具体实现：① 用 `Map<key, Promise>` 或 `Set<key>` 在 handler 入口处检查是否已有相同 key 的任务在运行；② 若已有，直接 return（或等待已有 Promise，对需要获取结果的调用者使用 `Map<key, Promise>`）；③ 任务完成后在 `finally` 块中删除 key，保证异常时也能清理；④ key 的选取应反映操作的"业务唯一性"——本例中选用内容哈希（contentHash）而非 bookId，因为同一内容不同路径的书籍复用同一份索引，比 bookId 更精确。这与数据库事务的"幂等写入"设计思想一致。
 
 ---
+
+## BUG-007: 打包版本 MCP 服务崩溃（ES Module 无法从 ASAR 加载依赖）
+
+**日期**: 2026-03-07 | **技术栈**: Electron / electron-builder / esbuild / Node.js ESM / ASAR | **严重程度**: 高 | **状态**: 已修复
+
+### 问题发现
+
+安装打包产物（ImmerseAI Setup 0.1.0.exe）并运行，书架页面无法加载文件，持续显示错误：
+
+```
+Error invoking remote method 'mcp:connect':
+Error: [SERVER_CRASHED] MCP 连接失败: MCP error -32000: Connection closed (剩余重试: 0)
+```
+
+开发模式（`npm run dev`）完全正常，仅在打包安装后复现。
+
+### 问题描述
+
+用户安装后，书架的 MCP 文件系统服务（`@modelcontextprotocol/server-filesystem`）无法启动，导致书架无法列出任何文件夹或书籍，应用核心阅读功能完全不可用。
+
+### 根因分析
+
+**根因一：ES Module 子进程无法从 ASAR 加载依赖**
+
+打包模式下，`@modelcontextprotocol/server-filesystem` 被放入 `asarUnpack` 目录（物理解包）。主进程通过 `ELECTRON_RUN_AS_NODE=1` 以子进程形式启动它：
+
+```ts
+const serverPath = path.join(
+  process.resourcesPath,
+  'app.asar.unpacked', 'node_modules',
+  '@modelcontextprotocol', 'server-filesystem', 'dist', 'index.js'
+)
+```
+
+`dist/index.js` 是纯 ES Module（`"type": "module"`），入口第一行：
+
+```js
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+```
+
+当 Node.js 执行 `import` 语句时，**ESM 模块加载器走 V8 原生路径，不经过 Electron 对 `fs` 的 ASAR 补丁**。因此 `@modelcontextprotocol/sdk` 存在于 `app.asar` 内，但子进程找不到它，进程立即 exit，`StdioClientTransport` 收到连接关闭事件，抛出 `MCP error -32000: Connection closed`。
+
+这与 CommonJS（`require()`）不同——CJS 走 `Module._resolveFilename` → `fs.readFileSync`，均已被 Electron 补丁接管，可正常访问 ASAR。
+
+**根因二（同次发现）：dev 与 prod 共享 userData**
+
+开发时的书架路径、API Key 等持久化于 `%APPDATA%\immerseai\`，而打包 app 与开发 app 共用同一 `userData` 目录，导致开发配置污染生产环境，用户看到"默认书架路径"等开发残留数据。
+
+### 解决方案
+
+**修改文件 1**: `electron/main/mcp-manager.ts`
+
+用 esbuild 将 `server-filesystem` 及其全部依赖预先打包成**单文件 ESM bundle**（`build/mcp-server.mjs`，约 217KB），通过 `extraResources` 部署为 `resources/mcp-server.mjs`，子进程加载普通文件系统路径，完全绕过 ASAR 问题：
+
+```diff
+- const serverPath = path.join(
+-   process.resourcesPath, 'app.asar.unpacked',
+-   'node_modules', '@modelcontextprotocol', 'server-filesystem', 'dist', 'index.js'
+- )
++ const serverPath = path.join(process.resourcesPath, 'mcp-server.mjs')
+```
+
+**修改文件 2**: `package.json`
+
+```diff
+- "asarUnpack": ["node_modules/@modelcontextprotocol/server-filesystem/**/*"],
+  "extraResources": [
+    "resources/models/**/*",
+    "resources/ort/**/*",
++   { "from": "build/mcp-server.mjs", "to": "mcp-server.mjs" }
+  ],
++ "build:mcp-server": "esbuild .../server-filesystem/dist/index.js --bundle --platform=node --format=esm --outfile=build/mcp-server.mjs",
++ "pack": "npm run build:mcp-server && npm run build && electron-builder",
+```
+
+**修改文件 3**: `electron/main/index.ts`（userData 隔离）
+
+```diff
++ if (!app.isPackaged) {
++   app.setPath('userData', path.join(app.getPath('userData'), '__dev__'))
++ }
+```
+
+### 解决效果
+
+- 打包安装后 MCP 服务正常启动，书架可正常加载文件；手动测试确认子进程输出 `Secure MCP Filesystem Server running on stdio`。
+- `app.asar.unpacked/node_modules/` 不再包含 `@modelcontextprotocol` 相关包，打包产物更干净。
+- 开发模式配置写入 `%APPDATA%\immerseai\__dev__\`，不再影响生产安装。
+
+---
+
+### 涉及知识点
+
+**Electron ASAR 与 ES Module 兼容性**
+Electron 通过补丁 Node.js 的 `fs` 模块实现 ASAR 透明访问，CommonJS `require()` 经过 `fs.readFileSync` 可访问 ASAR 内文件。但 ES Module 的 `import` 使用 V8 原生 ESM 加载器，不经过被补丁的 `fs`，因此子进程中无法解析 ASAR 内的模块。规避方案：① 用 esbuild 打包成单文件消除外部依赖（推荐）；② 将所有依赖放入 `asarUnpack`（依赖多时体积极大）。
+
+**electron-builder `extraResources` 与 `asarUnpack` 的区别**
+`asarUnpack` 将文件从 ASAR 解包到 `app.asar.unpacked/`，路径仍是 ASAR 虚拟空间的一部分，CJS 可访问但 ESM 可能无法可靠加载。`extraResources` 将文件复制到 `resources/` 根目录，是完全独立的普通文件，任何进程均可通过 `process.resourcesPath` 直接访问，是向子进程暴露资源的最可靠方式。
+
+**esbuild `--bundle` 单文件打包策略**
+esbuild `--bundle` 模式递归内联所有 `import`/`require`，将整个依赖树打入单一输出文件。对于需要作为独立子进程运行的脚本（MCP server、Worker 等），打包成单文件是最简洁的部署方式，避免运行时模块解析的一切环境依赖。`--format=esm` 保留顶层 `await` 支持，`--platform=node` 确保内置模块（`fs`、`path` 等）不被打包而是保留为 Node.js 原生引用。
+
+**Electron 多实例 userData 隔离**
+开发版与安装版共享 `app.getName()` 返回的应用名，默认写入同一 `userData` 目录。通过在非打包模式下调用 `app.setPath('userData', path.join(oldPath, '__dev__'))` 可将开发数据隔离到子目录，防止 Zustand `persist` 数据（书架路径、API 配置等）在测试打包产物时产生混淆。此操作必须在 `app.on('ready')` 之前执行。
+
+---
+
+### 面试问答
+
+**Q: Electron 打包后子进程无法加载 ASAR 内的 ES Module 依赖，如何诊断并解决？**
+
+> 诊断：① 检查子进程脚本是否为 ESM（`"type": "module"` 或 `import` 语句）；② 确认报错是 `Connection closed` / 进程立即退出，而非 `ENOENT`（spawn 失败）；③ 用 `ELECTRON_RUN_AS_NODE=1` 手动运行子进程脚本并捕获 stderr，确认是模块解析失败。解决路径优先级：① **esbuild 打包成单文件 + extraResources**（推荐）：消除所有外部依赖，部署到 ASAR 外；② `asarUnpack` 覆盖全部传递依赖（依赖树大时不可行）；③ 将子进程逻辑内联到主进程，从根本消除子进程（彻底解法）。
+
+**Q: Electron 中 CJS `require()` 与 ESM `import` 在访问 ASAR 文件时有何本质差异？**
+
+> CJS 的 `require()` 调用链：`Module._resolveFilename` → `Module._findPath` → `fs.existsSync` / `fs.readFileSync`，这些 `fs` 方法已被 Electron 的 ASAR 补丁接管，能透明访问 `.asar` 包内文件。ESM 的 `import` 走 V8 原生 `ESMLoader`，其文件读取路径绕过了 Node.js 的 `fs` 模块补丁层，直接调用 libuv 的 I/O 原语，因此看不到 ASAR 内的文件。这是 Electron 官方文档中已知的 ASAR 限制，官方建议对需要子进程运行的 ESM 脚本使用 `asarUnpack` 或将依赖预先打包。
+
+**Q: 如何为 Electron 应用实现开发与生产环境的数据隔离，防止 Zustand persist 数据互污？**
+
+> 在主进程初始化阶段（`app.ready` 之前）通过 `app.setPath('userData', customPath)` 重定向数据目录。开发模式判断使用 `!app.isPackaged`（而非 `process.env.NODE_ENV`，因为后者可能被 vite 注入覆盖）。隔离路径通常选 `path.join(originalPath, '__dev__')`，既保持命名关联又明确区分。此操作必须在 `app.on('ready')` 之前执行，否则部分 Chromium 初始化路径已固定，`setPath` 不会完全生效。
+
+---
