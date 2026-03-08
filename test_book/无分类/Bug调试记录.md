@@ -1024,3 +1024,115 @@ esbuild `--bundle` 模式递归内联所有 `import`/`require`，将整个依赖
 > 在主进程初始化阶段（`app.ready` 之前）通过 `app.setPath('userData', customPath)` 重定向数据目录。开发模式判断使用 `!app.isPackaged`（而非 `process.env.NODE_ENV`，因为后者可能被 vite 注入覆盖）。隔离路径通常选 `path.join(originalPath, '__dev__')`，既保持命名关联又明确区分。此操作必须在 `app.on('ready')` 之前执行，否则部分 Chromium 初始化路径已固定，`setPath` 不会完全生效。
 
 ---
+
+## BUG-008: 书架每次扫描重新生成 UUID 导致人格数据全部丢失
+
+**日期**: 2026-03-08 | **技术栈**: React / Zustand / React Router | **严重程度**: 高 | **状态**: 已修复
+
+### 问题发现
+
+用户在某本书中通过 AI 一键生成了人物角色（人格），配置成功后返回书架，再点击进入同一本书，发现人格选择器显示"暂无角色，请新建"，之前生成的所有人格凭空消失。每次重新打开书籍都必须重新生成人格，无法持久化。
+
+### 问题描述
+
+在阅读页面创建的人格（Persona）关闭书籍再打开后消失，Zustand persist 看似正常持久化，但人格选择器始终为空。
+
+### 根因分析
+
+`useBookshelf.ts` 中的 `bookFileToBook` 函数在每次扫描书架文件系统时，都通过 `uuidv4()` 为每本书生成全新的随机 UUID：
+
+```typescript
+function bookFileToBook(file: BookFile, rootPath: string): Book {
+  return {
+    id: uuidv4(),   // ← 每次扫描都生成新 UUID
+    title: ...,
+    path: ...,
+  }
+}
+```
+
+`scanBooksRecursively` 会在以下场景被调用：`autoConnect`（应用启动时）、`refreshBooks`（手动刷新）、`mountBookshelf`（挂载书架）、`createFolder`/`deleteFolder`（文件夹操作）。
+
+`Persona` 对象中的 `bookId` 字段存储的是书籍 UUID。流程如下：
+
+1. 第一次进入书籍：书籍 UUID = `abc-123`，人格存入 store，`persona.bookId = 'abc-123'`，持久化到 localStorage ✓
+2. 返回书架：触发书架数据刷新，`bookFileToBook` 再次运行，同一本书的 UUID 变为 `xyz-789`
+3. 再次进入书籍：URL 中的 `bookId = 'xyz-789'`，PersonaSelector 过滤 `personas.filter(p => p.bookId === 'xyz-789')` → 返回空数组
+4. 人格 `persona.bookId = 'abc-123'` 仍在 localStorage 中，但已成孤儿数据，永远无法被匹配
+
+本质是：**可变主键（每次 UUID 随机生成）与依赖稳定主键的关联数据（Persona.bookId）之间的引用一致性问题**。
+
+### 解决方案
+
+**修改文件**: `src/features/bookshelf/hooks/useBookshelf.ts`
+
+在 `loadBookshelfData` 中，扫描完成后用**文件路径**（稳定标识符）将新书列表与 store 中现有书籍做对比，路径相同则沿用原 UUID 及全部持久化元数据（RAG 索引、阅读进度等）：
+
+```diff
+  const loadBookshelfData = useCallback(
+    async (rootPath: string) => {
+      await ensureDefaultFolderAndMigrateRootBooks(rootPath)
+      const { books: newBooks, rootEntries: nextRootEntries } = await scanBooksRecursively(rootPath)
+-     setBooks(newBooks)
++     // 按文件路径匹配现有书籍，保留稳定 ID 与元数据
++     const existingBooks = useStore.getState().books
++     const existingByPath = new Map(existingBooks.map(b => [normalizePath(b.path), b]))
++     const mergedBooks = newBooks.map(newBook => {
++       const existing = existingByPath.get(normalizePath(newBook.path))
++       if (existing) {
++         return { ...newBook, id: existing.id, isIndexed: existing.isIndexed,
++           indexedAt: existing.indexedAt, contentHash: existing.contentHash,
++           chunkCount: existing.chunkCount, lastReadAt: existing.lastReadAt,
++           lastReadParagraphIndex: existing.lastReadParagraphIndex,
++           lastReadOffset: existing.lastReadOffset }
++       }
++       return newBook
++     })
++     setBooks(mergedBooks)
+      setRootEntries(nextRootEntries)
+    },
+    [setBooks],
+  )
+```
+
+新书（首次扫描到的路径）仍由 `uuidv4()` 生成新 UUID，行为不变。
+
+### 解决效果
+
+创建人格后，无论书架刷新多少次、进出书籍多少次，人格数据均稳定保留。同时顺带修复了以下隐性 Bug：
+- 阅读进度（lastReadParagraphIndex）跨会话丢失
+- RAG 向量索引状态（isIndexed / contentHash）每次重置，导致重复触发向量化
+
+---
+
+### 涉及知识点
+
+**Zustand `persist` 持久化的边界**
+`persist` 中间件将 `partialize` 返回的字段序列化到 `localStorage`，在应用重启时自动恢复。但它只保证"字段值本身"的持久性，无法保证**跨 store 字段的引用一致性**。若 `books[].id` 每次都变，`persona.bookId` 引用的 ID 就失效了，即使两者都被持久化，关联关系也断裂。设计关联数据时，主键必须稳定。
+
+**以"稳定属性"作为跨对象引用键**
+UUID 的用途是在无稳定业务键时提供唯一标识，但前提是 UUID 必须只生成一次并复用。对于本地文件书籍，文件路径是天然的稳定标识符（用户不随意移动文件时）。正确做法是：首次扫描时生成 UUID 并持久化，后续扫描以路径为键查询已有 UUID，而不是每次重新生成。
+
+**React Router `useParams` 与 Zustand 状态的协调**
+`useParams` 返回 URL 中的 `bookId`，Zustand store 中的 `books` 数组也有 `id` 字段。二者一致时功能正常；若书籍 ID 在导航期间发生变化（如本 bug），URL 的 `bookId` 与 store 中实际书籍 ID 不再匹配，所有依赖 `bookId` 做 `find/filter` 的组件逻辑均会静默失败，且不会抛出任何错误，极难排查。
+
+**Zustand `getState()` 在副作用中读取最新值**
+在 `useCallback` 内通过 `useStore.getState()` 而非闭包变量读取 store 状态，可以确保获取到最新值，避免闭包过期问题（stale closure）。在本次修复中，`loadBookshelfData` 通过 `useStore.getState().books` 在异步扫描完成后读取当前 books，避免依赖数组中引入 `books`（否则会触发不必要的重渲染循环）。
+
+---
+
+### 面试问答
+
+**Q: 在 React + Zustand 项目中，如何保证跨实体的 ID 引用关系在状态持久化后仍然有效？**
+
+> 核心原则是"主键只生成一次"。对于需要被其他实体引用的主键（如书籍 ID），必须在首次创建时生成并持久化，后续操作（刷新、重扫描）通过稳定的业务标识（文件路径、用户名等）查找已有 ID 并复用，而不是重新生成。如果主键不稳定，所有 `persist` 的关联数据都会变成孤儿数据（orphaned records）。设计 Zustand store 时，建议将"首次生成 ID"的逻辑集中在单一入口，并加注释标明 ID 一旦生成不可变更。
+
+**Q: 如果一个 Bug 在控制台没有任何报错、数据也存在于 localStorage 中，你如何排查"数据消失"的问题？**
+
+> 排查步骤：① 确认数据确实写入了 localStorage（DevTools → Application → Storage）；② 检查读取逻辑的过滤条件，例如 `filter(p => p.bookId === currentBookId)`，用 `console.log` 打出过滤键值；③ 比较存储的关联键（`persona.bookId`）与当前上下文的键（`useParams` 的 `id`）是否一致；④ 追溯关联键的来源，确认是否存在"每次都重新生成"的代码路径。本 Bug 的定位关键是发现 `bookFileToBook` 中的 `uuidv4()` 在每次书架扫描时无条件调用。
+
+**Q: React Router 中，组件通过 `useParams` 获取的路由参数与全局状态（如 Zustand store）如何保持同步？**
+
+> `useParams` 返回的是 URL 中的路由段，是"视图层的状态"；Zustand store 是"业务层的状态"。两者同步的关键是确保路由参数所引用的实体（如书籍 ID）在业务层中始终存在。若业务层数据的 ID 发生变化（如本 Bug 中书籍 UUID 被重置），路由参数虽然不变，但在 store 中已找不到对应实体，导致所有 `.find(b => b.id === id)` 返回 `undefined`，相关 UI 静默降级。解决方案是保持 ID 的稳定性，或在路由跳转时主动同步更新 URL 中的 ID。
+
+---
