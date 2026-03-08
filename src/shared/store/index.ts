@@ -67,6 +67,9 @@ export const useStore = create<ImmerseStore>()(
       pendingCitationParagraphIndex: null,
       pendingCitationOffset: null,
 
+      // === 主题状态 ===
+      theme: 'light' as 'light' | 'dark',
+
       // === Librarian Agent 状态 ===
       agentHistory: [],
 
@@ -177,6 +180,9 @@ export const useStore = create<ImmerseStore>()(
       // === 笔记 Actions ===
       setLastNotePath: (path) => set({ lastNotePath: path }),
 
+      // === 主题 Actions ===
+      setTheme: (theme) => set({ theme }),
+
       // === Librarian Agent Actions ===
       addAgentOperation: (operation) =>
         set((state) => {
@@ -197,6 +203,7 @@ export const useStore = create<ImmerseStore>()(
         bookshelfRootPath: state.bookshelfRootPath,
         lastNotePath: state.lastNotePath,
         agentHistory: state.agentHistory,
+        theme: state.theme,
       }),
     }
   )

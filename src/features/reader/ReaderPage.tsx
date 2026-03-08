@@ -142,7 +142,7 @@ export function ReaderPage() {
   }, [bookId, content, ingest, loading, setBooks])
 
   return (
-    <div className="flex h-screen flex-col bg-slate-50">
+    <div className="flex h-screen flex-col bg-background">
       <ReaderHeader
         bookId={bookId}
         onPersonaClick={() => setPersonaDialogOpen(true)}

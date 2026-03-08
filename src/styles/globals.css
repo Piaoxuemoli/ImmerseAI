@@ -27,6 +27,31 @@
     --destructive: 0 84% 60%; /* red-500 */
     --destructive-foreground: 0 0% 100%;
   }
+
+  .dark {
+    /* 暗夜模式 — 浅黑色背景，高对比白色文字 */
+    --background: 222 20% 11%;
+    --foreground: 210 20% 93%;
+
+    --muted: 220 15% 17%;
+    --muted-foreground: 215 18% 60%;
+
+    --border: 220 14% 22%;
+    --input: 220 14% 22%;
+    --ring: 215 25% 55%;
+
+    --primary: 210 20% 90%;
+    --primary-foreground: 222 20% 11%;
+
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 210 20% 90%;
+
+    --accent: 215 20% 25%;
+    --accent-foreground: 210 20% 93%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+  }
 }
 
 @layer base {

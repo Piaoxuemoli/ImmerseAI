@@ -67,14 +67,14 @@ export function ChatInterface() {
   return (
     <div className="flex h-full flex-col">
       {activePersona && (
-        <div className="border-b border-slate-200 bg-white px-4 py-3">
-          <div className="flex items-start justify-between gap-3 rounded-lg bg-slate-50 p-3">
+        <div className="border-b border-border bg-background px-4 py-3">
+          <div className="flex items-start justify-between gap-3 rounded-lg bg-muted p-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
-                <UserRound className="h-4 w-4 text-slate-500" />
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <UserRound className="h-4 w-4 text-muted-foreground" />
                 <span className="truncate">{activePersona.name}</span>
               </div>
-              <p className="mt-1 text-xs text-slate-500 line-clamp-2">
+              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
                 {activePersona.description || '已为当前书籍启用该人物设定。'}
               </p>
             </div>
@@ -82,7 +82,7 @@ export function ChatInterface() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-xs text-slate-500"
+                className="h-8 px-2 text-xs text-muted-foreground"
                 onClick={() => setActivePersona(null)}
               >
                 <X className="mr-1 h-4 w-4" />
@@ -107,7 +107,7 @@ export function ChatInterface() {
         <div ref={scrollContainerRef}>
           {isEmpty ? (
             <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-slate-400">开始与角色对话...</p>
+              <p className="text-sm text-muted-foreground">开始与角色对话...</p>
             </div>
           ) : (
             <div className="flex flex-col gap-4 p-4">

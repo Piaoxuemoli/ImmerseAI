@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session } from 'electron'
+import { app, BrowserWindow, Menu, session } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers } from './ipc-handlers'
@@ -30,6 +30,9 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 600,
     show: false, // 等待 ready-to-show 事件
+    title: '',
+    // Windows 11 毛玻璃：标题栏与内容区使用 Mica 材质（仅 Windows 生效）
+    ...(process.platform === 'win32' && { backgroundMaterial: 'acrylic' as const }),
     webPreferences: {
       // 安全配置：遵循项目宪法
       nodeIntegration: false,
@@ -74,6 +77,9 @@ function createWindow(): void {
 
 // Electron 初始化完成后创建窗口
 app.whenReady().then(() => {
+  // 移除默认应用菜单（File / Edit / View / Window / Help），由应用内 UI 承担操作
+  Menu.setApplicationMenu(null)
+
   // 注册 IPC handlers
   registerIpcHandlers()
 

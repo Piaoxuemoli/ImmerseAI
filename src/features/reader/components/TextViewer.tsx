@@ -4,28 +4,28 @@ import type { Components } from 'react-markdown'
 
 const MARKDOWN_COMPONENTS: Components = {
   h1: ({ children }) => (
-    <h1 className="text-3xl font-semibold text-slate-900 mt-8 mb-4">{children}</h1>
+    <h1 className="text-3xl font-semibold text-foreground mt-8 mb-4">{children}</h1>
   ),
   h2: ({ children }) => (
-    <h2 className="text-2xl font-semibold text-slate-900 mt-6 mb-3">{children}</h2>
+    <h2 className="text-2xl font-semibold text-foreground mt-6 mb-3">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-xl font-semibold text-slate-900 mt-4 mb-2">{children}</h3>
+    <h3 className="text-xl font-semibold text-foreground mt-4 mb-2">{children}</h3>
   ),
-  p: ({ children }) => <p className="mb-4 text-slate-900">{children}</p>,
-  ul: ({ children }) => <ul className="list-disc pl-6 mb-4 text-slate-900">{children}</ul>,
-  ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 text-slate-900">{children}</ol>,
+  p: ({ children }) => <p className="mb-4 text-foreground">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc pl-6 mb-4 text-foreground">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 text-foreground">{children}</ol>,
   code: ({ className, children }) => {
     const isInline = !className
     if (isInline) {
       return (
-        <code className="bg-slate-100 px-1.5 py-0.5 rounded text-sm font-mono text-slate-800">
+        <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">
           {children}
         </code>
       )
     }
     return (
-      <code className="block bg-slate-900 text-slate-50 p-4 rounded-lg overflow-x-auto font-mono text-sm mb-4">
+      <code className="block bg-accent text-accent-foreground p-4 rounded-lg overflow-x-auto font-mono text-sm mb-4">
         {children}
       </code>
     )
@@ -90,15 +90,14 @@ export const TextViewer: React.FC<TextViewerProps> = ({
     return (
       <div
         ref={containerRef}
-        className="h-full overflow-y-auto px-8 py-6 bg-white"
+        className="h-full overflow-y-auto px-8 py-6 bg-background text-foreground"
         style={{
           fontFamily: 'Inter, system-ui, sans-serif',
           lineHeight: '1.8',
           fontSize: '18px',
-          color: '#0f172a',
         }}
       >
-        <div className="prose prose-slate max-w-none">
+        <div className="prose prose-slate dark:prose-invert max-w-none">
           <ReactMarkdown components={MARKDOWN_COMPONENTS}>
             {content}
           </ReactMarkdown>
@@ -110,12 +109,11 @@ export const TextViewer: React.FC<TextViewerProps> = ({
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-y-auto px-8 py-6 bg-white"
+      className="h-full overflow-y-auto px-8 py-6 bg-background text-foreground"
       style={{
         fontFamily: 'Inter, system-ui, sans-serif',
         lineHeight: '1.8',
         fontSize: '18px',
-        color: '#0f172a',
         whiteSpace: 'pre-wrap',
       }}
     >

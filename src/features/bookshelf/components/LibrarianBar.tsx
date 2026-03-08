@@ -63,12 +63,12 @@ export function LibrarianBar({ files, rootFolders, onCommandSuccess }: Librarian
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur-sm">
+      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm">
         {/* 历史记录折叠面板 */}
         {showHistory && history.length > 0 && (
-          <div className="mx-auto max-w-7xl border-b border-slate-200 px-6 py-3">
+          <div className="mx-auto max-w-7xl border-b border-border px-6 py-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-slate-600">
+              <span className="text-sm font-medium text-muted-foreground">
                 操作历史 ({history.length}/10)
               </span>
               <Button
@@ -95,7 +95,7 @@ export function LibrarianBar({ files, rootFolders, onCommandSuccess }: Librarian
         {/* 最后消息提示 */}
         {lastMessage && (
           <div className="mx-auto max-w-7xl px-6 py-2">
-            <div className="text-sm text-slate-600 bg-slate-50 rounded-md px-3 py-2">
+            <div className="text-sm text-foreground bg-muted rounded-md px-3 py-2">
               {lastMessage}
             </div>
           </div>
@@ -107,7 +107,7 @@ export function LibrarianBar({ files, rootFolders, onCommandSuccess }: Librarian
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 text-slate-500 hover:text-slate-700"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
             onClick={() => setShowHistory(!showHistory)}
             title={showHistory ? '隐藏历史' : '显示历史'}
           >

@@ -42,8 +42,8 @@ export function ConfirmDeleteDialog({
           <DialogDescription asChild>
             <div className="space-y-2 pt-2">
               <p>确定要删除以下文件夹吗？</p>
-              <p className="font-medium text-slate-900">{fileName}</p>
-              <p className="font-mono text-xs text-slate-500 break-all">{filePath}</p>
+              <p className="font-medium text-foreground">{fileName}</p>
+              <p className="font-mono text-xs text-muted-foreground break-all">{filePath}</p>
               <p className="text-red-500 font-medium mt-2">⚠️ 此操作不可撤销</p>
             </div>
           </DialogDescription>

@@ -63,7 +63,7 @@ export function PersonaConfigDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>一键生成人物</DialogTitle>
-          <DialogDescription className="text-xs text-slate-500">
+          <DialogDescription className="text-xs text-muted-foreground">
             输入人物名后，系统会检索相关片段并自动生成对话人设。
           </DialogDescription>
         </DialogHeader>
@@ -81,7 +81,7 @@ export function PersonaConfigDialog({
             {nameError && (
               <p className="text-xs text-red-500">请输入人物名称</p>
             )}
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               将检索该人物相关的 25 条片段，并结合《{bookTitle || '当前书籍'}》自动生成系统提示词。
             </p>
           </div>

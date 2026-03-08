@@ -84,11 +84,11 @@ export function MessageBubble({ message, personaName, onCitationClick }: Message
         <div
           className={`rounded-lg px-3 py-2 ${
             isUser
-              ? 'bg-slate-100'
-              : 'border border-slate-200 bg-white'
+              ? 'bg-muted'
+              : 'border border-border bg-background'
           }`}
         >
-          <p className="whitespace-pre-wrap text-sm text-slate-900">
+          <p className="whitespace-pre-wrap text-sm text-foreground">
             {message.content}
           </p>
         </div>

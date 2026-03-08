@@ -7,7 +7,7 @@ export function ModeToggle() {
   const toggleMode = useStore((s) => s.toggleMode)
 
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5">
+    <div className="flex items-center gap-0.5 rounded-lg border border-border bg-background p-0.5">
       <Button
         variant={readerMode === 'read' ? 'default' : 'ghost'}
         size="sm"

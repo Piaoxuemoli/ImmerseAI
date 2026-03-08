@@ -43,7 +43,7 @@ export function ChatInput({ onSend, isGenerating, personaName }: ChatInputProps)
   }
 
   return (
-    <div className="flex items-end gap-2 border-t border-slate-200 bg-white px-4 py-3">
+    <div className="flex items-end gap-2 border-t border-border bg-background px-4 py-3">
       <textarea
         ref={textareaRef}
         value={input}
@@ -51,14 +51,14 @@ export function ChatInput({ onSend, isGenerating, personaName }: ChatInputProps)
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         rows={1}
-        className="flex-1 resize-none rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none"
+        className="flex-1 resize-none rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none"
       />
       <Button
         size="icon"
         variant="ghost"
         onClick={handleSend}
         disabled={isGenerating || !input.trim()}
-        className="h-9 w-9 shrink-0 text-slate-600 hover:text-slate-900 disabled:text-slate-300"
+        className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground disabled:text-muted-foreground/30"
       >
         <Send className="h-4 w-4" />
       </Button>

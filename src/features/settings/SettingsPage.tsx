@@ -153,15 +153,15 @@ export function SettingsPage() {
   }, [setBookshelfRootPath])
 
   return (
-    <div className="flex h-screen flex-col bg-white">
+    <div className="flex h-screen flex-col bg-background">
       {/* ============================================ */}
       {/* Header */}
       {/* ============================================ */}
-      <header className="flex items-center gap-3 border-b border-slate-200 px-6 py-3">
+      <header className="flex items-center gap-3 border-b border-border px-6 py-3">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5 text-slate-500" />
+          <ArrowLeft className="h-5 w-5 text-muted-foreground" />
         </Button>
-        <h1 className="text-xl font-semibold text-slate-900">设置</h1>
+        <h1 className="text-xl font-semibold text-foreground">设置</h1>
       </header>
 
       {/* ============================================ */}
@@ -202,7 +202,7 @@ export function SettingsPage() {
                   </Button>
                 </div>
                 {apiKeyDisplay && !apiKeyInput && (
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-muted-foreground">
                     已存储: {apiKeyDisplay}
                   </p>
                 )}
@@ -216,7 +216,7 @@ export function SettingsPage() {
                   onChange={(e) => setLlmConfig({ baseUrl: e.target.value })}
                   placeholder="请输入 Base URL（例如 https://api.openai.com/v1）"
                 />
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted-foreground">
                   OpenAI 兼容端点
                 </p>
               </div>
@@ -278,7 +278,7 @@ export function SettingsPage() {
               <div className="space-y-2">
                 <Label>书架路径</Label>
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 truncate rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <div className="flex-1 truncate rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground">
                     {bookshelfRootPath || '未设置'}
                   </div>
                   <Button

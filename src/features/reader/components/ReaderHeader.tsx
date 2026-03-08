@@ -35,7 +35,7 @@ export function ReaderHeader({
   const isIndexing = ingestProgress !== null
 
   return (
-    <div className="flex flex-col border-b border-slate-200 bg-white">
+    <div className="flex flex-col border-b border-border bg-background">
       {/* Main header row */}
       <div className="flex items-center justify-between px-4 py-2">
         {/* Left: back button */}
@@ -53,7 +53,7 @@ export function ReaderHeader({
 
         {/* Center: book title */}
         <div className="flex-1 text-center">
-          <span className="text-sm font-medium text-slate-900 line-clamp-1">
+          <span className="text-sm font-medium text-foreground line-clamp-1">
             {book?.title ?? '未知书籍'}
           </span>
         </div>
@@ -63,7 +63,7 @@ export function ReaderHeader({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 px-2 text-xs text-slate-600"
+            className="h-8 gap-1 px-2 text-xs text-muted-foreground"
             title="选择角色"
             onClick={onPersonaClick}
           >
@@ -103,10 +103,10 @@ function IndexingBar({
   return (
     <div className={`px-4 pb-1.5 ${subtle ? 'opacity-70' : ''}`}>
       <div className="flex items-center justify-between mb-0.5">
-        <span className="text-[10px] text-slate-400">{label}</span>
-        <span className="text-[10px] text-slate-400">{progress}%</span>
+        <span className="text-[10px] text-muted-foreground">{label}</span>
+        <span className="text-[10px] text-muted-foreground">{progress}%</span>
       </div>
-      <div className="h-0.5 w-full overflow-hidden rounded-full bg-slate-100">
+      <div className="h-0.5 w-full overflow-hidden rounded-full bg-muted">
         <div
           className={`h-full rounded-full transition-all duration-300 ${subtle ? 'bg-indigo-400' : 'bg-indigo-500'}`}
           style={{ width: `${progress}%` }}

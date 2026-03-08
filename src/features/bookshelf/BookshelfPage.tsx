@@ -261,11 +261,11 @@ export function BookshelfPage() {
   // 未连接状态 UI
   const renderDisconnectedState = () => (
     <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4">
-      <div className="w-20 h-20 rounded-full bg-zinc-100 flex items-center justify-center mb-6">
-        <FolderOpen className="w-10 h-10 text-zinc-400" />
+      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+        <FolderOpen className="w-10 h-10 text-muted-foreground" />
       </div>
-      <h2 className="text-xl font-semibold text-zinc-800 mb-2">选择书架目录</h2>
-      <p className="text-zinc-500 mb-6 max-w-md">
+      <h2 className="text-xl font-semibold text-foreground mb-2">选择书架目录</h2>
+      <p className="text-muted-foreground mb-6 max-w-md">
         选择一个包含 .md / .txt 文件的文件夹，ImmerseAI 将扫描并加载其中的文档
       </p>
       <Button onClick={mountBookshelf} className="gap-2">
@@ -281,19 +281,19 @@ export function BookshelfPage() {
   // 加载中状态 UI
   const renderLoadingState = () => (
     <div className="flex flex-col items-center justify-center h-[60vh]">
-      <Loader2 className="w-10 h-10 text-zinc-400 animate-spin mb-4" />
-      <p className="text-zinc-500">正在加载书籍...</p>
+      <Loader2 className="w-10 h-10 text-muted-foreground animate-spin mb-4" />
+      <p className="text-muted-foreground">正在加载书籍...</p>
     </div>
   )
 
   // 空书架状态 UI
   const renderEmptyState = () => (
     <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4">
-      <div className="w-20 h-20 rounded-full bg-zinc-100 flex items-center justify-center mb-6">
-        <BookOpen className="w-10 h-10 text-zinc-400" />
+      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+        <BookOpen className="w-10 h-10 text-muted-foreground" />
       </div>
-      <h2 className="text-xl font-semibold text-zinc-800 mb-2">书架是空的</h2>
-      <p className="text-zinc-500 mb-6 max-w-md">
+      <h2 className="text-xl font-semibold text-foreground mb-2">书架是空的</h2>
+      <p className="text-muted-foreground mb-6 max-w-md">
         当前目录中没有找到 .md / .txt 文件。请添加一些文档，或选择其他目录。
       </p>
       <Button variant="outline" onClick={mountBookshelf} className="gap-2">
@@ -306,14 +306,14 @@ export function BookshelfPage() {
   const renderFolderCard = (folder: BookFile) => (
     <div
       key={folder.path}
-      className="rounded-md border border-slate-200 bg-white p-3 hover:bg-slate-50"
+      className="rounded-md border border-border bg-background p-3 hover:bg-muted"
     >
       <button
         className="flex w-full items-center gap-2 text-left"
         onClick={() => handleOpenFolder(folder.path)}
       >
-        <FolderOpen className="h-4 w-4 text-slate-500" />
-        <span className="truncate text-sm text-slate-700">{folder.name}</span>
+        <FolderOpen className="h-4 w-4 text-muted-foreground" />
+        <span className="truncate text-sm text-foreground">{folder.name}</span>
       </button>
     </div>
   )
@@ -343,9 +343,9 @@ export function BookshelfPage() {
     // 已连接且有内容（目录化视图）
     return (
       <div className="mx-auto flex max-w-7xl gap-4 px-4 py-6 pb-20">
-        <div className="w-48 shrink-0 rounded-lg border border-slate-200 p-3 xl:w-56">
+        <div className="w-48 shrink-0 rounded-lg border border-border p-3 xl:w-56">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-700">文件夹</h3>
+            <h3 className="text-sm font-semibold text-foreground">文件夹</h3>
             <Button variant="ghost" size="icon" onClick={handleCreateFolder} title="新增文件夹">
               <Plus className="h-4 w-4" />
             </Button>
@@ -356,8 +356,8 @@ export function BookshelfPage() {
               return (
                 <button
                   key={folder.path}
-                  className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm ${
-                    isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'
+                  className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors ${
+                    isActive ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'text-foreground hover:bg-muted'
                   }`}
                   onClick={() => handleOpenFolder(folder.path)}
                 >
@@ -372,23 +372,23 @@ export function BookshelfPage() {
         <div className="min-w-0 flex-1">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-xs text-slate-500">当前目录</div>
-              <div className="truncate font-medium text-slate-800">
+              <div className="text-xs text-muted-foreground">当前目录</div>
+              <div className="truncate font-medium text-foreground">
                 {activeFolderPath || defaultFolderPath || bookshelfRootPath}
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               {/* 视图切换 */}
-              <div className="flex rounded-md border border-slate-200 overflow-hidden">
+              <div className="flex rounded-md border border-border overflow-hidden">
                 <button
-                  className={`flex h-8 w-8 items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:bg-slate-50'}`}
+                  className={`flex h-8 w-8 items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                   onClick={() => setViewMode('grid')}
                   title="宫格视图"
                 >
                   <LayoutGrid className="h-4 w-4" />
                 </button>
                 <button
-                  className={`flex h-8 w-8 items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:bg-slate-50'}`}
+                  className={`flex h-8 w-8 items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                   onClick={() => setViewMode('list')}
                   title="列表视图"
                 >
@@ -422,13 +422,13 @@ export function BookshelfPage() {
 
           {isFolderLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <>
               {childFolders.length > 0 && (
                 <div className="mb-5">
-                  <div className="mb-2 text-sm font-medium text-slate-600">子文件夹</div>
+                  <div className="mb-2 text-sm font-medium text-muted-foreground">子文件夹</div>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
                     {childFolders.map((folder) => renderFolderCard(folder))}
                   </div>
@@ -442,7 +442,7 @@ export function BookshelfPage() {
                   <BookList books={activeBooks} onBookClick={handleBookClick} />
                 )
               ) : childFolders.length === 0 ? (
-                <div className="rounded-md border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
                   当前文件夹为空，可新增子文件夹后导入书籍，或通过 LLM 指令移动书籍到此目录。
                 </div>
               ) : null}
@@ -454,7 +454,7 @@ export function BookshelfPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <TopBar
         onSettingsClick={handleSettingsClick}
         onImportClick={connectionStatus === 'connected' ? handleImportBooks : undefined}

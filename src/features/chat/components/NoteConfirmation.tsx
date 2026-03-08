@@ -37,7 +37,7 @@ export function NoteConfirmation({ success, noteTitle, filePath, error }: NoteCo
               </span>
             )}
             {filePath && (
-              <span className="font-mono text-xs text-slate-500">
+              <span className="font-mono text-xs text-muted-foreground">
                 {filePath}
               </span>
             )}

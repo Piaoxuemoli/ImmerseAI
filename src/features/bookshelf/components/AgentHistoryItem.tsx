@@ -81,16 +81,16 @@ export function AgentHistoryItem({ operation }: AgentHistoryItemProps) {
       {/* 内容区域 */}
       <div className="flex-1 min-w-0">
         {/* 操作类型和时间 */}
-        <div className="flex items-center gap-2 text-slate-600">
+        <div className="flex items-center gap-2 text-muted-foreground">
           {getIntentIcon(operation.intent)}
           <span className="font-medium">{getIntentLabel(operation.intent)}</span>
-          <span className="text-slate-400">·</span>
-          <span className="text-xs text-slate-400">{formatTime(operation.timestamp)}</span>
-          <span className="text-xs text-slate-400">({operation.duration}ms)</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-xs text-muted-foreground">{formatTime(operation.timestamp)}</span>
+          <span className="text-xs text-muted-foreground">({operation.duration}ms)</span>
         </div>
 
         {/* 用户输入 */}
-        <div className="mt-1 text-xs text-slate-500 truncate" title={operation.input}>
+        <div className="mt-1 text-xs text-muted-foreground truncate" title={operation.input}>
           "{operation.input}"
         </div>
 

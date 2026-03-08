@@ -247,6 +247,10 @@ export interface ImmerseStore {
 
   setLastNotePath: (path: string | null) => void
 
+  // === 主题状态 ===
+  theme: 'light' | 'dark'
+  setTheme: (theme: 'light' | 'dark') => void
+
   // === Librarian Agent Actions ===
   addAgentOperation: (operation: AgentOperation) => void
   clearAgentHistory: () => void
