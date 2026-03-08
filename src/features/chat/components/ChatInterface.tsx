@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 import { UserRound, X, Trash2 } from 'lucide-react'
 import { ScrollArea } from '@/shared/components/ui/scroll-area'
 import { Button } from '@/shared/components/ui/button'
@@ -6,6 +6,8 @@ import { useStore } from '@/shared/store'
 import { useChat } from '../hooks/useChat'
 import { MessageBubble } from './MessageBubble'
 import { ChatInput } from './ChatInput'
+import { CitationPopup } from './CitationPopup'
+import type { Citation } from '@/shared/types'
 
 export function ChatInterface() {
   const { messages, streamingContent, isGenerating, sendMessage } = useChat()
@@ -23,15 +25,18 @@ export function ChatInterface() {
     : undefined
   const personaName = activePersona?.name
 
-  /**
-   * 引用跳转回调：设置 pendingCitationParagraphIndex，并在非分屏模式下切换到阅读模式
-   */
   const currentMode = useStore((s) => s.readerMode)
-  const handleCitationClick = useCallback(
+
+  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null)
+
+  const handleCitationClick = useCallback((citation: Citation) => {
+    setSelectedCitation(citation)
+  }, [])
+
+  const handleCitationJump = useCallback(
     (paragraphIndex: number, offset?: number) => {
       setPendingCitationParagraphIndex(paragraphIndex)
       setPendingCitationOffset(offset ?? null)
-      // In split mode the text viewer is already visible; no mode switch needed
       if (currentMode !== 'split') {
         setReaderMode('read')
       }
@@ -69,7 +74,7 @@ export function ChatInterface() {
   const isEmpty = messages.length === 0 && !streamingContent
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       {activePersona && (
         <div className="border-b border-border bg-background px-4 py-3">
           <div className="flex items-start justify-between gap-3 rounded-lg bg-muted p-3">
@@ -151,6 +156,15 @@ export function ChatInterface() {
         isGenerating={isGenerating}
         personaName={personaName}
       />
+
+      {/* Citation frosted glass popup */}
+      {selectedCitation && (
+        <CitationPopup
+          citation={selectedCitation}
+          onClose={() => setSelectedCitation(null)}
+          onJump={handleCitationJump}
+        />
+      )}
     </div>
   )
 }

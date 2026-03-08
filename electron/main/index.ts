@@ -29,10 +29,18 @@ function createWindow(): void {
     height: 800,
     minWidth: 800,
     minHeight: 600,
+    maximizable: true,
+    resizable: true,
+    // autoHideMenuBar prevents menu-bar space from being reserved (we already
+    // remove the menu via Menu.setApplicationMenu(null)), and also fixes a
+    // known Windows + backgroundMaterial issue where the maximize button stops
+    // responding.
+    autoHideMenuBar: true,
     show: false, // 等待 ready-to-show 事件
     title: '',
-    // Windows 11 毛玻璃：标题栏与内容区使用 Mica 材质（仅 Windows 生效）
-    ...(process.platform === 'win32' && { backgroundMaterial: 'acrylic' as const }),
+    // Windows 11 毛玻璃标题栏材质。Mica 比 Acrylic 更稳定（Acrylic 在部分
+    // Windows 版本上会导致最大化按钮失效）。
+    ...(process.platform === 'win32' && { backgroundMaterial: 'mica' as const }),
     webPreferences: {
       // 安全配置：遵循项目宪法
       nodeIntegration: false,

@@ -125,7 +125,31 @@ export function useBookshelf() {
     async (rootPath: string) => {
       await ensureDefaultFolderAndMigrateRootBooks(rootPath)
       const { books: newBooks, rootEntries: nextRootEntries } = await scanBooksRecursively(rootPath)
-      setBooks(newBooks)
+
+      // Preserve existing book IDs and metadata across rescans so that
+      // Persona.bookId, session.bookId, and RAG index keys remain stable.
+      const existingBooks = useStore.getState().books
+      const existingByPath = new Map(existingBooks.map((b) => [normalizePath(b.path), b]))
+
+      const mergedBooks = newBooks.map((newBook) => {
+        const existing = existingByPath.get(normalizePath(newBook.path))
+        if (existing) {
+          return {
+            ...newBook,
+            id: existing.id,
+            isIndexed: existing.isIndexed,
+            indexedAt: existing.indexedAt,
+            contentHash: existing.contentHash,
+            chunkCount: existing.chunkCount,
+            lastReadAt: existing.lastReadAt,
+            lastReadParagraphIndex: existing.lastReadParagraphIndex,
+            lastReadOffset: existing.lastReadOffset,
+          }
+        }
+        return newBook
+      })
+
+      setBooks(mergedBooks)
       setRootEntries(nextRootEntries)
     },
     [setBooks],

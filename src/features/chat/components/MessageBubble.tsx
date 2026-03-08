@@ -2,12 +2,12 @@ import { motion } from 'framer-motion'
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar'
 import { CitationBadge } from './CitationBadge'
 import { NoteConfirmation } from './NoteConfirmation'
-import type { Message } from '@/shared/types'
+import type { Citation, Message } from '@/shared/types'
 
 interface MessageBubbleProps {
   message: Message
   personaName?: string | undefined
-  onCitationClick?: (paragraphIndex: number, offset?: number) => void
+  onCitationClick?: (citation: Citation) => void
 }
 
 export function MessageBubble({ message, personaName, onCitationClick }: MessageBubbleProps) {
@@ -96,19 +96,13 @@ export function MessageBubble({ message, personaName, onCitationClick }: Message
         {/* Citations */}
         {message.citations && message.citations.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {message.citations.map((citation, index) => {
-              const handleClick = onCitationClick
-                ? () => onCitationClick(citation.paragraphIndex, citation.offset)
-                : undefined
-
-              return (
-                <CitationBadge
-                  key={index}
-                  citation={citation}
-                  {...(handleClick ? { onClick: handleClick } : {})}
-                />
-              )
-            })}
+            {message.citations.map((citation, index) => (
+              <CitationBadge
+                key={index}
+                citation={citation}
+                {...(onCitationClick ? { onClick: () => onCitationClick(citation) } : {})}
+              />
+            ))}
           </div>
         )}
       </div>
