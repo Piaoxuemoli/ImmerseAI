@@ -24,15 +24,19 @@ export function ChatInterface() {
   const personaName = activePersona?.name
 
   /**
-   * 引用跳转回调：设置 pendingCitationParagraphIndex 并切换到阅读模式
+   * 引用跳转回调：设置 pendingCitationParagraphIndex，并在非分屏模式下切换到阅读模式
    */
+  const currentMode = useStore((s) => s.readerMode)
   const handleCitationClick = useCallback(
     (paragraphIndex: number, offset?: number) => {
       setPendingCitationParagraphIndex(paragraphIndex)
       setPendingCitationOffset(offset ?? null)
-      setReaderMode('read')
+      // In split mode the text viewer is already visible; no mode switch needed
+      if (currentMode !== 'split') {
+        setReaderMode('read')
+      }
     },
-    [setPendingCitationParagraphIndex, setPendingCitationOffset, setReaderMode],
+    [currentMode, setPendingCitationParagraphIndex, setPendingCitationOffset, setReaderMode],
   )
 
   // 底部锚点引用

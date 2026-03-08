@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '@/shared/store'
@@ -6,6 +6,7 @@ import { ChatInterface } from '@/features/chat/components/ChatInterface'
 import { PersonaConfigDialog } from '@/features/persona/components/PersonaConfigDialog'
 import { checkBookIndexedStatus, splitContentToParagraphs } from '@/features/chat/services/persona-generator'
 import { useRag } from '@/shared/hooks/useRag'
+import type { Persona } from '@/shared/types'
 import { useReader } from './hooks/useReader'
 import { ReaderHeader } from './components/ReaderHeader'
 import { TextViewer } from './components/TextViewer'
@@ -34,11 +35,21 @@ export function ReaderPage() {
   const clearIndexingProgress = useStore((s) => s.clearIndexingProgress)
   const markBookIndexed = useStore((s) => s.markBookIndexed)
   const [personaDialogOpen, setPersonaDialogOpen] = useState(false)
+  const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null)
 
-  const activePersona = useMemo(
-    () => (activePersonaId ? personas.find((p) => p.id === activePersonaId && p.bookId === bookId) : undefined),
-    [activePersonaId, bookId, personas],
-  )
+  const activePersona = activePersonaId
+    ? personas.find((p) => p.id === activePersonaId && p.bookId === bookId)
+    : undefined
+
+  const handleCreatePersona = useCallback(() => {
+    setPersonaToEdit(null)
+    setPersonaDialogOpen(true)
+  }, [])
+
+  const handleEditPersona = useCallback((persona: Persona) => {
+    setPersonaToEdit(persona)
+    setPersonaDialogOpen(true)
+  }, [])
 
   const {
     content,
@@ -145,7 +156,8 @@ export function ReaderPage() {
     <div className="flex h-screen flex-col bg-background">
       <ReaderHeader
         bookId={bookId}
-        onPersonaClick={() => setPersonaDialogOpen(true)}
+        onCreatePersonaClick={handleCreatePersona}
+        onEditPersonaClick={handleEditPersona}
         isUpgrading={isUpgrading}
         upgradeProgress={upgradeProgress}
       />
@@ -161,7 +173,35 @@ export function ReaderPage() {
       {!error && (
         <div className="flex-1 overflow-hidden">
           <AnimatePresence mode="wait">
-            {readerMode === 'read' ? (
+            {readerMode === 'split' ? (
+              <motion.div
+                key="split"
+                className="flex h-full overflow-hidden"
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={pageTransition}
+              >
+                {/* Left: text viewer */}
+                <div className="flex-1 overflow-hidden border-r border-border">
+                  {loading ? (
+                    <ReadingLoadingSkeleton />
+                  ) : (
+                    <TextViewer
+                      content={content}
+                      bookPath={book?.path ?? ''}
+                      initialParagraphIndex={paragraphIndex}
+                      onProgressChange={handleProgressChange}
+                    />
+                  )}
+                </div>
+                {/* Right: chat */}
+                <div className="w-[420px] shrink-0 overflow-hidden">
+                  <ChatInterface />
+                </div>
+              </motion.div>
+            ) : readerMode === 'read' ? (
               <motion.div
                 key="reader"
                 className="h-full"
@@ -201,10 +241,13 @@ export function ReaderPage() {
 
       <PersonaConfigDialog
         open={personaDialogOpen}
-        onOpenChange={setPersonaDialogOpen}
+        onOpenChange={(open) => {
+          setPersonaDialogOpen(open)
+          if (!open) setPersonaToEdit(null)
+        }}
         bookId={bookId}
         bookTitle={book?.title ?? ''}
-        existingPersona={activePersona}
+        existingPersona={personaToEdit ?? undefined}
       />
     </div>
   )

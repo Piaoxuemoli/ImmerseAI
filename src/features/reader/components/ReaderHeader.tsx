@@ -1,12 +1,15 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, User } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { useStore } from '@/shared/store'
+import type { Persona } from '@/shared/types'
 import { ModeToggle } from './ModeToggle'
+import { PersonaSelector } from './PersonaSelector'
 
 interface ReaderHeaderProps {
   bookId: string
-  onPersonaClick?: () => void
+  onCreatePersonaClick?: () => void
+  onEditPersonaClick?: (persona: Persona) => void
   /** Whether a background semantic upgrade is in progress */
   isUpgrading?: boolean
   /** 0-100 during upgrade, null when idle */
@@ -15,20 +18,16 @@ interface ReaderHeaderProps {
 
 export function ReaderHeader({
   bookId,
-  onPersonaClick,
+  onCreatePersonaClick,
+  onEditPersonaClick,
   isUpgrading = false,
   upgradeProgress = null,
 }: ReaderHeaderProps) {
   const navigate = useNavigate()
   const books = useStore((s) => s.books)
-  const activePersonaId = useStore((s) => s.activePersonaId)
-  const personas = useStore((s) => s.personas)
   const indexingProgress = useStore((s) => s.indexingProgress)
 
   const book = books.find((b) => b.id === bookId)
-  const activePersona = activePersonaId
-    ? personas.find((p) => p.id === activePersonaId && p.bookId === bookId)
-    : undefined
 
   // ingest progress: shown while the initial index is being built
   const ingestProgress = indexingProgress[bookId] ?? null
@@ -58,24 +57,13 @@ export function ReaderHeader({
           </span>
         </div>
 
-        {/* Right: persona button + mode toggle */}
+        {/* Right: persona selector + mode toggle */}
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1 px-2 text-xs text-muted-foreground"
-            title="选择角色"
-            onClick={onPersonaClick}
-          >
-            {activePersona ? (
-              <>
-                <span>{activePersona.avatar ?? '🎭'}</span>
-                <span className="max-w-[60px] truncate">{activePersona.name}</span>
-              </>
-            ) : (
-              <User className="h-4 w-4" />
-            )}
-          </Button>
+          <PersonaSelector
+            bookId={bookId}
+            onCreateClick={onCreatePersonaClick ?? (() => {})}
+            onEditClick={onEditPersonaClick ?? (() => {})}
+          />
           <ModeToggle />
         </div>
       </div>

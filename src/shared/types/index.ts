@@ -188,7 +188,7 @@ export interface ImmerseStore {
   // === 阅读器状态 ===
   currentParagraphIndex: number | null // 当前段落索引
   currentOffset: number | null // 当前字符偏移（可选）
-  readerMode: 'read' | 'chat'
+  readerMode: 'read' | 'chat' | 'split'
 
   // === 角色状态 ===
   personas: Persona[]
@@ -223,7 +223,7 @@ export interface ImmerseStore {
   setCurrentParagraphIndex: (index: number | null) => void
   setCurrentOffset: (offset: number | null) => void
   toggleMode: () => void
-  setReaderMode: (mode: 'read' | 'chat') => void
+  setReaderMode: (mode: 'read' | 'chat' | 'split') => void
 
   setPersonas: (personas: Persona[]) => void
   setPersona: (persona: Persona) => void
