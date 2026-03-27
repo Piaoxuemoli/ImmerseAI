@@ -12,6 +12,8 @@
 | [禁止使用](#禁止使用) | 技术选型黑名单 | 引入依赖时 |
 | [项目结构](#项目结构) | 目录树 + 文件定位 | 探索代码时 |
 | [TDD 规范](#tdd-规范) | 红绿黑循环 + 反作弊规则 | 写代码时 |
+| [版本与发布](#版本与发布) | master/dev 策略 + 发布流程 | 发版时 |
+| [测试隔离](#测试隔离) | 测试代码隔离 + 不耦合业务 | 写测试时 |
 | [Git 规范](#git-规范) | 分支策略 + 提交格式 | 提交代码时 |
 | [知识索引](#知识索引) | 资料优先级表 | 查资料时 |
 | [资料放置](#资料放置) | 文件归位规则 | 写文档时 |
@@ -66,6 +68,7 @@ ImmerseAI/
 │   │   ├── reader/
 │   │   └── settings/
 │   └── shared/              # 类型、Store、组件
+├── tests/                   # 测试代码（隔离目录，与业务分离）
 ├── docs/                    # 文档（见知识索引）
 ├── test_book/               # 调试记录
 ├── openspec/                # OpenSpec 变更
@@ -190,6 +193,121 @@ git branch -d feat/<change-id>
 
 ---
 
+## 版本与发布
+
+### 分支职责
+
+| 分支 | 职责 | 准入条件 |
+|------|------|---------|
+| `dev` | 日常开发集散地，所有功能先合此处 | 通过 lint + 自动化测试 |
+| `main` | 稳定可发版代码，只接收大版本合并 | 必须经过完整 review + QA |
+| `release/<version>` | 发版准备分支，从 main 拉出 | 用于最后打包验证 |
+
+### 版本定义
+
+```
+major.minor.patch
+  ↑      ↑     ↑
+  大版本  小功能  bugfix
+```
+
+| 类型 | 触发条件 | 目标分支 |
+|------|---------|---------|
+| **大版本（major）** | 架构重构、破坏性变更、Phase 里程碑完成 | `main` |
+| **小版本（minor）** | 新功能、功能增强 | `dev` |
+| **补丁（patch）** | Bugfix、文档更新、配置调整 | `dev` |
+
+### 发布流程
+
+```
+1. dev 累积完成一个阶段的开发
+2. 创建 release/<version> 分支从 main 拉出
+3. 在 release 分支做最后验证和打包测试
+4. 验证通过后合入 main，打 tag
+5. main 合入 dev（同步）
+6. 删除 release/<version> 分支
+```
+
+### 工具流自动维护
+
+每次工具流（BMAD / OpenSpec）执行完成后，必须自动执行：
+
+```bash
+# 1. 检查当前状态
+git status
+
+# 2. 如有变更，自动提交（基于工具流结论）
+git add .
+git commit -m "chore(<tool>): 完成 <tool-name> - <conclusion>"
+
+# 3. 如在 feat 分支且完成，自动合并到 dev
+if [ 当前分支 != dev ] && [ 任务完成 ]; then
+  git checkout dev && git merge --no-ff feat/<id>
+  git branch -d feat/<id>
+fi
+
+# 4. 确认无未合并的过时分支
+git branch --merged dev | grep feat/ | xargs -r git branch -d
+```
+
+> 工具流结束后不留下游离变更，所有状态必须落库。
+
+---
+
+## 测试隔离
+
+### 核心原则
+
+**测试代码不得进入业务代码库。**
+
+- 业务代码（`src/`、`electron/`）中 **禁止包含测试代码**
+- 测试文件独立维护，与业务代码 **物理隔离**
+- 测试框架配置与业务配置 **分离**
+
+### 测试目录结构
+
+```
+ImmerseAI/
+├── tests/                    # 测试代码隔离目录
+│   ├── unit/                 # 单元测试
+│   │   ├── rag-handler.test.ts
+│   │   ├── llm-handler.test.ts
+│   │   └── store.test.ts
+│   ├── integration/           # 集成测试
+│   │   └── ipc-flow.test.ts
+│   └── e2e/                  # 端到端测试
+│       └── bookshelf.test.ts
+├── src/                      # 业务代码（无测试）
+└── electron/                 # 业务代码（无测试）
+```
+
+### 测试导入规则
+
+- 测试文件 **只能** import 业务代码的导出接口
+- 禁止在测试中直接 import 内部实现（`src/shared/store/*.ts` → 应 import `src/shared/store/index.ts`）
+- 测试不应依赖 `node_modules` 内部细节，只依赖公开 API
+
+### 测试与业务代码耦合红线
+
+| 耦合类型 | 判定为违规 |
+|---------|-----------|
+| 测试桩（mock）侵入业务代码 | `src/` 中出现 `jest.mock()`、`vi.mock()` |
+| 测试工具函数混入 shared | `src/shared/` 中出现 `test/`、`mock/` |
+| 条件编译绕过测试 | `if (__TEST__)` 分支 |
+| 测试数据污染业务数据 | fixture 直接写在业务代码附近 |
+
+### 测试结果处理
+
+- 测试报告存放在 `tests/results/` 目录
+- 失败的测试截图存放在 `tests/screenshots/` 目录
+- CI 阶段生成 `tests/report.html` 作为质量门禁
+
+---
+
+## 开发命令
+
+---
+
 ## 知识索引
 
 遇到问题时，按以下优先级查找：
@@ -237,6 +355,7 @@ git branch -d feat/<change-id>
 - `docs/spikes/` — 实验代码片段已删除
 - `docs/api-reference.md` — 以 `package.json` 为准
 - `docs/screenshots/` — 空目录已删除
+- `tests/` 以外任何位置的测试代码 — 测试必须隔离到 `tests/` 目录
 
 ---
 
