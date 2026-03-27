@@ -1,0 +1,60 @@
+---
+description: ImmerseAI UI 设计规范 - Notion Minimal 风格
+globs: **/*.tsx
+alwaysApply: false
+---
+
+# UI 设计规范
+
+## 设计语言：Notion Minimal
+
+```yaml
+Colors:
+  Primary Text:    slate-900 (#0f172a)
+  Secondary Text:  slate-500 (#64748b)
+  Background:      white (#ffffff) / slate-50 (#f8fafc)
+  Border:          slate-200 (#e2e8f0)
+  Accent:          slate-800 (#1e293b)  # 仅用于重要按钮和图标
+  Error:           red-500 (#ef4444)
+  Success:         green-500 (#22c55e)
+
+Typography:
+  Font:            Inter, system-ui, sans-serif
+  Heading:         font-semibold
+  Body:            font-normal
+
+Spacing:           4px grid (p-1, p-2, p-4, p-6, p-8)
+Borders:           rounded-lg (cards), rounded-md (buttons), border slate-200
+Shadows:           Minimal, only shadow-sm for elevated elements
+```
+
+## 组件规范
+
+- 严格使用 **shadcn/ui** 组件 + **lucide-react** 图标
+- 动画使用 **framer-motion**
+- 直接在 JSX 中写 TailwindCSS 类，避免 @apply
+- 只使用 Functional Components，禁止 Class Components
+
+## 页面结构
+
+### 书架页
+```
+<BookshelfPage>
+  <TopBar />              // Logo + Action Buttons
+  <ScrollArea><BookGrid><BookCard /> × N</BookGrid></ScrollArea>  // 2:3 封面卡片
+  <LibrarianBar />        // 固定底部聊天输入
+</BookshelfPage>
+```
+
+### 阅读页
+```
+<ReaderPage>
+  <ReaderHeader />                      // Back + Title + Persona + Mode Toggle
+  <AnimatePresence>
+    {mode === 'read' && <EpubReader />}
+    {mode === 'chat' && <ChatInterface />}
+  </AnimatePresence>
+  {mode === 'chat' && <ChatInput />}
+  <PersonaConfigDialog />               // shadcn Dialog
+</ReaderPage>
+```

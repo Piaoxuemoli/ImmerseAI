@@ -1,0 +1,41 @@
+---
+description: ImmerseAI 技术栈宪法 - 确定选型与禁止清单
+alwaysApply: true
+---
+
+# 技术栈约束
+
+## 确定选型（不可更改）
+
+```yaml
+Runtime:          Electron v28+
+Frontend:         React v18+ (Functional Components ONLY, NO Class Components)
+Language:         TypeScript (strict mode, NO any)
+Bundler:          Vite v5+
+Styling:          TailwindCSS v3+
+Component Lib:    shadcn/ui (Radix UI primitives)
+Icons:            lucide-react
+Animation:        framer-motion
+Font:             Inter / System UI
+Global State:     Zustand v4+ (with persist middleware)
+Server State:     TanStack Query v5
+MCP SDK:          @modelcontextprotocol/sdk
+Embedding:        @xenova/transformers (all-MiniLM-L6-v2, quantized)
+Vector DB:        @orama/orama (in-memory + IndexedDB)
+Text Splitter:    LangChain.js RecursiveCharacterTextSplitter
+LLM SDK:          openai (official Node.js SDK, OpenAI Compatible)
+EPUB:             react-reader (based on epub.js)
+```
+
+## 禁止使用清单（红线）
+
+| 禁止项 | 原因 |
+|--------|------|
+| `Redux` / `MobX` | 过重，Zustand 已满足 |
+| `Next.js` / `Nuxt` | 桌面端 Electron 应用 |
+| `Prisma` / `TypeORM` | 使用 IndexedDB + Orama |
+| `Tailwind @apply` 大量使用 | 违反原子化理念 |
+| `CSS Modules` / `Styled Components` | 已选定 TailwindCSS |
+| `axios` | 使用原生 `fetch` 或 `openai` SDK |
+| `moment.js` | 使用 `date-fns` 或原生 `Intl` |
+| `lodash` 整体引入 | 仅 tree-shaking 引入单个函数 |

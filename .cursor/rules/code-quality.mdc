@@ -1,0 +1,48 @@
+---
+description: ImmerseAI 代码质量约束 - TypeScript strict, 安全与性能
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# 代码质量约束
+
+## TypeScript 严格模式
+
+```typescript
+// ✅ 允许
+const result: SearchResult[] = await search(query);
+
+// ❌ 禁止
+const result: any = await search(query);       // NO any
+let result = await search(query);               // NO implicit type
+```
+
+- **TypeScript strict mode** 全开
+- **禁止 `any`**：使用 `unknown` 并配合类型守卫
+- **禁止 `console.log` in production**：使用统一 Logger
+- **所有异步操作必须有错误处理**：try-catch 或 `.catch()`
+
+## 安全规则
+
+- API Key 必须用 `Electron safeStorage` 加密，**禁止明文**
+- `contextIsolation: true`, `nodeIntegration: false`
+- preload 仅暴露预定义 IPC channel，禁止通配符
+- 渲染进程**禁止**直接调用 Node.js API
+
+## 性能目标
+
+| 指标 | 目标值 |
+|------|--------|
+| 首次启动 | < 3s |
+| 书架加载 (100 本) | < 1s |
+| 已索引书籍重开 | < 500ms |
+| 语义检索响应 | < 200ms |
+| LLM 首 Token | < 2s |
+| UI 帧率 | 60fps |
+
+## 关键约束
+
+- 渲染进程只做 UI，禁止调用 Node.js API
+- ML 模型只在 Web Worker 中运行
+- API Key 不传递到渲染进程
+- MCP Server 仅访问用户显式授权的目录

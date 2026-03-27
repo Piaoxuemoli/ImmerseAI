@@ -1,0 +1,46 @@
+---
+description: ImmerseAI Git 规范 - 分支策略与提交格式
+alwaysApply: true
+---
+
+# Git 规范
+
+## 分支策略
+
+```
+main    ← 稳定版本，每个 Phase 完成后合并
+├── dev ← 日常开发主分支
+│   ├── feat/<change-id>  ← Feature 分支
+│   └── fix/<issue-desc>  ← Bugfix 分支
+```
+
+- `main` 仅接收 `dev` 合并
+- 所有 feature 分支从 `dev` 创建
+- 禁止直接在 `main` 或 `dev` 上提交
+
+## 提交格式 (Conventional Commits)
+
+```
+<type>(<scope>): <description>
+```
+
+**Type**: `feat` | `fix` | `refactor` | `docs` | `chore` | `style` | `test` | `perf`
+
+**Scope**: `bookshelf` | `reader` | `chat` | `persona` | `mcp` | `rag` | `llm` | `electron` | `ui` | `build` | `config` | `deps`
+
+### 示例
+
+```
+✅ feat(bookshelf): implement BookGrid component with 2:3 covers
+✅ fix(rag): resolve SharedArrayBuffer error in Electron
+✅ refactor(mcp): extract McpManager as singleton class
+
+❌ update code              # 太模糊
+❌ fix bug                  # 缺少 scope
+❌ WIP                      # 不应提交 WIP
+```
+
+## 规则
+- 一个提交 = 一个完整逻辑单元
+- 避免"大杂烩"提交
+- 合并前确保通过 TypeScript 检查和 ESLint
