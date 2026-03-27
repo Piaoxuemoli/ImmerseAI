@@ -1,0 +1,49 @@
+---
+description: ImmerseAI 四层架构设计与数据流转规则
+alwaysApply: true
+---
+
+# 系统架构规则
+
+## 四层架构
+
+### Layer 1: 渲染进程 (Renderer) — 表现层
+- React + TailwindCSS + shadcn/ui
+- **只做 UI 呈现和状态管理**
+- **禁止**直接调用 Node.js API
+- 所有 IPC 调用必须通过 `preload.ts` 暴露的安全 API
+
+### Layer 2: Web Worker — 智能层
+- @xenova/transformers + @orama/orama + LangChain.js
+- **唯一允许运行 ML 模型的地方**
+- 通过 `postMessage` 与渲染进程通信
+- 模型加载必须是**单例模式**
+
+### Layer 3: 主进程 (Main Process) — 桥接层
+- IPC 路由分发、MCP 协议、LLM API 转发、安全存储
+- **不做任何计算密集型操作**
+- MCP Server 作为**子进程 (Sidecar)** 运行
+- API Key **永远不传递到渲染进程**
+
+### Layer 4: 外部系统 — 数据层
+- MCP Filesystem Server: Stdio JSON-RPC (子进程)
+- LLM API: HTTPS (唯一出站网络流量)
+
+## 安全规则
+- API Key 必须使用 `Electron safeStorage` 加密存储
+- `contextIsolation: true`, `nodeIntegration: false`
+- preload 仅暴露预定义 channel，禁止通配符
+- MCP Server 仅访问用户**显式选择**的目录
+
+## 项目目录结构 (Feature-based)
+```
+electron/main/          # 主进程 (index.ts, ipc-handlers.ts, mcp-manager.ts, llm-handler.ts, safe-storage.ts)
+electron/preload/       # preload 脚本
+src/app/                # App.tsx, router.tsx, providers.tsx
+src/features/bookshelf/ # 书架功能
+src/features/reader/    # 阅读功能
+src/features/chat/      # 对话功能
+src/features/persona/   # 角色管理
+src/shared/             # 通用组件、hooks、types、utils
+src/workers/            # Web Worker (rag.worker.ts)
+```

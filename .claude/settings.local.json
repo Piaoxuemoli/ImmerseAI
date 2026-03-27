@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp -r .cursor/commands/* .claude/commands/)",
+      "Bash(cp -r .cursor/rules/* .claude/rules/)",
+      "Bash(cp -r .cursor/skills/* .claude/skills/)",
+      "Skill(update-config)",
+      "Bash(claude mcp:*)",
+      "Bash(npx skills:*)",
+      "Bash(claude plugin:*)",
+      "Bash(uvx --version)",
+      "mcp__MiniMax__web_search",
+      "Bash(npx -y @modelcontextprotocol/server-filesystem \"C:/Users/Qoobeewang/Desktop\")"
+    ]
+  }
+}
