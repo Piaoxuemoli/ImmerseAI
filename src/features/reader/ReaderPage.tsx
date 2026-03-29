@@ -153,7 +153,7 @@ export function ReaderPage() {
   }, [bookId, content, ingest, loading, setBooks])
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div id="main-content" className="flex h-screen flex-col bg-background">
       <ReaderHeader
         bookId={bookId}
         onCreatePersonaClick={handleCreatePersona}

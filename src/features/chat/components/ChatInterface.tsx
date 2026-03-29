@@ -113,7 +113,7 @@ export function ChatInterface() {
 
       {/* 消息列表区域 */}
       <ScrollArea className="flex-1" onScrollCapture={handleScroll}>
-        <div ref={scrollContainerRef}>
+        <div ref={scrollContainerRef} aria-live="polite">
           {isEmpty ? (
             <div className="flex h-full items-center justify-center">
               <p className="text-sm text-muted-foreground">开始与角色对话...</p>

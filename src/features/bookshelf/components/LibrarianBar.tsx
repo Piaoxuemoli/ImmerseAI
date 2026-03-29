@@ -109,6 +109,7 @@ export function LibrarianBar({ files, rootFolders, onCommandSuccess }: Librarian
             size="icon"
             className="shrink-0 text-muted-foreground hover:text-foreground"
             onClick={() => setShowHistory(!showHistory)}
+            aria-label={showHistory ? '隐藏历史' : '显示历史'}
             title={showHistory ? '隐藏历史' : '显示历史'}
           >
             {history.length > 0 && (

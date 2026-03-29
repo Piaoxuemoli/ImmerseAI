@@ -454,7 +454,7 @@ export function BookshelfPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div id="main-content" className="min-h-screen bg-background">
       <TopBar
         onSettingsClick={handleSettingsClick}
         onImportClick={connectionStatus === 'connected' ? handleImportBooks : undefined}

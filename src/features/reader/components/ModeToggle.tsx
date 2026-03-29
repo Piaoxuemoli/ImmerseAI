@@ -13,6 +13,7 @@ export function ModeToggle() {
         size="sm"
         className="h-7 w-7 p-0"
         onClick={() => setReaderMode('read')}
+        aria-label="阅读模式"
         title="阅读模式"
       >
         <BookOpen className="h-4 w-4" />
@@ -22,6 +23,7 @@ export function ModeToggle() {
         size="sm"
         className="h-7 w-7 p-0"
         onClick={() => setReaderMode('split')}
+        aria-label="分屏模式"
         title="分屏模式"
       >
         <Columns2 className="h-4 w-4" />
@@ -31,6 +33,7 @@ export function ModeToggle() {
         size="sm"
         className="h-7 w-7 p-0"
         onClick={() => setReaderMode('chat')}
+        aria-label="对话模式"
         title="对话模式"
       >
         <MessageCircle className="h-4 w-4" />

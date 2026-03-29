@@ -44,6 +44,7 @@ export function ReaderHeader({
             size="sm"
             className="h-8 w-8 p-0"
             onClick={() => navigate('/bookshelf')}
+            aria-label="返回书架"
             title="返回书架"
           >
             <ArrowLeft className="h-4 w-4" />
