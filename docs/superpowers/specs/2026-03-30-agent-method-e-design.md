@@ -67,20 +67,20 @@ Tools 是 Agent 可自由组合的最小单元。每个 Tool 有：
 - **参数 schema**（TypeScript 类型 → JSON Schema）
 - **执行函数**
 
-### 需要扩展的 Tools（对比方案 D）
+### Tools 清单
 
-| Tool | 名称 | 说明 | 方案 D 状态 |
+| Tool | 名称 | 说明 | 内置/新增 |
 |------|------|------|----------|
-| list_files | 列出目录 | 递归/非递归、过滤 | ✅ 已有 |
-| get_file_content | 读取文件内容 | 返回文本前 N 字符 | ❌ 新增 |
-| create_directory | 创建目录 | 支持多级创建 | ✅ 已有 |
-| move_file | 移动/重命名 | 单文件 | ✅ 已有 |
-| delete_file | 删除文件 | 一次一个 | ✅ 已有 |
-| search_files | 搜索文件 | 按名称/内容模糊搜索 | ❌ 新增 |
-| get_file_list_by_folder | 按文件夹列出 | 收集文件夹下所有文件 | ❌ 新增 |
-| count_items | 计数 | 文件夹内有多少本书 | ❌ 新增 |
-| get_file_metadata | 文件元信息 | 大小、创建时间、修改时间 | ❌ 新增 |
-| create_file | 创建文件 | 写入文本内容 | ❌ 新增 |
+| list_files | 列出目录 | 递归/非递归、过滤 | 内置（方案 D 已实现） |
+| get_file_content | 读取文件内容 | 返回文本前 N 字符 | 新增 |
+| create_directory | 创建目录 | 支持多级创建 | 内置（方案 D 已实现） |
+| move_file | 移动/重命名 | 单文件 | 内置（方案 D 已实现） |
+| delete_file | 删除文件 | 一次一个 | 内置（方案 D 已实现） |
+| search_files | 搜索文件 | 按名称模糊搜索 | 新增 |
+| list_folder_contents | 按文件夹列出 | 收集文件夹下所有文件（非递归） | 新增 |
+| count_folder_items | 计数 | 文件夹内有多少本书 | 新增 |
+| get_file_metadata | 文件元信息 | 大小、创建时间、修改时间 | 新增 |
+| create_file | 创建文件 | 写入文本内容 | 新增 |
 
 ### Tool 定义格式（TypeScript）
 
@@ -305,6 +305,22 @@ async function judgeSolidification(
 ### 5.1 Skill MD 文件格式
 
 存储位置：`ImmerseAI/skills/<skill-name>.md`
+
+**命名规范**：kebab-case，无版本号
+- 正确：`move-books-between-folders`
+- 错误：`MoveBooksBetweenFolders`（驼峰）、`skill-v1`（版本号）
+
+**目录结构**：
+```
+skills/                              # 内置 Skills（进 git）
+├── catalog.json                     # 索引文件
+├── move-books-between-folders.md
+└── organize-books-by-author.md
+
+$USERDATA/skills/                    # 用户积累（不进 git）
+├── catalog.json                     # 索引文件
+└── ...                             # 用户固化下来的 Skills
+```
 
 ```markdown
 # Skill: move-books-between-folders
@@ -561,13 +577,14 @@ System Prompt
 
 ### 实际待确认问题
 
-- [ ] **人格 Agent 上下文管理**：尚未讨论（见上方说明）
-- [ ] Tools 具体需要扩展到哪些？（当前列出 10 个，是否足够？）
+- [x] **人格 Agent 上下文管理**：尚未讨论（见上方说明）
+- [x] **Skills 目录结构**：两套 — 内置（`skills/` 进 git）+ 用户积累（`$USERDATA/skills/` 不进 git），各含 catalog.json
+- [x] **Tools 具体列表**：已确认，见下方 Tools 清单
+- [x] **Skill 命名规范**：kebab-case，无版本号（如 `move-books-between-folders`）
 - [x] Skill MD 中的"执行步骤"：使用模板参数（选项 B），而非具体参数
 - [x] 固化流程增加查重步骤：固化前检查是否已有功能重复的 Skill
-- [ ] Skills 目录位置：`skills/` 放在项目根目录还是用户数据目录？
-- [ ] Skill 命名规范是否需要版本号？
+- [x] Skills 目录位置：内置 `skills/` 在项目根目录；用户积累在 `$USERDATA/skills/`
 
 ---
 
-*最后更新: 2026年3月30日*
+*最后更新: 2026年3月30日（设计稿完成，待实现）*
