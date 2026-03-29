@@ -24,7 +24,7 @@ export function MessageBubble({ message, personaName, onCitationClick }: Message
         className="flex gap-3 justify-start"
       >
         <Avatar className="h-8 w-8 shrink-0">
-          <AvatarFallback className="bg-slate-800 text-xs text-white">
+          <AvatarFallback className="bg-accent text-xs text-accent-foreground">
             {avatarText}
           </AvatarFallback>
         </Avatar>
@@ -49,7 +49,7 @@ export function MessageBubble({ message, personaName, onCitationClick }: Message
         className="flex gap-3 justify-start"
       >
         <Avatar className="h-8 w-8 shrink-0">
-          <AvatarFallback className="bg-slate-800 text-xs text-white">
+          <AvatarFallback className="bg-accent text-xs text-accent-foreground">
             {avatarText}
           </AvatarFallback>
         </Avatar>
@@ -73,7 +73,7 @@ export function MessageBubble({ message, personaName, onCitationClick }: Message
       {/* AI Avatar */}
       {!isUser && (
         <Avatar className="h-8 w-8 shrink-0">
-          <AvatarFallback className="bg-slate-800 text-xs text-white">
+          <AvatarFallback className="bg-accent text-xs text-accent-foreground">
             {avatarText}
           </AvatarFallback>
         </Avatar>

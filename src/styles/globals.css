@@ -26,6 +26,20 @@
 
     --destructive: 0 84% 60%; /* red-500 */
     --destructive-foreground: 0 0% 100%;
+
+    /* Animation duration tokens */
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 400ms;
+
+    /* Semantic color tokens */
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --error: 0 72% 51%;
+
+    /* Reading theme tokens */
+    --reading-font-size: 16px;
+    --reading-line-height: 1.7;
   }
 
   .dark {
@@ -34,7 +48,7 @@
     --foreground: 210 20% 93%;
 
     --muted: 220 15% 17%;
-    --muted-foreground: 215 18% 60%;
+    --muted-foreground: 215 18% 70%;
 
     --border: 220 14% 22%;
     --input: 220 14% 22%;
@@ -51,6 +65,22 @@
 
     --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
+  }
+
+  /* Reading theme: Sepia */
+  [data-reading-theme="sepia"] {
+    --background: 35 30% 95%;
+    --foreground: 30 20% 20%;
+    --muted: 35 25% 90%;
+    --muted-foreground: 30 15% 40%;
+  }
+
+  /* Reading theme: Night */
+  [data-reading-theme="night"] {
+    --background: 220 25% 8%;
+    --foreground: 210 20% 90%;
+    --muted: 220 20% 15%;
+    --muted-foreground: 210 15% 60%;
   }
 }
 
