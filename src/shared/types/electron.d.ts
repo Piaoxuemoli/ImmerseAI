@@ -79,4 +79,14 @@ export interface ElectronAPI {
       callback: (data: { bookId: string; chunkCount: number }) => void,
     ) => () => void
   }
+
+  // Skill 文件操作
+  skills: {
+    /** 列出目录下所有 .md 文件 */
+    list: (dirPath: string) => Promise<string[]>
+    /** 读取 skill 文件内容 */
+    read: (filePath: string) => Promise<string>
+    /** 写入 skill 文件（自动创建目录） */
+    write: (filePath: string, content: string) => Promise<void>
+  }
 }

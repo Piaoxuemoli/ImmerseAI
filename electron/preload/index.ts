@@ -130,6 +130,15 @@ const electronAPI: ElectronAPI = {
       return () => ipcRenderer.removeListener('rag:upgrade-complete', listener)
     },
   },
+
+  skills: {
+    list: (dirPath: string): Promise<string[]> =>
+      ipcRenderer.invoke('skills:list', dirPath),
+    read: (filePath: string): Promise<string> =>
+      ipcRenderer.invoke('skills:read', filePath),
+    write: (filePath: string, content: string): Promise<void> =>
+      ipcRenderer.invoke('skills:write', filePath, content),
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

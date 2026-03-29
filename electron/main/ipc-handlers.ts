@@ -19,6 +19,27 @@ import type { RagParagraph } from './rag-handler'
 const abortControllers = new Map<string, AbortController>()
 
 /**
+ * 获取目录下所有 .md 文件
+ */
+async function getSkillMarkdownFiles(dirPath: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true })
+    return entries
+      .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+      .map(entry => entry.name)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 确保目录存在（递归创建）
+ */
+async function ensureDir(dirPath: string): Promise<void> {
+  await fs.mkdir(dirPath, { recursive: true })
+}
+
+/**
  * 将 MCP 错误包装为可读信息
  */
 function wrapMcpError(error: unknown): Error {
@@ -309,6 +330,44 @@ export function registerIpcHandlers(): void {
       await ragClearCache(contentHash)
     } catch (error) {
       console.error('[IPC] rag:clear-cache error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
+  })
+
+  // ========================================
+  // Skill 文件操作 handlers
+  // ========================================
+
+  // 列出目录下所有 .md 文件
+  ipcMain.handle('skills:list', async (_, dirPath: string) => {
+    console.log(`[IPC] skills:list called with path: ${dirPath}`)
+    try {
+      return await getSkillMarkdownFiles(dirPath)
+    } catch (error) {
+      console.error('[IPC] skills:list error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
+  })
+
+  // 读取 skill 文件内容
+  ipcMain.handle('skills:read', async (_, filePath: string) => {
+    console.log(`[IPC] skills:read called with path: ${filePath}`)
+    try {
+      return await fs.readFile(filePath, 'utf-8')
+    } catch (error) {
+      console.error('[IPC] skills:read error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
+  })
+
+  // 写入 skill 文件（自动创建目录）
+  ipcMain.handle('skills:write', async (_, filePath: string, content: string) => {
+    console.log(`[IPC] skills:write called with path: ${filePath}, content length: ${content.length}`)
+    try {
+      await ensureDir(path.dirname(filePath))
+      await fs.writeFile(filePath, content, 'utf-8')
+    } catch (error) {
+      console.error('[IPC] skills:write error:', error)
       throw error instanceof Error ? error : new Error(String(error))
     }
   })
