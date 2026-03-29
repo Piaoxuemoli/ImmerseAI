@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, session } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers } from './ipc-handlers'
+import { prewarm } from './rag-handler'
 import { McpManager } from './mcp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -92,6 +93,10 @@ app.whenReady().then(() => {
   registerIpcHandlers()
 
   createWindow()
+
+  setTimeout(() => {
+    prewarm().catch((err) => console.warn('[RAG] Prewarm failed:', err))
+  }, 5000)
 
   // macOS 特殊处理：点击 Dock 图标时重新创建窗口
   app.on('activate', () => {

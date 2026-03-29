@@ -749,3 +749,9 @@ export async function ragClearCache(contentHash: string): Promise<void> {
     // ignore if not found
   }
 }
+
+export async function prewarm(): Promise<void> {
+  console.log('[RAG] Prewarming embedding model...')
+  await tryLoadEmbeddingModel()
+  console.log('[RAG] Prewarm complete')
+}
