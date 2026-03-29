@@ -11,7 +11,7 @@ import type { Message, LlmConfig } from '@/shared/types'
  * 创建一个包装 IPC 事件流的 ReadableStream
  *
  * - 先注册 onChunk / onError 监听，再发起 invoke，保证不丢失任何事件
- * - [DONE] 信号触发 controller.close()
+ * - llm:chat-complete 事件触发 controller.close()
  * - 错误事件触发 controller.error()
  * - stream.cancel() 时调用 cancelChat() 清理所有监听
  */
