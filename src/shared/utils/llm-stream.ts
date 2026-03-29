@@ -19,13 +19,7 @@ export function createLlmStream(messages: Message[], config: LlmConfig): Readabl
   return new ReadableStream<string>({
     start(controller) {
       const removeChunk = window.electronAPI.llm.onChunk((chunk) => {
-        if (chunk === '[DONE]') {
-          removeChunk()
-          removeError()
-          controller.close()
-        } else {
-          controller.enqueue(chunk)
-        }
+        controller.enqueue(chunk)
       })
 
       const removeError = window.electronAPI.llm.onError((err) => {
@@ -34,9 +28,17 @@ export function createLlmStream(messages: Message[], config: LlmConfig): Readabl
         controller.error(new Error(err.message))
       })
 
+      const removeComplete = window.electronAPI.llm.onChatComplete(() => {
+        removeChunk()
+        removeError()
+        removeComplete()
+        controller.close()
+      })
+
       window.electronAPI.llm.chat(messages, config).catch((e: Error) => {
         removeChunk()
         removeError()
+        removeComplete()
         controller.error(e)
       })
     },

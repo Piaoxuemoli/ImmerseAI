@@ -157,6 +157,9 @@ export async function handleLlmChat(
   messages: Message[],
   config: LlmConfig
 ): Promise<void> {
+  // Capture start time for duration tracking
+  ;(event as unknown as { _startTime: number })._startTime = Date.now()
+
   const mergedConfig = {
     ...DEFAULT_LLM_CONFIG,
     ...config,
@@ -174,7 +177,7 @@ export async function handleLlmChat(
         code: 'not_configured',
         message: ERROR_CODE_MESSAGES.not_configured,
       })
-      event.sender.send('llm:chat-chunk', '[DONE]')
+      event.sender.send('llm:chat-complete', { totalDuration: Date.now() - (event as unknown as { _startTime: number })._startTime })
     }
     return
   }
@@ -213,14 +216,14 @@ export async function handleLlmChat(
 
     // 流正常结束，发送完成信号
     if (!event.sender.isDestroyed()) {
-      event.sender.send('llm:chat-chunk', '[DONE]')
+      event.sender.send('llm:chat-complete', { totalDuration: Date.now() - (event as unknown as { _startTime: number })._startTime })
     }
   } catch (error: unknown) {
-    // 流中错误：发送结构化错误事件 + [DONE] 关闭流
+    // 流中错误：发送结构化错误事件 + llm:chat-complete 关闭流
     if (!event.sender.isDestroyed()) {
       const llmError = classifyError(error)
       event.sender.send('llm:chat-error', llmError)
-      event.sender.send('llm:chat-chunk', '[DONE]')
+      event.sender.send('llm:chat-complete', { totalDuration: Date.now() - (event as unknown as { _startTime: number })._startTime })
     }
   }
 }

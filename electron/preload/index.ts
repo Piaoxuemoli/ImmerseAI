@@ -46,9 +46,15 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.on('llm:chat-error', listener)
       return () => ipcRenderer.removeListener('llm:chat-error', listener)
     },
+    onChatComplete: (callback: (data: { totalDuration: number }) => void): (() => void) => {
+      const listener = (_: unknown, data: { totalDuration: number }): void => callback(data)
+      ipcRenderer.on('llm:chat-complete', listener)
+      return () => ipcRenderer.removeListener('llm:chat-complete', listener)
+    },
     cancelChat: (): void => {
       ipcRenderer.removeAllListeners('llm:chat-chunk')
       ipcRenderer.removeAllListeners('llm:chat-error')
+      ipcRenderer.removeAllListeners('llm:chat-complete')
     },
   },
 
