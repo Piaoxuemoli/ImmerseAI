@@ -29,8 +29,19 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { ImmerseStore } from '@/shared/types'
 
+const logMiddleware = (config) => (set, get, api) =>
+  config(
+    (...args) => {
+      console.debug('[Store]', ...args)
+      set(...args)
+    },
+    get,
+    api
+  )
+
 export const useStore = create<ImmerseStore>()(
-  persist(
+  logMiddleware(
+    persist(
     (set) => ({
       // === 书架状态 ===
       books: [],
@@ -158,13 +169,17 @@ export const useStore = create<ImmerseStore>()(
           return { indexingProgress: remainingProgress }
         }),
       markBookIndexed: (bookId, contentHash, chunkCount) =>
-        set((state) => ({
-          books: state.books.map((b) =>
-            b.id === bookId
-              ? { ...b, isIndexed: true, indexedAt: Date.now(), contentHash, chunkCount }
-              : b,
-          ),
-        })),
+        set((state) => {
+          const { [bookId]: _, ...remainingProgress } = state.indexingProgress
+          return {
+            books: state.books.map((b) =>
+              b.id === bookId
+                ? { ...b, isIndexed: true, indexedAt: Date.now(), contentHash, chunkCount }
+                : b,
+            ),
+            indexingProgress: remainingProgress,
+          }
+        }),
 
       // === 设置 Actions ===
       setLlmConfig: (config) =>
@@ -206,6 +221,7 @@ export const useStore = create<ImmerseStore>()(
         theme: state.theme,
       }),
     }
+  )
   )
 )
 
