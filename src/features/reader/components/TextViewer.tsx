@@ -4,13 +4,13 @@ import type { Components } from 'react-markdown'
 
 const MARKDOWN_COMPONENTS: Components = {
   h1: ({ children }) => (
-    <h1 className="text-3xl font-semibold text-foreground mt-8 mb-4">{children}</h1>
+    <h1 className="text-2xl sm:text-3xl font-semibold text-foreground mt-8 mb-4">{children}</h1>
   ),
   h2: ({ children }) => (
-    <h2 className="text-2xl font-semibold text-foreground mt-6 mb-3">{children}</h2>
+    <h2 className="text-xl sm:text-2xl font-semibold text-foreground mt-6 mb-3">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-xl font-semibold text-foreground mt-4 mb-2">{children}</h3>
+    <h3 className="text-lg sm:text-xl font-semibold text-foreground mt-4 mb-2">{children}</h3>
   ),
   p: ({ children }) => <p className="mb-4 text-foreground">{children}</p>,
   ul: ({ children }) => <ul className="list-disc pl-6 mb-4 text-foreground">{children}</ul>,
@@ -54,7 +54,9 @@ export const TextViewer: React.FC<TextViewerProps> = ({
 
   useEffect(() => {
     if (initialParagraphIndex !== undefined && containerRef.current) {
-      const paragraphs = containerRef.current.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
+      const paragraphs = containerRef.current.querySelectorAll(
+        'p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, pre, li'
+      )
       const targetParagraph = paragraphs[initialParagraphIndex]
       if (targetParagraph) {
         targetParagraph.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -66,7 +68,9 @@ export const TextViewer: React.FC<TextViewerProps> = ({
     const handleScroll = () => {
       if (!containerRef.current || !onProgressChange) return
 
-      const paragraphs = containerRef.current.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
+      const paragraphs = containerRef.current.querySelectorAll(
+        'p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, pre, li'
+      )
       const containerTop = containerRef.current.getBoundingClientRect().top
 
       for (let i = 0; i < paragraphs.length; i++) {
@@ -90,11 +94,9 @@ export const TextViewer: React.FC<TextViewerProps> = ({
     return (
       <div
         ref={containerRef}
-        className="h-full overflow-y-auto px-8 py-6 bg-background text-foreground"
+        className="h-full overflow-y-auto px-8 py-6 bg-background text-foreground text-base sm:text-lg leading-relaxed sm:leading-loose"
         style={{
           fontFamily: 'Inter, system-ui, sans-serif',
-          lineHeight: '1.8',
-          fontSize: '18px',
         }}
       >
         <div className="prose prose-slate dark:prose-invert max-w-none">
@@ -109,11 +111,11 @@ export const TextViewer: React.FC<TextViewerProps> = ({
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-y-auto px-8 py-6 bg-background text-foreground"
+      className="h-full overflow-y-auto px-8 py-6 bg-background text-foreground text-base sm:text-lg leading-relaxed sm:leading-loose"
       style={{
         fontFamily: 'Inter, system-ui, sans-serif',
-        lineHeight: '1.8',
-        fontSize: '18px',
+        fontSize: 'var(--reading-font-size)',
+        lineHeight: 'var(--reading-line-height)',
         whiteSpace: 'pre-wrap',
       }}
     >

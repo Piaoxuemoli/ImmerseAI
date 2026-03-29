@@ -18,7 +18,7 @@ const pageVariants = {
   exit: { opacity: 0, y: -8 },
 }
 
-const pageTransition = { duration: 0.15, ease: 'easeInOut' }
+const pageTransition = { duration: 0.2, ease: 'easeOut' }
 
 export function ReaderPage() {
   const { id } = useParams<{ id: string }>()
