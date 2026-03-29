@@ -58,7 +58,7 @@ interface CacheFile {
 
 const CACHE_VERSION = 3
 const MODEL_ID = 'Xenova/all-MiniLM-L6-v2'
-const BATCH_SIZE = 32
+const BATCH_SIZE = 64  // was 32
 const MAX_ORAMA_CACHE = 5
 /** 超过此 chunk 数量的书籍使用两阶段索引（立即词法 + 后台语义升级） */
 const SEMANTIC_FULL_THRESHOLD = 5000
@@ -76,7 +76,13 @@ let embeddingPipeline: any = null
 let semanticAvailable: boolean | null = null
 
 const memoryCache = new Map<string, CacheFile>()
-const oramaIndexCache = new Map<string, AnyOrama>()
+interface OramaCacheEntry {
+  index: AnyOrama
+  lastAccessed: number
+  sizeEstimate: number
+}
+
+const oramaIndexCache = new Map<string, OramaCacheEntry>()
 /** Prevents concurrent ragIngest calls for the same content from running in parallel */
 const inFlightByHash = new Set<string>()
 
@@ -164,18 +170,19 @@ function chunkParagraphs(
     }
 
     // Merge segments into chunks with overlap
-    let currentChunk = ''
+    let currentChunkParts: string[] = []
     let currentOffset = 0
 
     for (const seg of segments) {
-      if (currentChunk.length + seg.length <= chunkSize) {
-        currentChunk += seg
+      if (currentChunkParts.join('').length + seg.length <= chunkSize) {
+        currentChunkParts.push(seg)
       } else {
-        if (currentChunk) {
+        const currentChunk = currentChunkParts.join('')
+        if (currentChunk.trim()) {
           chunks.push({ text: currentChunk, paragraphIndex: para.index, offset: currentOffset, isSemanticSampled: false })
           const overlapStart = Math.max(0, currentChunk.length - chunkOverlap)
           currentOffset += overlapStart
-          currentChunk = currentChunk.slice(overlapStart) + seg
+          currentChunkParts = [currentChunk.slice(overlapStart), seg]
         } else {
           // Segment itself exceeds chunkSize — hard split
           for (let i = 0; i < seg.length; i += chunkSize - chunkOverlap) {
@@ -187,13 +194,14 @@ function chunkParagraphs(
             })
           }
           currentOffset += seg.length
-          currentChunk = ''
+          currentChunkParts = []
         }
       }
     }
 
-    if (currentChunk.trim()) {
-      chunks.push({ text: currentChunk, paragraphIndex: para.index, offset: currentOffset, isSemanticSampled: false })
+    const finalChunk = currentChunkParts.join('')
+    if (finalChunk.trim()) {
+      chunks.push({ text: finalChunk, paragraphIndex: para.index, offset: currentOffset, isSemanticSampled: false })
     }
   }
 
@@ -328,7 +336,11 @@ async function saveCache(data: CacheFile): Promise<void> {
 
 async function getOrBuildOramaIndex(cacheData: CacheFile): Promise<AnyOrama> {
   const key = cacheData.contentHash
-  if (oramaIndexCache.has(key)) return oramaIndexCache.get(key)!
+  const cached = oramaIndexCache.get(key)
+  if (cached) {
+    cached.lastAccessed = Date.now()
+    return cached.index
+  }
 
   const db = await create({
     schema: {
@@ -346,11 +358,24 @@ async function getOrBuildOramaIndex(cacheData: CacheFile): Promise<AnyOrama> {
     })
   }
 
+  // LRU eviction: remove least recently accessed when at capacity
   if (oramaIndexCache.size >= MAX_ORAMA_CACHE) {
-    const firstKey = oramaIndexCache.keys().next().value
-    if (firstKey) oramaIndexCache.delete(firstKey)
+    let oldestKey: string | null = null
+    let oldestTime = Infinity
+    for (const [k, v] of oramaIndexCache) {
+      if (v.lastAccessed < oldestTime) {
+        oldestTime = v.lastAccessed
+        oldestKey = k
+      }
+    }
+    if (oldestKey) oramaIndexCache.delete(oldestKey)
   }
-  oramaIndexCache.set(key, db)
+
+  oramaIndexCache.set(key, {
+    index: db,
+    lastAccessed: Date.now(),
+    sizeEstimate: cacheData.chunks.length,
+  })
   return db
 }
 
