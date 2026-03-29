@@ -160,7 +160,17 @@ export function registerIpcHandlers(): void {
   // ========================================
 
   ipcMain.handle('llm:chat', async (event, messages: Message[], config: LlmConfig): Promise<void> => {
-    await handleLlmChat(event, messages, config)
+    try {
+      await handleLlmChat(event, messages, config)
+    } catch (error) {
+      console.error('[IPC] llm:chat handler exception:', error)
+      const code = error instanceof Error ? error.constructor.name : 'unknown'
+      const message = error instanceof Error ? error.message : String(error)
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('llm:chat-error', { code, message })
+        event.sender.send('llm:chat-complete', { totalDuration: 0 })
+      }
+    }
   })
 
   // ========================================

@@ -123,63 +123,49 @@ function classifyError(error: unknown): LlmChatError {
     if (status === 429) {
       return { code: 'rate_limited', message: ERROR_CODE_MESSAGES.rate_limited }
     }
-    // 400/404/409/422/403 等客户端错误 → 根据错误码或 status 细分
+    // 400/404/409/422 等客户端错误
     if (status !== undefined) {
-      // BadRequestError (400) - 请求格式/参数错误，可能是 API Key 无效或模型不支持
+      // BadRequestError (400)
       if (error instanceof OpenAI.BadRequestError || status === 400) {
-        // 进一步检查是否因 API Key 导致的 400（某些 provider 对无效 key 返回 400）
         const msg = (error as { error?: { message?: string } }).error?.message ?? ''
         if (msg.toLowerCase().includes('key') || msg.toLowerCase().includes('auth')) {
           return { code: 'invalid_key', message: ERROR_CODE_MESSAGES.invalid_key }
         }
-        return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
+        return { code: `http_${status}`, message: `[${status}] ${msg || ERROR_CODE_MESSAGES.unknown}` }
       }
-      // 未找到资源
-      if (error instanceof OpenAI.NotFoundError || status === 404) {
-        return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
-      }
-      // 服务器拒绝/权限不足
-      if (error instanceof OpenAI.PermissionDeniedError || status === 403) {
-        return { code: 'invalid_key', message: ERROR_CODE_MESSAGES.invalid_key }
-      }
-      // 冲突
-      if (error instanceof OpenAI.ConflictError || status === 409) {
-        return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
-      }
-      // 无法处理的实体
-      if (error instanceof OpenAI.UnprocessableEntityError || status === 422) {
-        return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
-      }
-      // 所有其他 HTTP 错误码都归为 unknown
-      return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
+      // 其他 HTTP 错误：404/409/422 等
+      return { code: `http_${status}`, message: `[${status}] ${(error as { message?: string }).message || ERROR_CODE_MESSAGES.unknown}` }
     }
-    // status 为 undefined 但是 APIError 子类 → 检查嵌套 error.code
+    // status 为 undefined 但仍是 APIError 子类 → 检查嵌套 error.code
     const nestedCode = (error as { error?: { code?: string } }).error?.code
-    if (nestedCode === 'invalid_api_key' || nestedCode === ' Incorrect_api_key') {
+    if (nestedCode === 'invalid_api_key' || nestedCode === 'incorrect_api_key') {
       return { code: 'invalid_key', message: ERROR_CODE_MESSAGES.invalid_key }
     }
-    return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
+    // APIError 但无法识别
+    return { code: 'api_error', message: (error as { message?: string }).message || ERROR_CODE_MESSAGES.unknown }
   }
 
-  // 其他 Error 类型
+  // 其他 Error 类型（包括 AbortError、网络错误等）
   if (error instanceof Error) {
     const msg = error.message.toLowerCase()
-    // 尝试识别网络错误
     if (
       msg.includes('econnrefused') ||
       msg.includes('etimedout') ||
       msg.includes('enotfound') ||
       msg.includes('network') ||
       msg.includes('fetch') ||
-      msg.includes('socket')
+      msg.includes('socket') ||
+      msg.includes('connection') ||
+      msg.includes('timeout') ||
+      msg.includes('refused') ||
+      msg.includes('aborted') ||
+      msg.includes('canceled') ||
+      msg.includes('request')
     ) {
       return { code: 'network_error', message: ERROR_CODE_MESSAGES.network_error }
     }
-    // abort / cancel
-    if (msg.includes('abort') || msg.includes('cancel')) {
-      return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
-    }
-    return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
+    // 其他未知 Error
+    return { code: 'unknown', message: `${ERROR_CODE_MESSAGES.unknown}: ${error.message}` }
   }
 
   return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
@@ -262,8 +248,10 @@ export async function handleLlmChat(
     }
   } catch (error: unknown) {
     // 流中错误：发送结构化错误事件 + llm:chat-complete 关闭流
+    console.error('[LlmHandler] chat error:', error)
     if (!event.sender.isDestroyed()) {
       const llmError = classifyError(error)
+      console.error('[LlmHandler] classified error:', llmError)
       event.sender.send('llm:chat-error', llmError)
       event.sender.send('llm:chat-complete', { totalDuration: Date.now() - (event as unknown as { _startTime: number })._startTime })
     }
