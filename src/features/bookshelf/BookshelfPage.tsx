@@ -343,7 +343,7 @@ export function BookshelfPage() {
     // 已连接且有内容（目录化视图）
     return (
       <div className="mx-auto flex max-w-7xl gap-4 px-4 py-6 pb-20">
-        <div className="w-48 shrink-0 rounded-lg border border-border p-3 xl:w-56">
+        <div className="w-40 shrink-0 rounded-lg border border-border p-3 md:w-48 xl:w-56">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">文件夹</h3>
             <Button variant="ghost" size="icon" onClick={handleCreateFolder} title="新增文件夹">
@@ -381,14 +381,14 @@ export function BookshelfPage() {
               {/* 视图切换 */}
               <div className="flex rounded-md border border-border overflow-hidden">
                 <button
-                  className={`flex h-8 w-8 items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                  className={`flex min-h-[44px] min-w-[44px] items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                   onClick={() => setViewMode('grid')}
                   title="宫格视图"
                 >
                   <LayoutGrid className="h-4 w-4" />
                 </button>
                 <button
-                  className={`flex h-8 w-8 items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                  className={`flex min-h-[44px] min-w-[44px] items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                   onClick={() => setViewMode('list')}
                   title="列表视图"
                 >

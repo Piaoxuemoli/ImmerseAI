@@ -197,7 +197,7 @@ export function ReaderPage() {
                   )}
                 </div>
                 {/* Right: chat */}
-                <div className="w-[420px] shrink-0 overflow-hidden">
+                <div className="w-full sm:w-[420px] shrink-0 overflow-hidden">
                   <ChatInterface />
                 </div>
               </motion.div>

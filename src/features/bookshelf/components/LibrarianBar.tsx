@@ -63,7 +63,7 @@ export function LibrarianBar({ files, rootFolders, onCommandSuccess }: Librarian
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm">
+      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
         {/* 历史记录折叠面板 */}
         {showHistory && history.length > 0 && (
           <div className="mx-auto max-w-7xl border-b border-border px-6 py-3">
@@ -112,7 +112,7 @@ export function LibrarianBar({ files, rootFolders, onCommandSuccess }: Librarian
             title={showHistory ? '隐藏历史' : '显示历史'}
           >
             {history.length > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] text-white">
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
                 {history.length}
               </span>
             )}
