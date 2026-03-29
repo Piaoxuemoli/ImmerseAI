@@ -472,6 +472,7 @@ async function backgroundReindexSemantic(
   paragraphs: RagParagraph[],
   contentHash: string,
   sender: WebContents,
+  signal?: AbortSignal,
 ): Promise<void> {
   const safeSend = (channel: string, payload: unknown) => {
     try {
@@ -489,6 +490,10 @@ async function backgroundReindexSemantic(
 
   let processed = 0
   for (let i = 0; i < sampledChunks.length; i += BATCH_SIZE) {
+    if (signal?.aborted) {
+      console.log('[RAG] Background semantic upgrade cancelled')
+      return
+    }
     const batch = sampledChunks.slice(i, i + BATCH_SIZE)
     try {
       const embeddings = await computeEmbeddings(batch.map((c) => c.text))
@@ -541,6 +546,7 @@ export async function ragIngest(
   bookId: string,
   paragraphs: RagParagraph[],
   sender: WebContents,
+  signal?: AbortSignal,
 ): Promise<{ contentHash: string; chunkCount: number }> {
   if (paragraphs.length === 0) {
     sender.send('rag:ingest-complete', { bookId, contentHash: '', chunkCount: 0, mode: 'lexical' })
@@ -568,7 +574,7 @@ export async function ragIngest(
         sender.send('rag:ingest-progress', { bookId, progress: 100 })
         sender.send('rag:ingest-complete', { bookId, contentHash, chunkCount: cached.chunkCount, mode: 'lexical' })
         setImmediate(() => {
-          backgroundReindexSemantic(bookId, paragraphs, contentHash, sender).catch((err) => {
+          backgroundReindexSemantic(bookId, paragraphs, contentHash, sender, signal).catch((err) => {
             console.error('[RAG] Background semantic reindex failed:', err)
           })
         })
@@ -608,7 +614,7 @@ export async function ragIngest(
       const semanticAvail = await tryLoadEmbeddingModel()
       if (semanticAvail) {
         setImmediate(() => {
-          backgroundReindexSemantic(bookId, paragraphs, contentHash, sender).catch((err) => {
+          backgroundReindexSemantic(bookId, paragraphs, contentHash, sender, signal).catch((err) => {
             console.error('[RAG] Background semantic reindex failed:', err)
           })
         })
@@ -623,6 +629,7 @@ export async function ragIngest(
     if (useSemanticMode) {
       let embeddingFailed = false
       for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        if (signal?.aborted) throw new Error('Cancelled')
         if (embeddingFailed) break
         const batch = chunks.slice(i, i + BATCH_SIZE)
         try {

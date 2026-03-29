@@ -40,6 +40,7 @@ interface UseRagOptions {
 
 export interface UseRagResult {
   ingest: (bookId: string, paragraphs: RagParagraph[]) => void
+  cancel: (bookId: string) => void
   /** 0-100 during semantic upgrade, null when no upgrade is in progress */
   upgradeProgress: number | null
   isUpgrading: boolean
@@ -95,5 +96,9 @@ export function useRag(options?: UseRagOptions): UseRagResult {
     window.electronAPI.rag.ingest(bookId, paragraphs)
   }, [])
 
-  return { ingest, upgradeProgress, isUpgrading }
+  const cancel = useCallback((bookId: string) => {
+    window.electronAPI.rag.cancel(bookId)
+  }, [])
+
+  return { ingest, cancel, upgradeProgress, isUpgrading }
 }

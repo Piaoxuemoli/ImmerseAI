@@ -75,6 +75,9 @@ const electronAPI: ElectronAPI = {
     ingest: (bookId: string, paragraphs: RagParagraph[]): void =>
       ipcRenderer.send('rag:ingest', { bookId, paragraphs }),
 
+    cancel: (bookId: string): void =>
+      ipcRenderer.send('rag:cancel', bookId),
+
     search: (contentHash: string, query: string, topK = 5): Promise<RagSearchResult[]> =>
       ipcRenderer.invoke('rag:search', { contentHash, query, topK }),
 

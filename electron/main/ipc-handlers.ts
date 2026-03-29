@@ -16,6 +16,8 @@ import { McpManager, McpConnectionError, type FileEntry, type McpStatus } from '
 import { ragIngest, ragSearch, ragStatus, ragClearCache } from './rag-handler'
 import type { RagParagraph } from './rag-handler'
 
+const abortControllers = new Map<string, AbortController>()
+
 /**
  * 将 MCP 错误包装为可读信息
  */
@@ -239,13 +241,33 @@ export function registerIpcHandlers(): void {
   ipcMain.on('rag:ingest', (event, data: { bookId: string; paragraphs: RagParagraph[] }) => {
     const { bookId, paragraphs } = data
     console.log(`[IPC] rag:ingest called for book: ${bookId}, paragraphs: ${paragraphs.length}`)
-    ragIngest(bookId, paragraphs, event.sender).catch((error) => {
+    // Cancel any existing ingest for this book
+    const existing = abortControllers.get(bookId)
+    if (existing) existing.abort()
+    const controller = new AbortController()
+    abortControllers.set(bookId, controller)
+
+    ragIngest(bookId, paragraphs, event.sender, controller.signal).then(() => {
+      abortControllers.delete(bookId)
+    }).catch((error) => {
+      abortControllers.delete(bookId)
+      if (error.message === 'Cancelled') return
       console.error('[IPC] rag:ingest error:', error)
       event.sender.send('rag:ingest-error', {
         bookId,
         error: error instanceof Error ? error.message : String(error),
       })
     })
+  })
+
+  // 取消正在进行的索引
+  ipcMain.on('rag:cancel', (_, bookId: string) => {
+    const controller = abortControllers.get(bookId)
+    if (controller) {
+      controller.abort()
+      abortControllers.delete(bookId)
+      console.log(`[IPC] rag:cancel for book: ${bookId}`)
+    }
   })
 
   // 检索（返回结果）
