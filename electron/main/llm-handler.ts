@@ -134,6 +134,10 @@ function classifyError(error: unknown): LlmChatError {
         return { code: `http_${status}`, message: `[${status}] ${msg || ERROR_CODE_MESSAGES.unknown}` }
       }
       // 其他 HTTP 错误：404/409/422 等
+      // 404 常见原因：Base URL 路径不对（如缺少 /v1）
+      if (status === 404) {
+        return { code: 'not_found', message: `[404] 接口地址错误，请检查 Base URL 是否正确（需包含完整路径，如 /v1/chat/completions）` }
+      }
       return { code: `http_${status}`, message: `[${status}] ${(error as { message?: string }).message || ERROR_CODE_MESSAGES.unknown}` }
     }
     // status 为 undefined 但仍是 APIError 子类 → 检查嵌套 error.code
