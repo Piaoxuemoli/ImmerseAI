@@ -11,6 +11,16 @@ import type { Message, AgentIntent, AgentOperation, BookFile, LlmConfig } from '
 import { WINDOWS_ABSOLUTE_PATH_RE } from '@/shared/utils/path'
 import { buildLibrarianSystemPrompt } from '../utils/librarian-prompt'
 import { createLlmStream } from '@/shared/utils/llm-stream'
+import { ToolRegistry, registerBuiltinTools } from './tool-registry'
+
+// 初始化时注册所有 Tools
+let toolsInitialized = false
+function ensureToolsInitialized(): void {
+  if (!toolsInitialized) {
+    registerBuiltinTools()
+    toolsInitialized = true
+  }
+}
 
 /**
  * 意图识别结果
@@ -180,6 +190,9 @@ export async function executeLibrarianCommand(
   rootFolders: BookFile[] = [],
 ): Promise<AgentExecuteResult> {
   const startTime = Date.now()
+
+  // 确保 Tools 已注册
+  ensureToolsInitialized()
 
   // Step 1: 意图识别（附带一级文件夹上下文）
   const availablePaths = files.map((f) => f.path)
