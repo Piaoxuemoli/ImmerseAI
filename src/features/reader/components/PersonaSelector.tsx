@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { User, Check, Pencil, Trash2, Plus, ChevronDown } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/shared/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog'
 import { Button } from '@/shared/components/ui/button'
 import { useStore } from '@/shared/store'
 import type { Persona } from '@/shared/types'
@@ -201,14 +201,14 @@ export function PersonaSelector({ bookId, onCreateClick, onEditClick }: PersonaS
               确定要删除人格「{deleteTarget?.name}」吗？此操作不可撤销。
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
               取消
             </Button>
             <Button variant="destructive" onClick={handleDeleteConfirm}>
               删除
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

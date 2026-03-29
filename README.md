@@ -75,7 +75,7 @@ immerseai/
 
 ## 开发进度
 
-> 更新：2026-03-07
+> 更新：2026-03-29
 
 | Phase | 内容 | 状态 |
 |-------|------|------|
@@ -93,6 +93,6 @@ immerseai/
 
 **测试体系**：`qoobee-t&f-skill` 支持自动化代码审计（AT-01 ~ AT-14）与人工测试报告修复。AT-01 ~ AT-14 全部通过。
 
-**Bug 调试记录**：每个 Bug 均记录根因分析、代码 diff、知识点与面试问答，维护于 `test_book/无分类/Bug调试记录.md`（当前 BUG-001 ~ BUG-007）。
+**Bug 调试记录**：每个 Bug 均记录根因分析、代码 diff、知识点与面试问答，维护于 `test_book/无分类/Bug调试记录.md`（当前 BUG-001 ~ BUG-008）。
 
 **Agent Skills**：`.cursor/skills/` 内置测试修复、Bug 调试记录、Vercel React 最佳实践等能力包，关键词触发，不影响核心运行链路。
