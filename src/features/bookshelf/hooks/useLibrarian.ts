@@ -9,6 +9,7 @@ import { useStore } from '@/shared/store'
 import type { AgentOperation, BookFile } from '@/shared/types'
 import {
   executeLibrarianCommand,
+  executeLibrarianCommandV2,
   executeDeleteFile,
   type AgentExecuteResult,
 } from '../services/librarian-agent'
@@ -89,6 +90,36 @@ export function useLibrarian(files: BookFile[], options: UseLibrarianOptions = {
       setLastMessage(null)
 
       try {
+        // 优先使用 V2 执行器
+        const v2Result = await executeLibrarianCommandV2(
+          userInput,
+          bookshelfRootPath,
+          files,
+          llmConfig,
+          rootFolders,
+        )
+
+        // V2 执行成功，尝试记录操作
+        if (v2Result.success) {
+          const operation: AgentOperation = {
+            id: crypto.randomUUID(),
+            timestamp: Date.now(),
+            intent: 'unknown',
+            input: userInput,
+            params: {},
+            result: 'success',
+            message: v2Result.message,
+            duration: 0,
+          }
+          addAgentOperation(operation)
+        }
+
+        setLastMessage(v2Result.message)
+        if (v2Result.success) {
+          await onCommandSuccess?.()
+        }
+      } catch {
+        // V2 失败时 fallback 到 V1（保留确认流程）
         const result: AgentExecuteResult = await executeLibrarianCommand(
           userInput,
           bookshelfRootPath,
@@ -115,9 +146,6 @@ export function useLibrarian(files: BookFile[], options: UseLibrarianOptions = {
             await onCommandSuccess?.()
           }
         }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : '执行命令失败'
-        setLastMessage(errorMsg)
       } finally {
         setIsExecuting(false)
       }
