@@ -22,6 +22,7 @@ interface UseChatReturn {
   streamingContent: string
   isGenerating: boolean
   sendMessage: (content: string) => Promise<void>
+  retryLastMessage: () => Promise<void>
   stopGenerating: () => void
   lastNotePath: string | null
 }
@@ -48,6 +49,8 @@ export function useChat(): UseChatReturn {
   const readerRef = useRef<ReadableStreamDefaultReader<string> | null>(null)
   // ref 追踪 streamingContent 用于 cleanup/stop 时获取最新值
   const streamingContentRef = useRef('')
+  // ref 追踪最后一条用户消息内容（用于重试）
+  const lastUserMessageRef = useRef('')
 
   // 同步 streamingContent 到 ref（直接赋值，无需 useEffect）
   streamingContentRef.current = streamingContent
@@ -229,6 +232,7 @@ export function useChat(): UseChatReturn {
       timestamp: Date.now(),
     }
     addMessage(userMessage)
+    lastUserMessageRef.current = content
 
     // 3. 笔记意图检测
     const noteIntent = detectNoteIntent(content)
@@ -356,6 +360,15 @@ export function useChat(): UseChatReturn {
   ])
 
   /**
+   * 重试上一条失败的消息
+   */
+  const retryLastMessage = useCallback(() => {
+    if (lastUserMessageRef.current) {
+      void sendMessage(lastUserMessageRef.current)
+    }
+  }, [sendMessage])
+
+  /**
    * 中止当前流式生成
    */
   const stopGenerating = useCallback(() => {
@@ -387,6 +400,7 @@ export function useChat(): UseChatReturn {
     streamingContent,
     isGenerating,
     sendMessage,
+    retryLastMessage,
     stopGenerating,
     lastNotePath,
   }

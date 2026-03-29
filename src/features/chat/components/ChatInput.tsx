@@ -42,8 +42,20 @@ export function ChatInput({ onSend, isGenerating, personaName }: ChatInputProps)
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`
   }
 
+  const MAX_CHARS = 4000
+
   return (
-    <div className="flex items-end gap-2 border-t border-border bg-background px-4 py-3">
+    <div className="flex flex-col gap-1 border-t border-border bg-background px-4 py-3">
+      {input.length > MAX_CHARS * 0.8 && (
+        <span
+          className={`text-xs ${
+            input.length > MAX_CHARS ? 'text-red-500' : 'text-muted-foreground'
+          }`}
+        >
+          {input.length} / {MAX_CHARS}
+        </span>
+      )}
+      <div className="flex items-end gap-2">
       <textarea
         ref={textareaRef}
         value={input}
@@ -62,6 +74,7 @@ export function ChatInput({ onSend, isGenerating, personaName }: ChatInputProps)
       >
         <Send className="h-4 w-4" />
       </Button>
+    </div>
     </div>
   )
 }

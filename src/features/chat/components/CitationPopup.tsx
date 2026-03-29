@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X, BookOpen, ArrowRight } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import type { Citation } from '@/shared/types'
@@ -34,10 +35,10 @@ export function CitationPopup({ citation, onClose, onJump }: CitationPopupProps)
     onClose()
   }
 
-  return (
+  return createPortal(
     <div
       ref={overlayRef}
-      className="absolute inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center"
       onClick={handleOverlayClick}
     >
       {/* Frosted glass backdrop */}
@@ -88,6 +89,7 @@ export function CitationPopup({ citation, onClose, onJump }: CitationPopupProps)
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

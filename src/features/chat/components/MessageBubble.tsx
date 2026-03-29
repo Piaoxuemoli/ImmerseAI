@@ -1,4 +1,7 @@
 import { motion } from 'framer-motion'
+import { formatDistanceToNow } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
+import { RotateCcw } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar'
 import { CitationBadge } from './CitationBadge'
 import { NoteConfirmation } from './NoteConfirmation'
@@ -8,9 +11,10 @@ interface MessageBubbleProps {
   message: Message
   personaName?: string | undefined
   onCitationClick?: (citation: Citation) => void
+  onRetry?: (message: Message) => void
 }
 
-export function MessageBubble({ message, personaName, onCitationClick }: MessageBubbleProps) {
+export function MessageBubble({ message, personaName, onCitationClick, onRetry }: MessageBubbleProps) {
   const isUser = message.role === 'user'
   const avatarText = personaName ? personaName.charAt(0) : 'AI'
 
@@ -91,6 +95,23 @@ export function MessageBubble({ message, personaName, onCitationClick }: Message
           <p className="whitespace-pre-wrap text-sm text-foreground">
             {message.content}
           </p>
+        </div>
+
+        {/* Timestamp + actions row */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">
+            {formatDistanceToNow(message.timestamp, { addSuffix: true, locale: zhCN })}
+          </span>
+          {message.metadata?.type === 'note-error' && onRetry && (
+            <button
+              type="button"
+              onClick={() => onRetry(message)}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <RotateCcw className="h-3 w-3" />
+              重试
+            </button>
+          )}
         </div>
 
         {/* Citations */}
