@@ -7,11 +7,29 @@
  * - 编排 MCP 工具调用
  */
 
-import type { Message, AgentIntent, AgentOperation, BookFile, LlmConfig } from '@/shared/types'
+import type {
+  Message,
+  AgentIntent,
+  AgentOperation,
+  BookFile,
+  LlmConfig,
+  ExecutionPlan,
+  ToolCallResult,
+  SolidificationResult,
+} from '@/shared/types'
+import type { Skill, SkillStep } from '../types/skill'
 import { WINDOWS_ABSOLUTE_PATH_RE } from '@/shared/utils/path'
-import { buildLibrarianSystemPrompt } from '../utils/librarian-prompt'
+import {
+  buildLibrarianSystemPrompt,
+  buildAgentSystemPromptV2,
+  buildReActPrompt,
+} from '../utils/librarian-prompt'
 import { createLlmStream } from '@/shared/utils/llm-stream'
 import { ToolRegistry, registerBuiltinTools } from './tool-registry'
+import { SkillManager } from './skill-manager'
+
+// MAX_REACT_STEPS for ReAct Loop
+const MAX_REACT_STEPS = 10
 
 // 初始化时注册所有 Tools
 let toolsInitialized = false
@@ -21,6 +39,559 @@ function ensureToolsInitialized(): void {
     toolsInitialized = true
   }
 }
+
+// ============================================
+// V2: ReAct Loop + Skill 路由
+// ============================================
+
+/**
+ * 解析 LLM JSON 响应为 ExecutionPlan
+ */
+function parseExecutionPlan(response: string): ExecutionPlan {
+  let trimmed = response.trim()
+
+  // 移除可能的 markdown 代码块标记
+  if (trimmed.startsWith('```json')) {
+    trimmed = trimmed.slice(7)
+  } else if (trimmed.startsWith('```')) {
+    trimmed = trimmed.slice(3)
+  }
+  if (trimmed.endsWith('```')) {
+    trimmed = trimmed.slice(0, -3)
+  }
+
+  trimmed = trimmed.trim()
+
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      type?: string
+      name?: string
+      params?: Record<string, unknown>
+      thought?: string
+      result?: string
+      action?: {
+        type?: string
+        name?: string
+        params?: Record<string, unknown>
+      }
+    }
+
+    // 处理 skill 类型
+    if (parsed.type === 'skill' && parsed.name) {
+      return {
+        type: 'skill',
+        skillName: parsed.name,
+        skillParams: parsed.params || {},
+      }
+    }
+
+    // 处理 tool_call 类型
+    if (parsed.type === 'tool_call' && parsed.action?.name) {
+      return {
+        type: 'tools',
+        toolCalls: [{
+          tool: parsed.action.name,
+          args: parsed.action.params || {},
+        }],
+      }
+    }
+
+    // 处理 done 类型
+    if (parsed.type === 'done') {
+      return {
+        type: 'done',
+      }
+    }
+
+    // 处理 continue 类型
+    if (parsed.type === 'continue') {
+      return {
+        type: 'tools',
+        thought: parsed.thought,
+      }
+    }
+
+    // 处理 ReAct 格式的响应
+    if (parsed.action?.type === 'done') {
+      return {
+        type: 'done',
+      }
+    }
+
+    if (parsed.action?.type === 'tool_call' && parsed.action?.name) {
+      return {
+        type: 'tools',
+        thought: parsed.thought,
+        toolCalls: [{
+          tool: parsed.action.name,
+          args: parsed.action.params || {},
+        }],
+      }
+    }
+
+    console.warn('[LibrarianAgent] Unknown execution plan type:', parsed)
+    return { type: 'done' }
+  } catch (error) {
+    console.warn('[LibrarianAgent] Failed to parse execution plan:', error)
+    return { type: 'done' }
+  }
+}
+
+/**
+ * 格式化工具执行结果为 LLM 上下文
+ */
+function formatObservation(result: ToolCallResult): string {
+  if (!result.success) {
+    return `Error: ${result.error || 'Unknown error'}`
+  }
+
+  const output = result.result
+  if (output === null || output === undefined) {
+    return 'Done (no output)'
+  }
+
+  if (typeof output === 'string') {
+    return output
+  }
+
+  try {
+    return JSON.stringify(output, null, 2)
+  } catch {
+    return String(output)
+  }
+}
+
+/**
+ * 调用 LLM 决定下一步（ReAct Loop 决策）
+ */
+async function decideNextStep(
+  userInput: string,
+  history: Array<{ tool: string; observation: string }>,
+  rootFolderNames: string[],
+  llmConfig: LlmConfig,
+): Promise<ExecutionPlan> {
+  const toolSchemas = ToolRegistry.getInstance().getSchemas()
+  const systemPrompt = buildReActPrompt(rootFolderNames, toolSchemas)
+
+  const historyText = history
+    .map((h, i) => `Step ${i + 1}: ${h.tool}\nObservation: ${h.observation}`)
+    .join('\n\n')
+
+  const messages: Message[] = [
+    { id: crypto.randomUUID(), role: 'system', content: systemPrompt, timestamp: 0 },
+    { id: crypto.randomUUID(), role: 'user', content: `User request: ${userInput}\n\nHistory:\n${historyText}`, timestamp: Date.now() },
+  ]
+
+  try {
+    const stream = createLlmStream(messages, { ...llmConfig, temperature: 0.1, maxTokens: 512 })
+    const reader = stream.getReader()
+    let fullContent = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) fullContent += value
+    }
+    return parseExecutionPlan(fullContent)
+  } catch (error) {
+    console.error('[LibrarianAgent] decideNextStep failed:', error)
+    return { type: 'done' }
+  }
+}
+
+/**
+ * 格式化最终消息
+ */
+function formatFinalMessage(results: ToolCallResult[]): string {
+  const lines: string[] = []
+  for (const result of results) {
+    if (!result.success) {
+      lines.push(`[${result.tool}] Error: ${result.error}`)
+    } else {
+      const output = result.result
+      if (output !== null && output !== undefined) {
+        lines.push(`[${result.tool}] ${typeof output === 'string' ? output : JSON.stringify(output)}`)
+      }
+    }
+  }
+  return lines.join('\n') || 'Task completed.'
+}
+
+/**
+ * 执行 Skill 的步骤
+ */
+async function executeSkill(
+  skill: Skill,
+  params: Record<string, unknown>,
+  bookshelfPath: string,
+  rootFolderNames: string[],
+): Promise<ToolCallResult[]> {
+  const results: ToolCallResult[] = []
+
+  for (const step of skill.steps) {
+    // 解析参数：替换模板变量
+    const args: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(step.params)) {
+      // value 可以是实际值或者是 $paramName 形式的引用
+      if (typeof value === 'string' && value.startsWith('$')) {
+        const paramName = value.slice(1)
+        args[key] = params[paramName] ?? value
+      } else {
+        args[key] = value
+      }
+    }
+
+    // 如果参数包含相对路径，转换为绝对路径
+    if (args.path && typeof args.path === 'string') {
+      const normalizedPath = args.path.replace(/\\/g, '/').replace(/\/+/g, '/')
+      if (!normalizedPath.startsWith('/') && !/^[a-zA-Z]:/.test(normalizedPath)) {
+        args.path = `${bookshelfPath}/${normalizedPath}`.replace(/\/+/g, '/')
+      }
+    }
+
+    if (args.source && typeof args.source === 'string') {
+      const normalizedSource = args.source.replace(/\\/g, '/').replace(/\/+/g, '/')
+      if (!normalizedSource.startsWith('/') && !/^[a-zA-Z]:/.test(normalizedSource)) {
+        args.source = `${bookshelfPath}/${normalizedSource}`.replace(/\/+/g, '/')
+      }
+    }
+
+    if (args.target && typeof args.target === 'string') {
+      const normalizedTarget = args.target.replace(/\\/g, '/').replace(/\/+/g, '/')
+      if (!normalizedTarget.startsWith('/') && !/^[a-zA-Z]:/.test(normalizedTarget)) {
+        args.target = `${bookshelfPath}/${normalizedTarget}`.replace(/\/+/g, '/')
+      }
+    }
+
+    console.log(`[LibrarianAgent] Executing skill step: ${step.tool}`, args)
+
+    const result = await ToolRegistry.getInstance().execute(step.tool, args)
+    results.push(result)
+
+    if (!result.success && !result.isFinal) {
+      // 步骤失败且不是最终步骤，终止执行
+      console.warn(`[LibrarianAgent] Skill step failed: ${step.tool}`, result.error)
+      break
+    }
+  }
+
+  return results
+}
+
+/**
+ * 意图识别 + 路由（V2）
+ */
+export async function recognizeAndRoute(
+  userInput: string,
+  availablePaths: string[],
+  llmConfig: LlmConfig,
+  rootFolderNames: string[] = [],
+): Promise<ExecutionPlan> {
+  ensureToolsInitialized()
+  const skillManager = SkillManager.getInstance()
+  await skillManager.loadAll()
+
+  const toolSchemas = ToolRegistry.getInstance().getSchemas()
+  const skillsPrompt = skillManager.getSystemPromptAddition()
+  const systemPrompt = buildAgentSystemPromptV2(rootFolderNames, toolSchemas, skillsPrompt)
+
+  const messages: Message[] = [
+    { id: crypto.randomUUID(), role: 'system', content: systemPrompt, timestamp: 0 },
+    { id: crypto.randomUUID(), role: 'user', content: userInput, timestamp: Date.now() },
+  ]
+
+  try {
+    const stream = createLlmStream(messages, {
+      ...llmConfig,
+      temperature: 0.1,
+      maxTokens: 1024,
+    })
+    const reader = stream.getReader()
+    let fullContent = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) fullContent += value
+    }
+    console.log('[LibrarianAgent] recognizeAndRoute raw response:', fullContent)
+    return parseExecutionPlan(fullContent)
+  } catch (error) {
+    console.error('[LibrarianAgent] recognizeAndRoute failed:', error)
+    return { type: 'done' }
+  }
+}
+
+/**
+ * ReAct Loop - 多步骤执行循环
+ */
+async function reactLoop(
+  userInput: string,
+  initialPlan: ExecutionPlan,
+  bookshelfPath: string,
+  rootFolderNames: string[],
+  llmConfig: LlmConfig,
+): Promise<ToolCallResult[]> {
+  const history: Array<{ tool: string; observation: string }> = []
+  let currentPlan = initialPlan
+  let steps = 0
+
+  while (steps < MAX_REACT_STEPS) {
+    steps++
+
+    // 如果没有 toolCalls，先尝试通过 decideNextStep 获取
+    if (!currentPlan.toolCalls || currentPlan.toolCalls.length === 0) {
+      if (currentPlan.type === 'done') {
+        break
+      }
+      currentPlan = await decideNextStep(userInput, history, rootFolderNames, llmConfig)
+      if (currentPlan.type === 'done' || !currentPlan.toolCalls || currentPlan.toolCalls.length === 0) {
+        break
+      }
+    }
+
+    // 执行工具调用
+    const toolCalls = currentPlan.toolCalls
+    const results = await ToolRegistry.getInstance().executeAll(toolCalls)
+
+    // 记录观察结果
+    for (const result of results) {
+      history.push({
+        tool: result.tool,
+        observation: formatObservation(result),
+      })
+    }
+
+    // 检查是否全部完成
+    const allDone = results.every((r) => r.isFinal)
+    if (allDone) {
+      return results
+    }
+
+    // 决定下一步
+    currentPlan = await decideNextStep(userInput, history, rootFolderNames, llmConfig)
+    if (currentPlan.type === 'done') {
+      return results
+    }
+  }
+
+  console.warn(`[LibrarianAgent] ReAct Loop reached max steps (${MAX_REACT_STEPS})`)
+  return []
+}
+
+/**
+ * 固化判断 - 决定是否应将操作固化为 Skill
+ */
+async function judgeSolidification(
+  taskDescription: string,
+  executionSteps: SkillStep[],
+  rootFolderNames: string[],
+  llmConfig: LlmConfig,
+): Promise<SolidificationResult> {
+  const systemPrompt = `你是一个专业的 AI 助手，负责判断用户的操作是否可以泛化为可复用的 Skill。
+
+## 四门判断标准（必须全部通过）
+1. 重复性：这个任务是否可能重复发生？
+2. 模式化：这个任务的步骤是否可以被模板化？
+3. 价值性：固化为 Skill 后是否能显著提升效率？
+4. 安全性：固化的步骤是否安全，不会造成数据损失？
+
+## 用户的原始任务
+${taskDescription}
+
+## 实际执行步骤
+${executionSteps.map((s, i) => `${i + 1}. ${s.tool}: ${s.description}`).join('\n')}
+
+## 输出格式（严格 JSON）
+{
+  "shouldSolidify": true | false,
+  "reason": "判断理由",
+  "skillName": "建议的 skill 名称（kebab-case，仅当 shouldSolidify 为 true 时）",
+  "generalizedDescription": "泛化后的描述（仅当 shouldSolidify 为 true 时）",
+  "paramTemplate": {
+    "参数名": { "type": "string", "description": "参数描述" }
+  },
+  "steps": [
+    { "tool": "工具名", "description": "步骤描述", "params": {} }
+  ]
+}`
+
+  const messages: Message[] = [
+    { id: crypto.randomUUID(), role: 'system', content: systemPrompt, timestamp: 0 },
+    { id: crypto.randomUUID(), role: 'user', content: '请判断上述操作是否应该固化为 Skill。', timestamp: Date.now() },
+  ]
+
+  try {
+    const stream = createLlmStream(messages, {
+      ...llmConfig,
+      temperature: 0.1,
+      maxTokens: 1024,
+    })
+    const reader = stream.getReader()
+    let fullContent = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) fullContent += value
+    }
+
+    let trimmed = fullContent.trim()
+    if (trimmed.startsWith('```json')) trimmed = trimmed.slice(7)
+    if (trimmed.endsWith('```')) trimmed = trimmed.slice(0, -3)
+    trimmed = trimmed.trim()
+
+    const parsed = JSON.parse(trimmed) as {
+      shouldSolidify?: boolean
+      reason?: string
+      skillName?: string
+      generalizedDescription?: string
+      paramTemplate?: Record<string, { type: string; description: string }>
+      steps?: SkillStep[]
+    }
+
+    return {
+      shouldSolidify: parsed.shouldSolidify ?? false,
+      reason: parsed.reason ?? 'Unknown',
+      skillName: parsed.skillName,
+      generalizedDescription: parsed.generalizedDescription,
+      paramTemplate: parsed.paramTemplate,
+      steps: parsed.steps,
+    }
+  } catch (error) {
+    console.error('[LibrarianAgent] judgeSolidification failed:', error)
+    return {
+      shouldSolidify: false,
+      reason: `Error: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+}
+
+/**
+ * 异步固化并保存 Skill
+ */
+async function judgeAndSaveSkill(
+  taskDescription: string,
+  executionSteps: SkillStep[],
+  rootFolderNames: string[],
+  llmConfig: LlmConfig,
+): Promise<void> {
+  try {
+    const result = await judgeSolidification(taskDescription, executionSteps, rootFolderNames, llmConfig)
+
+    if (!result.shouldSolidify) {
+      console.log('[LibrarianAgent] Skill solidification skipped:', result.reason)
+      return
+    }
+
+    if (!result.skillName || !result.generalizedDescription || !result.steps) {
+      console.warn('[LibrarianAgent] Solidification result incomplete:', result)
+      return
+    }
+
+    const skill: Skill = {
+      name: result.skillName,
+      description: result.generalizedDescription,
+      适用条件: [],
+      paramTemplate: result.paramTemplate || {},
+      steps: result.steps,
+      constraints: [],
+    }
+
+    const skillManager = SkillManager.getInstance()
+    await skillManager.saveSkill(skill)
+    console.log('[LibrarianAgent] Skill saved:', skill.name)
+  } catch (error) {
+    console.error('[LibrarianAgent] judgeAndSaveSkill failed:', error)
+  }
+}
+
+/**
+ * 执行 Librarian Agent 命令（V2 - 新入口）
+ */
+export async function executeLibrarianCommandV2(
+  userInput: string,
+  bookshelfPath: string,
+  files: BookFile[],
+  llmConfig: LlmConfig,
+  rootFolders: BookFile[] = [],
+): Promise<{
+  success: boolean
+  message: string
+  skillExecuted?: boolean
+}> {
+  ensureToolsInitialized()
+
+  const availablePaths = files.map((f) => f.path)
+  const rootFolderNames = rootFolders.map((f) => f.name)
+
+  // Step 1: 意图识别 + 路由
+  const plan = await recognizeAndRoute(userInput, availablePaths, llmConfig, rootFolderNames)
+
+  // Step 2: 根据 plan 类型执行
+  if (plan.type === 'skill' && plan.skillName) {
+    // Skill 命中
+    const skillManager = SkillManager.getInstance()
+    const skill = skillManager.get(plan.skillName)
+
+    if (!skill) {
+      return {
+        success: false,
+        message: `Skill not found: ${plan.skillName}`,
+      }
+    }
+
+    const results = await executeSkill(skill, plan.skillParams || {}, bookshelfPath, rootFolderNames)
+    const message = formatFinalMessage(results)
+    const allSuccess = results.every((r) => r.success)
+
+    // 异步固化判断
+    if (allSuccess && results.length > 0) {
+      const steps: SkillStep[] = skill.steps.map((s) => ({
+        tool: s.tool,
+        description: s.description,
+        params: s.params,
+      }))
+      judgeAndSaveSkill(userInput, steps, rootFolderNames, llmConfig)
+    }
+
+    return {
+      success: allSuccess,
+      message,
+      skillExecuted: true,
+    }
+  }
+
+  if (plan.type === 'tools') {
+    // 工具调用 - 进入 ReAct Loop
+    const results = await reactLoop(userInput, plan, bookshelfPath, rootFolderNames, llmConfig)
+    const message = formatFinalMessage(results)
+    const allSuccess = results.every((r) => r.success)
+
+    // 异步固化判断（仅在多步骤执行时）
+    if (allSuccess && results.length > 1) {
+      const steps: SkillStep[] = results.map((r) => ({
+        tool: r.tool,
+        description: `Executed ${r.tool}`,
+        params: r.args,
+      }))
+      judgeAndSaveSkill(userInput, steps, rootFolderNames, llmConfig)
+    }
+
+    return {
+      success: allSuccess,
+      message,
+      skillExecuted: false,
+    }
+  }
+
+  // done 或未知
+  return {
+    success: true,
+    message: 'Task completed.',
+  }
+}
+
+// ============================================
+// V1: 原有实现（保留兼容）
+// ============================================
 
 /**
  * 意图识别结果
@@ -120,12 +691,6 @@ function parseJsonResponse(response: string): IntentRecognitionResult {
 
 /**
  * 调用 LLM 识别用户意图
- *
- * @param userInput - 用户输入的自然语言
- * @param availablePaths - 当前书架可用的书籍路径列表
- * @param llmConfig - 当前 LLM 配置（baseUrl、model）
- * @param rootFolderNames - 根目录下一级文件夹名称列表
- * @returns 识别到的意图和参数
  */
 export async function recognizeIntent(
   userInput: string,
@@ -174,13 +739,6 @@ export async function recognizeIntent(
 
 /**
  * 执行 Librarian Agent 命令
- *
- * @param userInput - 用户原始输入
- * @param bookshelfPath - 书架根目录路径
- * @param files - 当前书架文件列表
- * @param llmConfig - 当前 LLM 配置（baseUrl、model）
- * @param rootFolders - 根目录下一级文件夹列表
- * @returns 执行结果
  */
 export async function executeLibrarianCommand(
   userInput: string,
@@ -522,9 +1080,6 @@ function handleDeleteConfirmation(
 
 /**
  * 执行删除文件（用户确认后调用）
- *
- * @param filePath - 要删除的文件完整路径
- * @returns 执行结果
  */
 export async function executeDeleteFile(filePath: string): Promise<{ success: boolean; message: string }> {
   try {
