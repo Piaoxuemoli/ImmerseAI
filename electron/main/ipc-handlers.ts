@@ -264,6 +264,12 @@ export function registerIpcHandlers(): void {
     }
   })
 
+  // 获取 userData 目录路径
+  ipcMain.handle('app:get-user-data-path', async (): Promise<string> => {
+    const { app } = await import('electron')
+    return app.getPath('userData')
+  })
+
   // ========================================
   // RAG handlers (主进程 RAG — 彻底规避 file:// 限制)
   // ========================================

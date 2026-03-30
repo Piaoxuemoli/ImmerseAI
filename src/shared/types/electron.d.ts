@@ -45,6 +45,7 @@ export interface ElectronAPI {
     readFileText: (filePath: string) => Promise<string>
     getSafeStorage: (key: string) => Promise<string>
     setSafeStorage: (key: string, value: string) => Promise<boolean>
+    getUserDataPath: () => Promise<string>
   }
 
   // RAG 检索（主进程实现，无 file:// 限制）

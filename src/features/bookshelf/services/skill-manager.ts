@@ -10,9 +10,6 @@
  */
 
 import type { Skill, SkillStep } from '../types/skill'
-import { app } from 'electron'
-import path from 'node:path'
-import fs from 'node:fs/promises'
 
 // 静态 import.meta.glob 只能在 Vite 环境使用
 // 使用 import.meta.glob 动态导入所有 builtin skills
@@ -78,14 +75,19 @@ function parseSteps(stepsStr: string): SkillStep[] {
 export class SkillManager {
   private static instance: SkillManager | null = null
   private skills: Map<string, Skill> = new Map()
-  private builtinSkillsPath: string
-  private userSkillsPath: string
+  private userSkillsPath: string = ''
+  private initialized: boolean = false
 
-  private constructor() {
-    // builtin skills 路径: 项目根目录下的 skills/
-    this.builtinSkillsPath = path.join(process.cwd(), 'skills')
-    // user skills 路径: Electron userData 下的 skills/
-    this.userSkillsPath = path.join(app.getPath('userData'), 'skills')
+  private constructor() {}
+
+  /**
+   * 异步初始化路径（必须在使用实例前调用）
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) return
+    const userDataPath = await window.electronAPI.app.getUserDataPath()
+    this.userSkillsPath = userDataPath.replace(/\\/g, '/') + '/skills'
+    this.initialized = true
   }
 
   public static getInstance(): SkillManager {
@@ -99,6 +101,7 @@ export class SkillManager {
    * 加载所有 skills（builtin + user）
    */
   async loadAll(): Promise<void> {
+    await this.ensureInitialized()
     this.skills.clear()
 
     // 1. 加载 builtin skills（通过静态 import.meta.glob）
@@ -116,7 +119,7 @@ export class SkillManager {
       try {
         // 从文件路径提取 skill 名称
         // filePath 格式: "/skills/xxx.md"
-        const fileName = path.basename(filePath, '.md')
+        const fileName = filePath.split('/').pop()?.replace(/\.md$/, '') || filePath
         const skill = this.parseSkillMarkdown(content, fileName)
         this.skills.set(skill.name, skill)
         console.log(`[SkillManager] Loaded builtin skill: ${skill.name}`)
@@ -135,7 +138,7 @@ export class SkillManager {
       for (const fileName of files) {
         if (!fileName.endsWith('.md')) continue
         try {
-          const filePath = path.join(this.userSkillsPath, fileName)
+          const filePath = `${this.userSkillsPath}/${fileName}`
           const content = await window.electronAPI.skills.read(filePath)
           const skill = this.parseSkillMarkdown(content, fileName)
           this.skills.set(skill.name, skill)
@@ -206,9 +209,10 @@ export class SkillManager {
    * 保存 skill 到用户目录
    */
   async saveSkill(skill: Skill): Promise<void> {
+    await this.ensureInitialized()
     const content = this.serializeSkill(skill)
     const fileName = `${skill.name}.md`
-    const filePath = path.join(this.userSkillsPath, fileName)
+    const filePath = `${this.userSkillsPath}/${fileName}`
 
     await window.electronAPI.skills.write(filePath, content)
     this.skills.set(skill.name, skill)

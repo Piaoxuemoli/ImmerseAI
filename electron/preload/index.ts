@@ -69,6 +69,8 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('app:get-safe-storage', key),
     setSafeStorage: (key: string, value: string): Promise<boolean> =>
       ipcRenderer.invoke('app:set-safe-storage', key, value),
+    getUserDataPath: (): Promise<string> =>
+      ipcRenderer.invoke('app:get-user-data-path'),
   },
 
   rag: {

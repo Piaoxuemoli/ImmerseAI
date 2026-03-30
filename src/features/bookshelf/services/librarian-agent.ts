@@ -59,6 +59,9 @@ function parseExecutionPlan(response: string): ExecutionPlan {
     }
   }
 
+  // 移除可能的 LLM 乱码前缀（如 "k>", "a>", "b>" 等单字符前缀）
+  trimmed = trimmed.replace(/^[a-zA-Z]>+\s*/, '')
+
   // 移除可能的 markdown 代码块标记（开头）
   if (trimmed.startsWith('```json')) {
     trimmed = trimmed.slice(7)
@@ -119,6 +122,11 @@ function parseExecutionPlan(response: string): ExecutionPlan {
 
   trimmed = trimmed.trim()
 
+  // 调试：打印处理前的原始内容（前100字符）
+  if (trimmed.length > 0) {
+    console.log('[LibrarianAgent] parseExecutionPlan input (first 100):', trimmed.slice(0, 100))
+  }
+
   try {
     const parsed = JSON.parse(trimmed) as {
       type?: string
@@ -168,7 +176,7 @@ function parseExecutionPlan(response: string): ExecutionPlan {
     if (parsed.type === 'continue') {
       return {
         type: 'tools',
-        thought: parsed.thought,
+        thought: parsed.thought || '',
       }
     }
 
@@ -182,7 +190,7 @@ function parseExecutionPlan(response: string): ExecutionPlan {
     if (parsed.action?.type === 'tool_call' && parsed.action?.name) {
       return {
         type: 'tools',
-        thought: parsed.thought,
+        thought: parsed.thought || '',
         toolCalls: [{
           tool: parsed.action.name,
           args: parsed.action.params || {},
@@ -425,7 +433,7 @@ async function reactLoop(
           // 如果 path 是空的或是 .，直接使用 bookshelfPath
           if (!normalizedPath || normalizedPath === '.') {
             resolvedArgs[key] = bookshelfPath
-            console.log(`[reactLoop] Resolved ${key}=". " to bookshelfPath: ${bookshelfPath}`)
+            console.log(`[reactLoop] Resolved ${key}="${normalizedPath}" to bookshelfPath: ${bookshelfPath}`)
           } else if (normalizedPath === '/' || normalizedPath === '\\') {
             // Unix root 或 Windows root，视为书架根目录
             resolvedArgs[key] = bookshelfPath
