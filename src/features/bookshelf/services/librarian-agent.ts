@@ -25,7 +25,8 @@ import {
   buildReActPrompt,
 } from '../utils/librarian-prompt'
 import { createLlmStream } from '@/shared/utils/llm-stream'
-import { ToolRegistry, registerBuiltinTools } from './tool-registry'
+import { ToolRegistry } from './tool-registry'
+import { registerBuiltinTools, formatToolOutput } from './tool-definitions'
 import { SkillManager } from './skill-manager'
 
 // MAX_REACT_STEPS for ReAct Loop
@@ -50,14 +51,70 @@ function ensureToolsInitialized(): void {
 function parseExecutionPlan(response: string): ExecutionPlan {
   let trimmed = response.trim()
 
-  // 移除可能的 markdown 代码块标记
+  // 移除可能的 <agent> 思考标签包裹的内容
+  if (trimmed.startsWith('<think>')) {
+    const endTagIndex = trimmed.indexOf('</think>')
+    if (endTagIndex !== -1) {
+      trimmed = trimmed.slice(endTagIndex + 6)
+    }
+  }
+
+  // 移除可能的 markdown 代码块标记（开头）
   if (trimmed.startsWith('```json')) {
     trimmed = trimmed.slice(7)
   } else if (trimmed.startsWith('```')) {
     trimmed = trimmed.slice(3)
   }
-  if (trimmed.endsWith('```')) {
+  // 移除 markdown 代码块标记（结尾）
+  while (trimmed.endsWith('```')) {
     trimmed = trimmed.slice(0, -3)
+  }
+
+  trimmed = trimmed.trim()
+
+  // 找到 JSON 对象的起始位置（处理可能的乱码前缀如 "k>"）
+  const jsonStart = trimmed.search(/[{[]/)
+  if (jsonStart > 0) {
+    trimmed = trimmed.slice(jsonStart)
+  }
+
+  // 找到 JSON 对象的结束位置（处理多余后缀）
+  let jsonEnd = trimmed.length
+  const firstBrace = trimmed.indexOf('{')
+  const firstBracket = trimmed.indexOf('[')
+  const start = firstBrace !== -1 && firstBracket !== -1
+    ? Math.min(firstBrace, firstBracket)
+    : (firstBrace !== -1 ? firstBrace : firstBracket)
+
+  if (start !== -1) {
+    // 从起始位置往后找匹配的结束括号
+    let depth = 0
+    let inString = false
+    let escape = false
+    for (let i = start; i < trimmed.length; i++) {
+      const c = trimmed[i]
+      if (escape) {
+        escape = false
+        continue
+      }
+      if (c === '\\') {
+        escape = true
+        continue
+      }
+      if (c === '"') {
+        inString = !inString
+        continue
+      }
+      if (inString) continue
+      if (c === '{' || c === '[') depth++
+      else if (c === '}') depth--
+      else if (c === ']') depth--
+      if (depth === 0 && (c === '}' || c === ']')) {
+        jsonEnd = i + 1
+        break
+      }
+    }
+    trimmed = trimmed.slice(0, jsonEnd)
   }
 
   trimmed = trimmed.trim()
@@ -85,14 +142,18 @@ function parseExecutionPlan(response: string): ExecutionPlan {
       }
     }
 
-    // 处理 tool_call 类型
-    if (parsed.type === 'tool_call' && parsed.action?.name) {
-      return {
-        type: 'tools',
-        toolCalls: [{
-          tool: parsed.action.name,
-          args: parsed.action.params || {},
-        }],
+    // 处理 tool_call 类型（嵌套在 action 下或直接在顶层）
+    if (parsed.type === 'tool_call') {
+      const toolName = parsed.action?.name || parsed.name
+      const toolParams = parsed.action?.params || parsed.params || {}
+      if (toolName) {
+        return {
+          type: 'tools',
+          toolCalls: [{
+            tool: toolName,
+            args: toolParams,
+          }],
+        }
       }
     }
 
@@ -201,19 +262,19 @@ async function decideNextStep(
 /**
  * 格式化最终消息
  */
+/**
+ * 格式化最终消息（用户可读格式）
+ */
 function formatFinalMessage(results: ToolCallResult[]): string {
+  if (results.length === 0) return '任务完成。'
+
   const lines: string[] = []
   for (const result of results) {
-    if (!result.success) {
-      lines.push(`[${result.tool}] Error: ${result.error}`)
-    } else {
-      const output = result.result
-      if (output !== null && output !== undefined) {
-        lines.push(`[${result.tool}] ${typeof output === 'string' ? output : JSON.stringify(output)}`)
-      }
-    }
+    const formatted = formatToolOutput(result)
+    lines.push(formatted)
   }
-  return lines.join('\n') || 'Task completed.'
+
+  return lines.join('\n\n')
 }
 
 /**
@@ -348,8 +409,36 @@ async function reactLoop(
       }
     }
 
-    // 执行工具调用
-    const toolCalls = currentPlan.toolCalls
+    // 执行工具调用（解析相对路径）
+    const toolCalls = currentPlan.toolCalls.map((call) => {
+      const resolvedArgs = { ...call.args }
+      // 解析相对路径
+      for (const key of ['path', 'source', 'target']) {
+        if (resolvedArgs[key] && typeof resolvedArgs[key] === 'string') {
+          let p = resolvedArgs[key] as string
+          // 规范化：移除 . 和 .. 解析
+          let normalizedPath = p.replace(/\\/g, '/').replace(/\/+/g, '/')
+          // 移除末尾的 /.
+          if (normalizedPath.endsWith('/.')) {
+            normalizedPath = normalizedPath.slice(0, -2)
+          }
+          // 如果 path 是空的或是 .，直接使用 bookshelfPath
+          if (!normalizedPath || normalizedPath === '.') {
+            resolvedArgs[key] = bookshelfPath
+            console.log(`[reactLoop] Resolved ${key}=". " to bookshelfPath: ${bookshelfPath}`)
+          } else if (normalizedPath === '/' || normalizedPath === '\\') {
+            // Unix root 或 Windows root，视为书架根目录
+            resolvedArgs[key] = bookshelfPath
+            console.log(`[reactLoop] Resolved ${key}="/" to bookshelfPath: ${bookshelfPath}`)
+          } else if (!normalizedPath.startsWith('/') && !/^[a-zA-Z]:/.test(normalizedPath)) {
+            // 相对路径，拼接书架路径
+            resolvedArgs[key] = `${bookshelfPath}/${normalizedPath}`.replace(/\/+/g, '/')
+            console.log(`[reactLoop] Resolved ${key}="${normalizedPath}" to: ${resolvedArgs[key]}`)
+          }
+        }
+      }
+      return { tool: call.tool, args: resolvedArgs }
+    })
     const results = await ToolRegistry.getInstance().executeAll(toolCalls)
 
     // 记录观察结果
