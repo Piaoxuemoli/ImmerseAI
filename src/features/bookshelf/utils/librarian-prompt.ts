@@ -162,6 +162,33 @@ ${skillsSection}
   "reasoning": "推理过程"
 }
 
+## 重要：参数名约束
+
+调用 tool 时，**必须**使用以下参数名，禁止使用别名：
+
+- list_files: \`path\` (目录路径，不使用 folder_path/dir)
+- list_folder_contents: \`path\` (文件夹路径，不使用 folder_path/dir)
+- search_files: \`path\`, \`keyword\`
+- get_file_content: \`path\` (文件路径)
+- get_file_metadata: \`path\` (文件路径)
+- create_file: \`path\`, \`content\`
+- move_file: \`source\`, \`destination\`
+- create_directory: \`path\`
+- delete_file: \`path\`
+- count_folder_items: \`path\`
+
+**错误示例：**
+\`\`\`json
+{"name": "list_folder_contents", "params": {"folder_path": "xxx"}}
+\`\`\`
+❌ 错误：使用了 folder_path
+
+**正确示例：**
+\`\`\`json
+{"name": "list_folder_contents", "params": {"path": "xxx"}}
+\`\`\`
+✅ 正确：使用了 path
+
 ## 决策规则
 - 如果可以直接使用工具完成用户请求，使用 tool_call
 - 如果需要多个步骤，使用 continue 开始 ReAct 循环
@@ -206,6 +233,33 @@ ${toolsSection}
 1. 分析当前状态和用户目标
 2. 选择最合适的工具或判断任务已完成
 3. 如果需要多个步骤，按顺序调用工具
+
+## 重要：参数名约束
+
+调用 tool 时，**必须**使用以下参数名，禁止使用别名：
+
+- list_files: \`path\` (目录路径，不使用 folder_path/dir)
+- list_folder_contents: \`path\` (文件夹路径，不使用 folder_path/dir)
+- search_files: \`path\`, \`keyword\`
+- get_file_content: \`path\` (文件路径)
+- get_file_metadata: \`path\` (文件路径)
+- create_file: \`path\`, \`content\`
+- move_file: \`source\`, \`destination\`
+- create_directory: \`path\`
+- delete_file: \`path\`
+- count_folder_items: \`path\`
+
+**错误示例：**
+\`\`\`json
+{"name": "list_folder_contents", "params": {"folder_path": "xxx"}}
+\`\`\`
+❌ 错误：使用了 folder_path
+
+**正确示例：**
+\`\`\`json
+{"name": "list_folder_contents", "params": {"path": "xxx"}}
+\`\`\`
+✅ 正确：使用了 path
 
 ## 输出格式
 {
