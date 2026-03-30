@@ -4,7 +4,7 @@
  * 每个 Tool 复用 window.electronAPI.mcp.* 调用
  */
 
-import type { ToolCallResult } from '@/shared/types'
+import type { ToolCallResult, BookFile } from '@/shared/types'
 import { ToolRegistry } from './tool-registry'
 
 /**
@@ -635,6 +635,189 @@ function createDeleteFileTool() {
         }
       }
     },
+  }
+}
+
+// ============================================
+// 输出格式化器
+// ============================================
+
+/**
+ * 根据文件扩展名返回图标
+ */
+function getFileIcon(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase()
+  switch (ext) {
+    case 'md': return '📝'
+    case 'txt': return '📄'
+    case 'pdf': return '📕'
+    case 'epub': return '📖'
+    default: return '📄'
+  }
+}
+
+/**
+ * 格式化文件列表为树状结构
+ */
+function formatFileList(result: ToolCallResult): string {
+  const output = result.result
+  if (!result.success) return `❌ ${result.error}`
+
+  if (!output || !Array.isArray(output)) return '（无内容）'
+
+  const entries = output as BookFile[]
+  if (entries.length === 0) return '（目录为空）'
+
+  const lines: string[] = []
+  for (const entry of entries) {
+    if (entry.type === 'directory') {
+      lines.push(`📁 ${entry.name}/`)
+    } else {
+      const icon = getFileIcon(entry.name)
+      lines.push(`${icon} ${entry.name}`)
+    }
+  }
+  return lines.join('\n')
+}
+
+/**
+ * 格式化文件内容
+ */
+function formatFileContent(result: ToolCallResult): string {
+  if (!result.success) return `❌ ${result.error}`
+
+  const output = result.result
+  if (output === null || output === undefined) return '（无内容）'
+
+  const content = typeof output === 'string' ? output : String(output)
+  const MAX_LENGTH = 2000
+
+  let display = content.trim()
+  if (display.length > MAX_LENGTH) {
+    display = display.slice(0, MAX_LENGTH) + '\n\n... (内容已截断)'
+  }
+
+  return `📄 文件内容：\n${'─'.repeat(40)}\n${display}`
+}
+
+/**
+ * 格式化搜索结果（AI 友好格式）
+ */
+function formatSearchResult(result: ToolCallResult): string {
+  if (!result.success) return `❌ ${result.error}`
+
+  const output = result.result
+  if (!output || !Array.isArray(output)) return '（无搜索结果）'
+
+  const matches = output as Array<{ name: string; path: string }>
+  if (matches.length === 0) return '🔍 未找到匹配结果'
+
+  const lines = [`🔍 找到 ${matches.length} 个匹配：`]
+  for (const match of matches.slice(0, 10)) {
+    const icon = getFileIcon(match.name)
+    lines.push(`\n${icon} ${match.name}\n   路径: ${match.path}`)
+  }
+  if (matches.length > 10) {
+    lines.push(`\n... 还有 ${matches.length - 10} 个结果`)
+  }
+  return lines.join('')
+}
+
+/**
+ * 格式化操作结果（移动/创建/删除等）
+ */
+function formatOperationResult(result: ToolCallResult): string {
+  if (!result.success) return `❌ ${result.error}`
+
+  const args = result.args
+  const tool = result.tool
+
+  switch (tool) {
+    case 'move_file':
+      return `✅ 已移动：${args.source} → ${args.destination}`
+    case 'create_file':
+      return `✅ 已创建文件：${args.path}`
+    case 'create_directory':
+      return `✅ 已创建文件夹：${args.path}`
+    case 'delete_file':
+      return `✅ 已删除：${args.path}`
+    case 'writeFile':
+      return `✅ 已写入：${args.path}`
+    default:
+      return `✅ 操作完成`
+  }
+}
+
+/**
+ * 格式化文件夹统计
+ */
+function formatCountResult(result: ToolCallResult): string {
+  if (!result.success) return `❌ ${result.error}`
+
+  const output = result.result as { total: number; files: number; folders: number } | null
+  if (!output) return '（无数据）'
+
+  const { total, files, folders } = output
+  return `📊 共 ${total} 项（📄 ${files} 文件, 📁 ${folders} 文件夹）`
+}
+
+/**
+ * 格式化元数据
+ */
+function formatMetadata(result: ToolCallResult): string {
+  if (!result.success) return `❌ ${result.error}`
+
+  const output = result.result
+  if (!output || typeof output !== 'object') return '（无数据）'
+
+  const meta = output as Record<string, unknown>
+  const lines = ['📋 文件信息：', '─'.repeat(30)]
+
+  if (meta.name) lines.push(`名称: ${meta.name}`)
+  if (meta.path) lines.push(`路径: ${meta.path}`)
+  if (meta.type) lines.push(`类型: ${meta.type}`)
+  if (meta.size !== undefined) lines.push(`大小: ${formatBytes(meta.size as number)}`)
+  if (meta.lastModified) lines.push(`修改: ${new Date(meta.lastModified as number).toLocaleString()}`)
+
+  return lines.join('\n')
+}
+
+/**
+ * 格式化字节大小
+ */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+/**
+ * 统一输出格式化入口
+ */
+export function formatToolOutput(result: ToolCallResult): string {
+  switch (result.tool) {
+    case 'list_files':
+    case 'list_folder_contents':
+      return formatFileList(result)
+    case 'get_file_content':
+      return formatFileContent(result)
+    case 'search_files':
+      return formatSearchResult(result)
+    case 'move_file':
+    case 'create_file':
+    case 'create_directory':
+    case 'delete_file':
+    case 'writeFile':
+      return formatOperationResult(result)
+    case 'count_folder_items':
+      return formatCountResult(result)
+    case 'get_file_metadata':
+      return formatMetadata(result)
+    default:
+      // 未知工具，回退到原始格式
+      return result.success
+        ? (typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2))
+        : `❌ ${result.error}`
   }
 }
 
