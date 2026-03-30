@@ -7,6 +7,104 @@
 import type { ToolCallResult } from '@/shared/types'
 import { ToolRegistry } from './tool-registry'
 
+/**
+ * 参数名别名映射表
+ * 解决 LLM 生成错误参数名的问题
+ * 格式: { toolName: { alias: canonicalName } }
+ */
+const PARAM_ALIASES: Record<string, Record<string, string>> = {
+  list_folder_contents: {
+    folder_path: 'path',
+    folder: 'path',
+    dir: 'path',
+    directory: 'path',
+  },
+  get_file_content: {
+    file_path: 'path',
+    filepath: 'path',
+    file: 'path',
+  },
+  search_files: {
+    search_path: 'path',
+    dir: 'path',
+    directory: 'path',
+  },
+  get_file_metadata: {
+    file_path: 'path',
+    filepath: 'path',
+    file: 'path',
+  },
+  create_file: {
+    file_path: 'path',
+    filepath: 'path',
+    file: 'path',
+    dest: 'path',
+    destination: 'path',
+  },
+  move_file: {
+    src: 'source',
+    source_path: 'source',
+    file: 'source',
+    dest: 'destination',
+    destination_path: 'destination',
+    target: 'destination',
+  },
+  delete_file: {
+    file_path: 'path',
+    filepath: 'path',
+    file: 'path',
+    folder_path: 'path',
+  },
+}
+
+/**
+ * 标准化参数名：将别名映射为规范名称
+ */
+export function normalizeParams(
+  toolName: string,
+  params: Record<string, unknown>
+): Record<string, unknown> {
+  const aliases = PARAM_ALIASES[toolName]
+  if (!aliases) return params
+
+  const result: Record<string, unknown> = { ...params }
+
+  for (const [alias, canonical] of Object.entries(aliases)) {
+    if (result[alias] !== undefined && result[canonical] === undefined) {
+      result[canonical] = result[alias]
+      delete result[alias]
+    }
+  }
+
+  return result
+}
+
+// ============================================
+// 路径规范化
+// ============================================
+
+/**
+ * 规范化路径：将 . 和 .. 解析为真实路径
+ * 空路径或 . 返回空字符串（表示根目录）
+ */
+function normalizePath(p: string): string {
+  if (!p || p === '.') return ''
+  // 将反斜杠转为正斜杠
+  let normalized = p.replace(/\\/g, '/')
+  // 移除末尾的 /.
+  if (normalized.endsWith('/.')) {
+    normalized = normalized.slice(0, -2)
+  }
+  // 解析 ..（简化版，不处理复杂的 ..）
+  while (normalized.includes('/../')) {
+    normalized = normalized.replace(/\/\.\.\//, '/')
+  }
+  // 移除多余的 /
+  normalized = normalized.replace(/\/+/g, '/')
+  // 如果最后剩下的是空字符串，返回空
+  return normalized || ''
+}
+
 // ============================================
 // Tool 工厂函数
 // ============================================
@@ -27,8 +125,9 @@ function createListFilesTool() {
     },
     execute: async (params: Record<string, unknown>): Promise<ToolCallResult> => {
       try {
-        const path = params.path as string | undefined
-        const entries = await window.electronAPI.mcp.listFiles(path || '')
+        const rawPath = params.path as string | undefined
+        const path = normalizePath(rawPath || '')
+        const entries = await window.electronAPI.mcp.listFiles(path)
         return {
           tool: 'list_files',
           args: params,
@@ -177,7 +276,8 @@ function createListFolderContentsTool() {
     },
     execute: async (params: Record<string, unknown>): Promise<ToolCallResult> => {
       try {
-        const path = params.path as string
+        // 支持别名：folder_path -> path
+        const path = (params.path ?? params.folder_path) as string | undefined
         if (!path) {
           return {
             tool: 'list_folder_contents',
