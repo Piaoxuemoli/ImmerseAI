@@ -8,6 +8,7 @@
  */
 
 import type { ToolCall, ToolCallResult } from '@/shared/types'
+import { normalizeParams } from './tool-definitions'
 
 /**
  * Tool 定义
@@ -76,13 +77,16 @@ export class ToolRegistry {
       }
     }
 
+    // 标准化参数（处理别名问题）
+    const normalizedArgs = normalizeParams(toolName, args)
+
     try {
-      const result = await tool.execute(args)
+      const result = await tool.execute(normalizedArgs)
       return result
     } catch (error) {
       return {
         tool: toolName,
-        args,
+        args: normalizedArgs,
         result: null,
         success: false,
         isFinal: false,
