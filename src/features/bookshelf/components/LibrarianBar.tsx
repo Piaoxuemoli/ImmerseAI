@@ -35,7 +35,10 @@ export function LibrarianBar({ files, rootFolders, onCommandSuccess }: Librarian
     cancelDelete,
     clearHistory,
     lastMessage,
-  } = useLibrarian(files, { onCommandSuccess, rootFolders })
+  } = useLibrarian(files, {
+    ...(onCommandSuccess && { onCommandSuccess }),
+    ...(rootFolders && { rootFolders }),
+  })
 
   /**
    * 处理发送命令
@@ -63,10 +66,10 @@ export function LibrarianBar({ files, rootFolders, onCommandSuccess }: Librarian
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
         {/* 历史记录折叠面板 */}
         {showHistory && history.length > 0 && (
-          <div className="mx-auto max-w-7xl border-b border-border px-6 py-3">
+          <div className="mx-auto max-w-7xl border-b border-border bg-background px-6 py-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-muted-foreground">
                 操作历史 ({history.length}/10)
@@ -107,7 +110,7 @@ export function LibrarianBar({ files, rootFolders, onCommandSuccess }: Librarian
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 text-muted-foreground hover:text-foreground"
+            className={`shrink-0 text-muted-foreground hover:text-foreground ${history.length > 0 ? 'relative' : ''}`}
             onClick={() => setShowHistory(!showHistory)}
             aria-label={showHistory ? '隐藏历史' : '显示历史'}
             title={showHistory ? '隐藏历史' : '显示历史'}

@@ -5,7 +5,7 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
-      // Notion 极简风格色板
+      // ImmerseAI Stitch Design System Colors
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
@@ -31,17 +31,65 @@ export default {
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))'
+        },
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))'
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))'
         }
       },
-      // 字体族
+      // Typography - Inter for English, Noto Sans SC for Chinese
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif']
+        sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace']
       },
-      // 圆角
+      // Border radius matching Stitch design
       borderRadius: {
-        lg: '8px', // rounded-lg
-        md: '6px', // rounded-md
-        sm: '4px'
+        sm: '6px',
+        DEFAULT: '8px',
+        md: '10px',
+        lg: '12px',
+        xl: '16px',
+        '2xl': '20px',
+        '3xl': '24px'
+      },
+      // Custom shadows for layered depth
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        DEFAULT: 'var(--shadow)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+        xl: 'var(--shadow-xl)',
+        'card-hover': '0 8px 16px -4px rgb(0 0 0 / 0.1), 0 4px 8px -4px rgb(0 0 0 / 0.1)'
+      },
+      // Animation durations
+      transitionDuration: {
+        fast: '150ms',
+        normal: '250ms',
+        slow: '400ms'
+      },
+      // Custom animation keyframes
+      keyframes: {
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' }
+        },
+        'slide-up': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' }
+        },
+        'scale-in': {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' }
+        }
+      },
+      animation: {
+        'fade-in': 'fade-in 200ms ease-out',
+        'slide-up': 'slide-up 200ms ease-out',
+        'scale-in': 'scale-in 200ms ease-out'
       }
     }
   },

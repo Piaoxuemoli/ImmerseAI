@@ -4,67 +4,101 @@
 
 @layer base {
   :root {
-    /* Notion 极简风格 - Light Mode */
-    --background: 0 0% 100%; /* white */
-    --foreground: 215 25% 27%; /* slate-900 */
+    /* ImmerseAI Stitch Design System - Light Mode */
+    /* Background: soft off-white, Surface: pure white */
+    --background: 0 0% 98%; /* #FAFAFA */
+    --foreground: 222 20% 15%; /* slate-900 variant */
 
-    --muted: 210 40% 98%; /* slate-50 */
-    --muted-foreground: 215 16% 47%; /* slate-500 */
+    --muted: 210 40% 96%; /* slate-50 */
+    --muted-foreground: 220 10% 50%; /* slate-500 */
 
-    --border: 214 32% 91%; /* slate-200 */
-    --input: 214 32% 91%;
-    --ring: 215 25% 27%;
+    --border: 220 13% 91%; /* slate-200 */
+    --input: 220 13% 91%;
+    --ring: 238 84% 67%; /* indigo-500 - matches accent */
 
-    --primary: 215 25% 27%; /* slate-900 */
+    /* Primary: Vibrant Indigo */
+    --primary: 238 84% 67%; /* indigo-500 #6366F1 */
     --primary-foreground: 0 0% 100%;
 
+    /* Secondary: Light slate */
     --secondary: 210 40% 96%; /* slate-100 */
-    --secondary-foreground: 215 25% 27%;
+    --secondary-foreground: 222 20% 15%;
 
-    --accent: 215 20% 17%; /* slate-800 */
+    /* Accent: Dark slate for dark accents */
+    --accent: 222 20% 18%; /* slate-800 */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%; /* red-500 */
+    /* Destructive */
+    --destructive: 0 72% 51%; /* red-500 */
     --destructive-foreground: 0 0% 100%;
+
+    /* Success - Green */
+    --success: 142 71% 45%; /* green-500 */
+    --success-foreground: 0 0% 100%;
+
+    /* Card & Popover */
+    --card: 0 0% 100%;
+    --card-foreground: 222 20% 15%;
 
     /* Animation duration tokens */
     --duration-fast: 150ms;
     --duration-normal: 250ms;
     --duration-slow: 400ms;
 
-    /* Semantic color tokens */
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
-    --error: 0 72% 51%;
-
     /* Reading theme tokens */
-    --reading-font-size: 16px;
-    --reading-line-height: 1.7;
+    --reading-font-size: 18px;
+    --reading-line-height: 1.8;
+
+    /* Shadow tokens for layered depth */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+    /* Border radius */
+    --radius-sm: 8px;
+    --radius: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
   }
 
   .dark {
-    /* 暗夜模式 — 浅黑色背景，高对比白色文字 */
-    --background: 222 20% 11%;
-    --foreground: 210 20% 93%;
+    /* ImmerseAI Stitch Design System - Dark Mode */
+    --background: 222 20% 9%; /* slate-950 */
+    --foreground: 210 20% 95%;
 
-    --muted: 220 15% 17%;
-    --muted-foreground: 215 18% 70%;
+    --muted: 217 24% 15%; /* slate-800 */
+    --muted-foreground: 215 15% 65%; /* slate-400 */
 
-    --border: 220 14% 22%;
-    --input: 220 14% 22%;
-    --ring: 215 25% 55%;
+    --border: 217 22% 20%; /* slate-700 */
+    --input: 217 22% 20%;
+    --ring: 238 84% 70%; /* indigo-400 */
 
-    --primary: 210 20% 90%;
-    --primary-foreground: 222 20% 11%;
+    --primary: 238 84% 70%; /* indigo-400 */
+    --primary-foreground: 222 20% 9%;
 
-    --secondary: 220 15% 18%;
-    --secondary-foreground: 210 20% 90%;
+    --secondary: 217 24% 15%; /* slate-800 */
+    --secondary-foreground: 210 20% 95%;
 
-    --accent: 215 20% 25%;
-    --accent-foreground: 210 20% 93%;
+    --accent: 217 24% 20%; /* slate-850 */
+    --accent-foreground: 210 20% 95%;
 
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 72% 55%; /* red-400 */
+    --destructive-foreground: 222 20% 9%;
+
+    --success: 142 70% 50%; /* green-400 */
+    --success-foreground: 222 20% 9%;
+
+    --card: 217 24% 12%; /* slate-900 */
+    --card-foreground: 210 20% 95%;
+
+    /* Shadows more subtle in dark mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5);
   }
 
   /* Reading theme: Sepia */
@@ -92,4 +126,92 @@
     @apply bg-background text-foreground;
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Focus visible styles */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Button card hover lift effect */
+.card-hover {
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Glass effect for floating elements */
+.glass {
+  background: hsl(var(--card) / 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Toast notification pill */
+.toast-pill {
+  @apply inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium shadow-lg;
+  @apply bg-card text-foreground;
+}
+
+/* AI input bar floating style */
+.ai-input-bar {
+  @apply fixed bottom-6 left-1/2 -translate-x-1/2 z-50;
+  @apply w-full max-w-2xl mx-auto px-4;
+  @apply glass rounded-2xl shadow-xl;
+  @apply border border-border/50;
+  @apply flex items-center gap-3;
+  @apply py-3 px-4;
+}
+
+/* Sidebar active indicator */
+.sidebar-item-active::after {
+  content: '';
+  @apply absolute right-0 top-1/2 -translate-y-1/2;
+  @apply w-1 h-8 rounded-l-full bg-primary;
+}
+
+/* Progress bar styles */
+.progress-reading {
+  @apply h-0.5 bg-primary/20 rounded-full overflow-hidden;
+}
+
+.progress-reading-bar {
+  @apply h-full bg-primary rounded-full;
+  transition: width 300ms ease-out;
+}
+
+.progress-complete {
+  @apply h-0.5 bg-success/20 rounded-full overflow-hidden;
+}
+
+.progress-complete-bar {
+  @apply h-full bg-success rounded-full;
 }
