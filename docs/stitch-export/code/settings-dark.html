@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ImmerseAI Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-bright": "#fcf9f8",
+                        "surface-container-highest": "#e5e2e1",
+                        "primary": "#4648d4",
+                        "tertiary-fixed-dim": "#4ae176",
+                        "secondary": "#6b38d4",
+                        "inverse-on-surface": "#f3f0ef",
+                        "on-tertiary-fixed": "#002109",
+                        "primary-fixed": "#e1e0ff",
+                        "primary-container": "#6063ee",
+                        "secondary-container": "#8455ef",
+                        "surface-container-low": "#f6f3f2",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#07006c",
+                        "on-secondary-container": "#fffbff",
+                        "outline-variant": "#c7c4d7",
+                        "error": "#ba1a1a",
+                        "on-primary-container": "#fffbff",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "surface-container": "#f0eded",
+                        "outline": "#767586",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#23005c",
+                        "background": "#0F0F0F",
+                        "on-surface": "#F5F5F5",
+                        "secondary-fixed": "#e9ddff",
+                        "tertiary-fixed": "#6bff8f",
+                        "surface-variant": "#1A1A1A",
+                        "inverse-primary": "#c0c1ff",
+                        "surface-container-lowest": "#121212",
+                        "tertiary": "#006b2d",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#242424",
+                        "inverse-surface": "#f3f0ef",
+                        "surface-dim": "#0F0F0F",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "on-surface-variant": "#A1A1A1",
+                        "tertiary-container": "#00873b",
+                        "on-tertiary-fixed-variant": "#005321",
+                        "on-tertiary-container": "#f7fff3",
+                        "surface-tint": "#494bd6",
+                        "surface": "#0F0F0F",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "on-background": "#F5F5F5"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter", "Noto Sans SC"],
+                        "body": ["Inter", "Noto Sans SC"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #0F0F0F;
+            color: #F5F5F5;
+        }
+        .custom-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #333333;
+            height: 4px;
+            border-radius: 2px;
+        }
+        .custom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #6366F1;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="font-body selection:bg-primary/30">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full h-[56px] z-50 bg-[#0F0F0F]/60 backdrop-blur-xl flex items-center justify-between px-6 shadow-[0_10px_30px_rgba(70,72,212,0.06)]">
+<div class="flex items-center gap-4">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-white/5 transition-colors active:scale-90 duration-150">
+<span class="material-symbols-outlined text-on-surface">arrow_back</span>
+</button>
+<h1 class="text-xl font-bold text-on-surface tracking-tighter font-headline">Settings</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer">search</span>
+<span class="material-symbols-outlined text-primary font-variation-settings-fill transition-colors cursor-pointer" style="font-variation-settings: 'FILL' 1;">settings</span>
+</div>
+</header>
+<main class="pt-[80px] pb-24 px-6 max-w-4xl mx-auto space-y-12">
+<!-- Hero Header -->
+<section class="mb-12">
+<p class="font-mono text-xs uppercase tracking-[0.2em] text-primary mb-2">Configuration</p>
+<h2 class="text-4xl font-extrabold tracking-tight text-on-surface">Control Center</h2>
+<div class="mt-4 h-1 w-20 bg-gradient-to-r from-primary to-secondary rounded-full"></div>
+</section>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Connection Settings Section -->
+<div class="md:col-span-12 lg:col-span-7 space-y-6">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-primary">hub</span>
+<h3 class="text-lg font-bold tracking-tight">Connection Settings</h3>
+</div>
+<!-- Bento Card: MCP & API -->
+<div class="bg-surface-variant p-8 rounded-xl border border-[#333333] hover:border-primary/50 transition-all duration-300">
+<div class="space-y-6">
+<!-- MCP Path Input -->
+<div class="space-y-2">
+<label class="block font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">MCP Path / Local Node</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm text-outline">folder_open</span>
+<input class="w-full bg-surface-container-highest border-none rounded-lg py-3 pl-10 pr-4 font-mono text-sm text-primary-fixed-dim focus:ring-2 focus:ring-primary/40 transition-all" type="text" value="/usr/local/bin/mcp-server-v2"/>
+</div>
+</div>
+<!-- LLM API Input -->
+<div class="space-y-2">
+<label class="block font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">LLM API Endpoint</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm text-outline">api</span>
+<input class="w-full bg-surface-container-highest border-none rounded-lg py-3 pl-10 pr-4 font-mono text-sm text-on-surface focus:ring-2 focus:ring-primary/40 transition-all" type="password" value="sk-proj-**************************"/>
+</div>
+</div>
+<!-- Model Selection Grid -->
+<div class="space-y-3">
+<label class="block font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">Core Intelligence Model</label>
+<div class="grid grid-cols-2 gap-3">
+<button class="flex items-center justify-between px-4 py-3 bg-primary/10 border border-primary/40 rounded-lg text-primary text-sm font-semibold">
+<span>GPT-4o Pro</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</button>
+<button class="flex items-center justify-between px-4 py-3 bg-surface-container-highest border border-transparent rounded-lg text-on-surface-variant text-sm hover:bg-surface-container-high transition-colors">
+<span>Claude 3.5</span>
+<span class="material-symbols-outlined text-sm">circle</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Appearance Settings Section -->
+<div class="md:col-span-12 lg:col-span-5 space-y-6">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-secondary">palette</span>
+<h3 class="text-lg font-bold tracking-tight">Appearance</h3>
+</div>
+<div class="bg-surface-variant p-8 rounded-xl border border-[#333333] space-y-8">
+<!-- Theme Toggle -->
+<div class="flex items-center justify-between">
+<div class="space-y-1">
+<p class="text-sm font-semibold">Interface Theme</p>
+<p class="text-xs text-on-surface-variant">Switch between modes</p>
+</div>
+<div class="flex bg-surface-container-highest p-1 rounded-full border border-outline-variant/10">
+<button class="p-2 rounded-full text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">light_mode</span>
+</button>
+<button class="p-2 rounded-full bg-primary text-white shadow-lg">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dark_mode</span>
+</button>
+</div>
+</div>
+<!-- Font Selection -->
+<div class="space-y-4">
+<p class="text-sm font-semibold">Typography Pairing</p>
+<div class="space-y-2">
+<div class="flex items-center gap-3 p-3 rounded-lg bg-surface-container-highest border-l-4 border-primary">
+<span class="material-symbols-outlined text-primary">font_download</span>
+<div>
+<p class="text-xs font-bold">Editorial Neo</p>
+<p class="text-[10px] text-on-surface-variant uppercase font-mono">Inter + Noto Sans SC</p>
+</div>
+</div>
+<div class="flex items-center gap-3 p-3 rounded-lg hover:bg-surface-container-high cursor-pointer transition-colors group">
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface">font_download_off</span>
+<div>
+<p class="text-xs font-medium text-on-surface-variant group-hover:text-on-surface">Mono Industrial</p>
+<p class="text-[10px] text-on-surface-variant/50 uppercase font-mono">JetBrains Mono + Roboto</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Font Size Slider -->
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<p class="text-sm font-semibold">Content Scale</p>
+<span class="font-mono text-xs text-primary">105%</span>
+</div>
+<input class="w-full custom-slider" max="140" min="80" type="range" value="105"/>
+<div class="flex justify-between text-[10px] font-mono text-outline uppercase tracking-tighter">
+<span>Compact</span>
+<span>Standard</span>
+<span>Readable</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Asymmetric Detail Section: Storage & Stats -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="relative overflow-hidden group bg-gradient-to-br from-secondary/10 to-transparent p-8 rounded-2xl border border-secondary/20">
+<div class="relative z-10">
+<span class="material-symbols-outlined text-secondary mb-4">memory</span>
+<h4 class="text-xl font-bold mb-2">Knowledge Graph</h4>
+<p class="text-sm text-on-surface-variant leading-relaxed mb-6">Local vector storage currently indexing 12.4k book fragments and research papers.</p>
+<div class="flex items-center gap-2">
+<div class="h-1 flex-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full w-[65%] bg-secondary rounded-full"></div>
+</div>
+<span class="text-[10px] font-mono text-secondary">65% Sync</span>
+</div>
+</div>
+<div class="absolute -right-8 -bottom-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
+<span class="material-symbols-outlined text-[160px]">database</span>
+</div>
+</div>
+<div class="bg-surface-variant p-8 rounded-2xl border border-[#333333] flex flex-col justify-between">
+<div>
+<h4 class="text-xs font-mono uppercase tracking-[0.2em] text-outline mb-6">System Health</h4>
+<div class="space-y-4">
+<div class="flex justify-between items-center">
+<span class="text-sm">API Latency</span>
+<span class="text-sm font-mono text-tertiary-fixed-dim">124ms</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-sm">Token Efficiency</span>
+<span class="text-sm font-mono text-tertiary-fixed-dim">98.2%</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-sm">Server Uptime</span>
+<span class="text-sm font-mono text-on-surface-variant">99.9%</span>
+</div>
+</div>
+</div>
+<button class="mt-8 py-3 w-full rounded-lg bg-surface-container-high border border-outline/20 text-sm font-bold hover:bg-surface-container-highest transition-colors">
+                    Re-index Database
+                </button>
+</div>
+</section>
+</main>
+<!-- SideNavBar (Hidden on Mobile) -->
+<nav class="hidden md:flex fixed left-0 top-0 h-screen w-[240px] bg-[#0F0F0F] flex-col py-8 gap-y-4 z-40 border-r border-[#333333]/10">
+<div class="px-6 mb-8">
+<h2 class="text-lg font-black text-primary font-headline">ImmerseAI</h2>
+<p class="text-[10px] font-mono text-outline uppercase tracking-widest">Digital Curator</p>
+</div>
+<div class="flex flex-col flex-1 px-4 gap-y-2">
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:pl-6 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">auto_stories</span>
+<span class="font-medium text-sm">Bookshelf</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:pl-6 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="font-medium text-sm">Reader</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:pl-6 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-medium text-sm">AI Chat</span>
+</a>
+<div class="mt-auto">
+<a class="flex items-center gap-4 px-4 py-3 text-primary font-bold border-r-4 border-primary bg-primary/5 transition-all duration-300" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-medium text-sm">Settings</span>
+</a>
+</div>
+</div>
+<div class="px-6 pt-6 border-t border-[#333333]/30">
+<div class="flex items-center gap-3">
+<img alt="Profile" class="w-8 h-8 rounded-full border border-primary/20" data-alt="portrait of a professional creative developer in a studio with soft moody lighting and digital artifacts background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCiKrXojE4Tb7r4wNCSJkRtR-XSgjOgu2dkgHjEz90Er1U0_IYphDV5Xu5b_iZ8PHHUh7TLv39i3DvnR__XEtxMvH_RhkcZzDOoYBkXqByfymkAGJO8B1ASkc3f6BxG_nqzIl3CGzWvijG-oq7d5lWj6yLUrHEYAvyMe51TQA_iCKnYEaqhXF0z1PgZ5p-ivfU-wM_T0fQhrjmMrPJW_eFzI0A_34xoHur_aOUMRVK0FyZfHvvSmj7CC7EX-eVd8s2J4A1mkbfJo94"/>
+<div>
+<p class="text-xs font-bold">Alex Thorne</p>
+<p class="text-[9px] text-outline font-mono">PREMIUM OPS</p>
+</div>
+</div>
+</div>
+</nav>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md h-[64px] bg-[#0F0F0F]/60 backdrop-blur-xl rounded-2xl z-50 flex items-center justify-between px-6 border border-white/5 shadow-[0_20px_40px_rgba(70,72,212,0.12)]">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">auto_stories</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">menu_book</span>
+</button>
+<button class="bg-gradient-to-br from-primary to-primary-container text-white p-3 rounded-xl shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</button>
+<button class="text-primary transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">person</span>
+</button>
+</nav>
+</body></html>

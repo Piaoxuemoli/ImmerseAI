@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ImmerseAI | AI Chat</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-bright": "#fcf9f8",
+                        "surface-container-highest": "#e5e2e1",
+                        "primary": "#4648d4",
+                        "tertiary-fixed-dim": "#4ae176",
+                        "secondary": "#6b38d4",
+                        "inverse-on-surface": "#f3f0ef",
+                        "on-tertiary-fixed": "#002109",
+                        "primary-fixed": "#e1e0ff",
+                        "primary-container": "#6063ee",
+                        "secondary-container": "#8455ef",
+                        "surface-container-low": "#f6f3f2",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#07006c",
+                        "on-secondary-container": "#fffbff",
+                        "outline-variant": "#c7c4d7",
+                        "error": "#ba1a1a",
+                        "on-primary-container": "#fffbff",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "surface-container": "#f0eded",
+                        "outline": "#767586",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#23005c",
+                        "background": "#fcf9f8",
+                        "on-surface": "#1c1b1b",
+                        "secondary-fixed": "#e9ddff",
+                        "tertiary-fixed": "#6bff8f",
+                        "surface-variant": "#e5e2e1",
+                        "inverse-primary": "#c0c1ff",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary": "#006b2d",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#eae7e7",
+                        "inverse-surface": "#313030",
+                        "surface-dim": "#dcd9d9",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "on-surface-variant": "#464554",
+                        "tertiary-container": "#00873b",
+                        "on-tertiary-fixed-variant": "#005321",
+                        "on-tertiary-container": "#f7fff3",
+                        "surface-tint": "#494bd6",
+                        "surface": "#fcf9f8",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "on-background": "#1c1b1b"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "3xl": "1.5rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .reading-surface {
+            background-color: #FFF8E7;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(70, 72, 212, 0.1);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background font-body text-on-background selection:bg-primary/20">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full h-[56px] z-50 bg-[#fcf9f8]/60 backdrop-blur-xl shadow-[0_10px_30px_rgba(70,72,212,0.06)] flex items-center justify-between px-6">
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-[#4648d4]/10 transition-colors rounded-full active:scale-90 duration-150">
+<span class="material-symbols-outlined text-primary">arrow_back</span>
+</button>
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full overflow-hidden border-2 border-primary-container">
+<img class="w-full h-full object-cover" data-alt="portrait of a futuristic humanoid robot with glowing purple eyes and sleek metallic white plating in soft editorial lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7NFXy_tUCpyCrWtY10VUooDzOhtiiHXQSjR0lT2LfxuSX1k-a1QK3Vek0YBuVCL4S81d5979YM2NRjVQkvLvHAcHxeAIIYoEX4aB7k5wYvjJkZrA_USr29oc3dQOuaSzAhl_JrzvWoJ6-k5r_bko8B8hQ45IxcWNttFpEBIxuEXMHOwfmqS75tx_n3AoDuv-iJPG6iyE0tv5gE_WvSHowI6Wk8cKqDGWZWqKMgcBHmf0N3zk4w2IG0zJPMZoA7cxBcbsFnl0sITE"/>
+</div>
+<div>
+<h1 class="text-sm font-bold text-primary tracking-tight leading-none">ImmerseAI</h1>
+<p class="text-[10px] font-mono text-secondary-container uppercase tracking-widest">Digital Curator</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="hidden md:flex items-center bg-surface-container-low px-3 py-1 rounded-full border border-outline-variant/10">
+<span class="material-symbols-outlined text-[16px] text-tertiary mr-2" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="text-[11px] font-mono font-bold text-on-surface-variant">ANALYTICS MODE</span>
+</div>
+<button class="p-2 hover:bg-[#4648d4]/10 transition-colors rounded-full text-slate-500">
+<span class="material-symbols-outlined">swap_horiz</span>
+</button>
+<button class="p-2 hover:bg-[#4648d4]/10 transition-colors rounded-full text-slate-500">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</header>
+<!-- Main Content Layout -->
+<main class="flex h-screen pt-[56px] pb-[88px] overflow-hidden">
+<!-- Sidebar Navigation (Hidden on Mobile) -->
+<aside class="hidden md:flex flex-col h-full w-[240px] sticky left-0 top-0 py-8 gap-y-4 bg-[#fcf9f8] border-r-0">
+<div class="px-6 mb-4">
+<span class="text-xs font-mono text-outline font-bold uppercase tracking-widest">Navigation</span>
+</div>
+<nav class="flex flex-col gap-y-1">
+<a class="flex items-center px-6 py-3 gap-3 text-slate-600 hover:pl-8 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">auto_stories</span>
+<span class="font-medium">Bookshelf</span>
+</a>
+<a class="flex items-center px-6 py-3 gap-3 text-slate-600 hover:pl-8 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="font-medium">Reader</span>
+</a>
+<a class="flex items-center px-6 py-3 gap-3 text-primary font-bold border-r-4 border-primary hover:pl-8 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-medium">AI Chat</span>
+</a>
+<a class="flex items-center px-6 py-3 gap-3 text-slate-600 hover:pl-8 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-medium">Settings</span>
+</a>
+</nav>
+</aside>
+<!-- Chat Feed Area -->
+<section class="flex-1 flex flex-col items-center overflow-y-auto custom-scrollbar bg-surface-container-low/30 px-4 md:px-0">
+<div class="w-full max-w-3xl py-12 flex flex-col gap-10">
+<!-- AI Message -->
+<div class="flex gap-4 items-start max-w-[90%] md:max-w-[85%] self-start group">
+<div class="flex-shrink-0 mt-1">
+<div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white shadow-lg">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="p-5 rounded-2xl rounded-tl-none bg-[#F5F3FF] text-on-surface shadow-[0_4px_20px_rgba(107,56,212,0.04)] border border-primary/5 leading-relaxed">
+<p class="mb-4">I've analyzed the semantic structure of the text you provided. The overarching theme appears to be <strong>"Technological Melancholy"</strong>—a specific blend of industrial progress and existential longing.</p>
+<p>Would you like me to extract the primary metaphors used in Chapter 3, or should we focus on the stylistic shift between the protagonist's inner monologue and the external dialogue?</p>
+</div>
+<div class="flex items-center gap-3 px-1">
+<span class="text-[10px] font-mono text-outline font-bold">SENT VIA IMPULSE ENGINE</span>
+<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-1 hover:bg-primary/5 rounded text-primary transition-colors">
+<span class="material-symbols-outlined text-[14px]">content_copy</span>
+</button>
+<button class="p-1 hover:bg-primary/5 rounded text-primary transition-colors">
+<span class="material-symbols-outlined text-[14px]">thumb_up</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex gap-4 items-start max-w-[90%] md:max-w-[85%] self-end flex-row-reverse group">
+<div class="flex-shrink-0 mt-1">
+<div class="w-9 h-9 rounded-xl bg-surface-container-highest flex items-center justify-center text-primary-container shadow-md border border-outline-variant/20">
+<img class="w-full h-full object-cover rounded-xl" data-alt="editorial close up of a stylish young man with glasses looking thoughtful, soft natural lighting and warm skin tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKox3RdqqjrBmGT_L9jwynJeuYCIjdSF459BWAroUNnhbyjyUZ9BVqSNAw2LEXsw96ufumnAwtX_FggbOYaw4jL2Iiy5SM1_fuw7_1g9c82LTZZ9jMVoj9Eb5PYuveV7dbGDZOPWFXgTEw26Kh42fH34LXbcc2OV_TVQsoMsmYfgHz3mZgI_17v8TKfp5JLOmy9FUyul-U28TF4ITCQj19xmBrDIVZNSI3fmHpGFyPsszhpVUc9n9AnfE3vwFVhPrpbrgeKD25Gus"/>
+</div>
+</div>
+<div class="flex flex-col gap-2 items-end">
+<div class="p-5 rounded-2xl rounded-tr-none bg-[#EEF2FF] text-on-surface shadow-[0_4px_20px_rgba(70,72,212,0.04)] border border-primary-container/5 leading-relaxed">
+<p>Let's focus on the metaphors in Chapter 3. Specifically the recurring mention of "clockwork rain." I feel like it ties directly into the character's perception of time as something mechanical rather than natural.</p>
+</div>
+<div class="px-1">
+<span class="text-[10px] font-mono text-outline font-bold uppercase tracking-wider">10:42 AM</span>
+</div>
+</div>
+</div>
+<!-- AI Message with Citations -->
+<div class="flex gap-4 items-start max-w-[90%] md:max-w-[85%] self-start group">
+<div class="flex-shrink-0 mt-1">
+<div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white shadow-lg">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="p-5 rounded-2xl rounded-tl-none bg-[#F5F3FF] text-on-surface shadow-[0_4px_20px_rgba(107,56,212,0.04)] border border-primary/5 leading-relaxed">
+<p class="mb-4">That's an astute observation. The "clockwork rain" metaphor serves as a pivot point for the entire narrative arc. It dehumanizes nature, mirroring the protagonist's internal emotional fossilization <sup class="text-secondary font-bold">1</sup>.</p>
+<p>In the original manuscript, this phrase appeared twice as often, suggesting the author wanted to hammer home the rhythmic, inevitable nature of the world's decline <sup class="text-secondary font-bold">2</sup>.</p>
+<div class="mt-6 pt-4 border-t border-secondary/10 flex flex-wrap gap-2">
+<a class="flex items-center gap-2 bg-secondary/5 hover:bg-secondary/10 px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold text-secondary transition-colors" href="#">
+<span class="material-symbols-outlined text-[14px]">link</span>
+                                    CH3_MANUSCRIPT_NOTES
+                                </a>
+<a class="flex items-center gap-2 bg-secondary/5 hover:bg-secondary/10 px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold text-secondary transition-colors" href="#">
+<span class="material-symbols-outlined text-[14px]">description</span>
+                                    THEMATIC_GLOSSARY_V2
+                                </a>
+</div>
+</div>
+<div class="flex items-center gap-3 px-1">
+<span class="text-[10px] font-mono text-outline font-bold">DATA CORRELATED</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Navigation / Input Bar -->
+<footer class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] md:w-[90%] max-w-2xl h-auto min-h-[64px] rounded-3xl z-50 bg-[#fcf9f8]/80 backdrop-blur-2xl shadow-[0_20px_40px_rgba(70,72,212,0.12)] border border-slate-200/10 flex flex-col p-2 gap-2 overflow-hidden">
+<!-- Citation Suggestions -->
+<div class="flex gap-2 overflow-x-auto custom-scrollbar px-2 pt-1 pb-1">
+<button class="flex-shrink-0 bg-white/50 border border-primary/5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold text-primary flex items-center gap-1.5 hover:bg-white transition-all active:scale-95">
+<span class="material-symbols-outlined text-[14px]">add</span>
+                    REF_CH3_P42
+                </button>
+<button class="flex-shrink-0 bg-white/50 border border-primary/5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold text-primary flex items-center gap-1.5 hover:bg-white transition-all active:scale-95">
+<span class="material-symbols-outlined text-[14px]">add</span>
+                    GLOSSARY_TIME
+                </button>
+<button class="flex-shrink-0 bg-white/50 border border-primary/5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold text-primary flex items-center gap-1.5 hover:bg-white transition-all active:scale-95">
+<span class="material-symbols-outlined text-[14px]">add</span>
+                    CHARACTER_BIO
+                </button>
+</div>
+<!-- Input Controls -->
+<div class="flex items-center gap-2 px-2 pb-1">
+<button class="p-2 text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-slate-400 text-sm font-medium" placeholder="Ask ImmerseAI about this chapter..." type="text"/>
+<button class="w-10 h-10 bg-gradient-to-br from-[#4648d4] to-[#6063ee] text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</footer>
+</main>
+<!-- FAB (Suppressed on Chat page per instructions but structure provided for system completeness if needed elsewhere) -->
+<!-- Hidden to prioritize content canvas as per "Focus" rule -->
+</body></html>

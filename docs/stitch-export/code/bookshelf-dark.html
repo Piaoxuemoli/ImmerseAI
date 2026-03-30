@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ImmerseAI - Bookshelf</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-bright": "#1A1A1A",
+                        "surface-container-highest": "#333333",
+                        "primary": "#4648d4",
+                        "tertiary-fixed-dim": "#4ae176",
+                        "secondary": "#6b38d4",
+                        "inverse-on-surface": "#1c1b1b",
+                        "on-tertiary-fixed": "#002109",
+                        "primary-fixed": "#e1e0ff",
+                        "primary-container": "#6063ee",
+                        "secondary-container": "#8455ef",
+                        "surface-container-low": "#141414",
+                        "on-secondary-fixed-variant": "#d0bcff",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#07006c",
+                        "on-secondary-container": "#fffbff",
+                        "outline-variant": "#333333",
+                        "error": "#ffb4ab",
+                        "on-primary-container": "#fffbff",
+                        "error-container": "#93000a",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "surface-container": "#1A1A1A",
+                        "outline": "#8e8e93",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#23005c",
+                        "background": "#0F0F0F",
+                        "on-background": "#F5F5F5",
+                        "on-surface": "#F5F5F5",
+                        "secondary-fixed": "#e9ddff",
+                        "tertiary-fixed": "#6bff8f",
+                        "surface-variant": "#2C2C2C",
+                        "inverse-primary": "#4648d4",
+                        "surface-container-lowest": "#0A0A0A",
+                        "tertiary": "#4ae176",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-high": "#242424",
+                        "inverse-surface": "#fcf9f8",
+                        "surface-dim": "#0F0F0F",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "on-surface-variant": "#c7c4d7",
+                        "tertiary-container": "#00873b",
+                        "on-tertiary-fixed-variant": "#005321",
+                        "on-tertiary-container": "#f7fff3",
+                        "surface-tint": "#6063ee",
+                        "surface": "#1A1A1A",
+                        "on-primary-fixed-variant": "#2f2ebe"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter", "Noto Sans SC"],
+                        "body": ["Inter", "Noto Sans SC"],
+                        "label": ["JetBrains Mono"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0F0F0F;
+            color: #F5F5F5;
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+        }
+        .reading-surface {
+            background-color: #141414;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="selection:bg-primary/30">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full h-[56px] z-50 bg-[#0F0F0F]/60 backdrop-blur-xl shadow-[0_10px_30px_rgba(70,72,212,0.06)] flex items-center justify-between px-6">
+<div class="flex items-center gap-4">
+<span class="text-xl font-bold text-[#6063ee] tracking-tighter Inter">ImmerseAI</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-lg hover:bg-[#6063ee]/10 transition-colors text-slate-400 group">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform">search</span>
+</button>
+<button class="p-2 rounded-lg hover:bg-[#6063ee]/10 transition-colors text-slate-400 group">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform">contrast</span>
+</button>
+<button class="p-2 rounded-lg hover:bg-[#6063ee]/10 transition-colors text-slate-400 group">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform">settings</span>
+</button>
+<div class="ml-2 w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30">
+<img class="w-full h-full object-cover" data-alt="minimalist professional male portrait avatar with neutral background and soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBINpqnHmgLFKAllWRBFd6dbKRoYa06xx4UiEZvaDyM7Ze6q2bKMumJBuisXT_Xrs2c6JZlng2zqDvZb524GnqFD7DO_e-PQ9Cn5-SHOKwLKeLq3LEcOzQGwKRNGvIpbH1LtuFvSI7zlV1Oql3xzWX2_ABent_fIQ_GVWBYVvR1W3TVQxrKsi_mz_d-9T8Heet5JupS_3oIz0r8SmZnGGCTsukPTZqtlO8P-TsVjgj2nW8eeOslQ-2YJvSqxupYSviDvDWZIrVcucw"/>
+</div>
+</div>
+</header>
+<div class="flex pt-[56px] min-h-screen">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-[calc(100vh-56px)] w-[240px] sticky left-0 top-[56px] py-8 gap-y-4 bg-[#0F0F0F] transition-all ease-in-out border-r border-outline-variant/10">
+<div class="px-6 mb-4">
+<h2 class="text-xs font-bold text-slate-500 uppercase tracking-widest JetBrains Mono">Library</h2>
+</div>
+<nav class="flex flex-col gap-y-1">
+<a class="flex items-center gap-3 px-6 py-3 text-[#6063ee] font-bold border-r-4 border-[#4648d4] transition-all duration-300" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">auto_stories</span>
+<span class="Inter">Bookshelf</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:pl-8 transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="Inter">Reader</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:pl-8 transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="Inter">AI Chat</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-400 hover:pl-8 transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="Inter">Settings</span>
+</a>
+</nav>
+<div class="mt-8 px-6">
+<h2 class="text-xs font-bold text-slate-500 uppercase tracking-widest JetBrains Mono mb-4">Folders</h2>
+<div class="space-y-2">
+<button class="flex items-center gap-3 w-full text-slate-400 hover:text-white transition-colors py-1 group">
+<span class="material-symbols-outlined text-sm">folder</span>
+<span class="text-sm Inter">Literature</span>
+</button>
+<button class="flex items-center gap-3 w-full text-slate-400 hover:text-white transition-colors py-1 group">
+<span class="material-symbols-outlined text-sm">folder</span>
+<span class="text-sm Inter">Tech</span>
+</button>
+<button class="flex items-center gap-3 w-full text-slate-400 hover:text-white transition-colors py-1 group">
+<span class="material-symbols-outlined text-sm">folder</span>
+<span class="text-sm Inter">History</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- Main Content area -->
+<main class="flex-1 reading-surface p-8 pb-32">
+<header class="max-w-6xl mx-auto mb-12 flex justify-between items-end">
+<div>
+<h1 class="text-4xl font-extrabold tracking-tight Inter mb-2">My Bookshelf</h1>
+<p class="text-slate-400 JetBrains Mono text-sm">12 Volumes Collected • 3 Currently Reading</p>
+</div>
+<div class="flex gap-3">
+<button class="bg-surface-container-high px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2 border border-outline-variant/10">
+<span class="material-symbols-outlined text-lg">filter_list</span> Filter
+                    </button>
+<button class="bg-gradient-to-br from-[#4648d4] to-[#6063ee] px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">add</span> New Entry
+                    </button>
+</div>
+</header>
+<!-- Book Grid -->
+<div class="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+<!-- Book Card 1 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[2/3] mb-4 overflow-hidden rounded-xl bg-surface-container-highest shadow-2xl transition-transform duration-500 group-hover:-translate-y-2">
+<img class="w-full h-full object-cover" data-alt="minimalist modern book cover design with abstract geometric shapes in deep blue and gold foil" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArboywsOgCQpc4EEgizjz0fp0lmJV7IIKx_Sh-I8ius5AvY11eYsNt2g8SLV1FsUKRr1Z43WWhH0Lt4DqrODQRGWWWmXscHbT4D04Xft8jFpah_9BAcLVWw8pMDYC-d5OgqGyqZiLXRPRBzCoG0c3HojyHbD9BcnL6YlBpNIxTCLKAJVvhiJMWqXxJ_nmpf7oKVym6YJDhdkIgyOnxEWHjLSMb1551TKkXldjaHBViGOy8-ETRh97IY4sO82-cw5BXnxfNhugs8V8"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+<span class="material-symbols-outlined bg-white/20 backdrop-blur-md p-2 rounded-full text-white">play_arrow</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20">
+<div class="h-full bg-primary-container w-[75%]"></div>
+</div>
+</div>
+<h3 class="font-semibold text-on-surface truncate Inter">The Architect's Dream</h3>
+<p class="text-sm text-slate-500 JetBrains Mono">Julian Vane</p>
+</div>
+<!-- Book Card 2 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[2/3] mb-4 overflow-hidden rounded-xl bg-surface-container-highest shadow-2xl transition-transform duration-500 group-hover:-translate-y-2">
+<img class="w-full h-full object-cover" data-alt="stunning cinematic book cover featuring a lonely lighthouse under a cosmic starry sky with deep purples" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5FjIhcZYublxKSPN_Tsn2e9mlJUrT2Tlu_iY_cmyoItNo3qSbg0dFPZfdgouPchgTt08IlPnzS6aHPdINpNizg1S-iQC3duoIKcXFp5nLopi5vclX1-AYB2BhAizNQlOqactsYtpmHuTWWrMeBMkCuwJNLl0SidnevvgEO4t8LAhz2gGNxR4KrPjXr7mOsvLx3UosYg0z_2_v_mgqEVWd_wQL3uBLDv0wj5RfYqFB4n9u-uAFQP0ZeyIni0SEYBBEajJebi7rvr8"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+<span class="material-symbols-outlined bg-white/20 backdrop-blur-md p-2 rounded-full text-white">play_arrow</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20">
+<div class="h-full bg-primary-container w-[12%]"></div>
+</div>
+</div>
+<h3 class="font-semibold text-on-surface truncate Inter">Quantum Echoes</h3>
+<p class="text-sm text-slate-500 JetBrains Mono">Elena Drath</p>
+</div>
+<!-- Book Card 3 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[2/3] mb-4 overflow-hidden rounded-xl bg-surface-container-highest shadow-2xl transition-transform duration-500 group-hover:-translate-y-2">
+<img class="w-full h-full object-cover" data-alt="vintage aesthetic book cover with detailed botanical illustrations of rare flowers on aged parchment paper" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmeND64NZofrpxTxtca6CP5bsE-G25W8_g5apYp6A_AL_jo4I_E6e2DNz1gAgZcJFFi48hGt7sNPizjn875YfV2VQCa1pmK-9PoQ52Hf3bsRqUzNWxOtFkZvskFsgSDS4fgcVL92WfGyIS6fdR-zoXbuvZojeX2NWJje4wJth-JmcngahWs9zJiWg5J2cYPRMySPU4l_OJKGlYwFO8mPniWKt0a-nKzJVmbpswo-YGcDu_sMaH10z4WoZWa9skNxC8a6QI822_ghs"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+<span class="material-symbols-outlined bg-white/20 backdrop-blur-md p-2 rounded-full text-white">play_arrow</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20">
+<div class="h-full bg-primary-container w-[100%]"></div>
+</div>
+</div>
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-semibold text-on-surface truncate Inter">Botanical Mysteries</h3>
+<span class="material-symbols-outlined text-tertiary text-xs" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<p class="text-sm text-slate-500 JetBrains Mono">Dr. Flora Finch</p>
+</div>
+<!-- Book Card 4 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[2/3] mb-4 overflow-hidden rounded-xl bg-surface-container-highest shadow-2xl transition-transform duration-500 group-hover:-translate-y-2">
+<img class="w-full h-full object-cover" data-alt="neo-noir cyberpunk style book cover with neon kanji characters and a rainy city street at night" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiEj1kcYDI1MN9OgJ3mxV79xzm8bih3ZBrb-iFrA8W4KA9eJGSi6CbgFGViOvtEo0R68p2a5f2PS2Dutb0P3VEIGRUVgSxOsdUyNPFKsBx_ktTOtvCcb_3SZGUEAQbR4RH5KFrLwWljf-gMT0bM7rIgUjT4Z06F0Ol-ALC_1xiEgsrRMtuLyAelMGxnHnVYXvgUWv3gmBXPjdL8hJ_uwPzPImDXvL7cnGCpkIEaLgsbkUYFzoyYiB0w4bDPydADI2ChWlnFACPqqg"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+<span class="material-symbols-outlined bg-white/20 backdrop-blur-md p-2 rounded-full text-white">play_arrow</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20">
+<div class="h-full bg-primary-container w-[45%]"></div>
+</div>
+</div>
+<h3 class="font-semibold text-on-surface truncate Inter">Silicate Hearts</h3>
+<p class="text-sm text-slate-500 JetBrains Mono">Kenji Satou</p>
+</div>
+<!-- Book Card 5 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[2/3] mb-4 overflow-hidden rounded-xl bg-surface-container-highest shadow-2xl transition-transform duration-500 group-hover:-translate-y-2 border border-outline-variant/10">
+<div class="w-full h-full flex flex-col items-center justify-center bg-surface-container-low text-slate-600">
+<span class="material-symbols-outlined text-4xl mb-2">upload_file</span>
+<span class="text-xs font-bold JetBrains Mono uppercase tracking-tighter">Import Book</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bento Featured Section -->
+<section class="max-w-6xl mx-auto mt-20">
+<h2 class="text-xl font-bold Inter mb-8">AI Insights: Daily Summary</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="md:col-span-2 bg-surface-container-high rounded-2xl p-6 border border-outline-variant/5 hover:border-primary/20 transition-all group">
+<div class="flex items-center gap-3 mb-4">
+<div class="p-2 rounded-lg bg-secondary/10 text-secondary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">psychology</span>
+</div>
+<h3 class="font-bold Inter">Complex Narrative Patterns</h3>
+</div>
+<p class="text-slate-400 leading-relaxed mb-4">Your current reading in <span class="text-white italic">"Silicate Hearts"</span> shares a philosophical root with <span class="text-white italic">"The Architect's Dream"</span> regarding the decay of urban structures. Would you like a comparative summary?</p>
+<button class="text-primary font-bold JetBrains Mono text-sm hover:underline">Generate Insight Report →</button>
+</div>
+<div class="bg-gradient-to-br from-surface-container-high to-[#1a1a2a] rounded-2xl p-6 border border-outline-variant/5">
+<h3 class="font-bold Inter mb-4">Reading Speed</h3>
+<div class="flex items-end gap-2 mb-2">
+<span class="text-4xl font-extrabold Inter">312</span>
+<span class="text-slate-500 font-bold JetBrains Mono text-sm mb-1">WPM</span>
+</div>
+<div class="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-fixed-dim w-[65%]"></div>
+</div>
+<p class="text-xs text-slate-500 mt-4 JetBrains Mono uppercase tracking-wider">Top 12% globally</p>
+</div>
+</div>
+</section>
+</main>
+</div>
+<!-- Floating Bottom Bar (AI Agent) -->
+<div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl h-[64px] rounded-2xl z-50 bg-[#1A1A1A]/60 backdrop-blur-xl border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center px-4 gap-4 group transition-all hover:bg-[#1A1A1A]/80">
+<div class="p-2 bg-gradient-to-br from-[#4648d4] to-[#6063ee] rounded-xl text-white">
+<span class="material-symbols-outlined">smart_toy</span>
+</div>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-white placeholder-slate-500 Inter" placeholder="Ask AI about your library..." type="text"/>
+<div class="flex items-center gap-2">
+<span class="text-[10px] JetBrains Mono text-slate-500 uppercase font-bold bg-white/5 px-2 py-1 rounded">⌘ K</span>
+<button class="p-2 text-slate-400 hover:text-white transition-colors group">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform">send</span>
+</button>
+</div>
+</div>
+<!-- Toast Notification -->
+<div class="fixed top-20 right-8 z-[100] animate-in fade-in slide-in-from-right-10">
+<div class="bg-surface-container-high border border-outline-variant/20 px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-tertiary/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">sync</span>
+</div>
+<div>
+<p class="text-sm font-bold Inter">Library synced</p>
+<p class="text-xs text-slate-500 JetBrains Mono">All local data up to date</p>
+</div>
+<button class="ml-4 text-slate-600 hover:text-white">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+</div>
+</body></html>

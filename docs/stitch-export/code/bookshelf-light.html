@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ImmerseAI - Bookshelf</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Noto+Sans+SC:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-bright": "#fcf9f8",
+                        "surface-container-highest": "#e5e2e1",
+                        "primary": "#4648d4",
+                        "tertiary-fixed-dim": "#4ae176",
+                        "secondary": "#6b38d4",
+                        "inverse-on-surface": "#f3f0ef",
+                        "on-tertiary-fixed": "#002109",
+                        "primary-fixed": "#e1e0ff",
+                        "primary-container": "#6063ee",
+                        "secondary-container": "#8455ef",
+                        "surface-container-low": "#f6f3f2",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#07006c",
+                        "on-secondary-container": "#fffbff",
+                        "outline-variant": "#c7c4d7",
+                        "error": "#ba1a1a",
+                        "on-primary-container": "#fffbff",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "surface-container": "#f0eded",
+                        "outline": "#767586",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#23005c",
+                        "background": "#fcf9f8",
+                        "on-surface": "#1c1b1b",
+                        "secondary-fixed": "#e9ddff",
+                        "tertiary-fixed": "#6bff8f",
+                        "surface-variant": "#e5e2e1",
+                        "inverse-primary": "#c0c1ff",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary": "#006b2d",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#eae7e7",
+                        "inverse-surface": "#313030",
+                        "surface-dim": "#dcd9d9",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "on-surface-variant": "#464554",
+                        "tertiary-container": "#00873b",
+                        "on-tertiary-fixed-variant": "#005321",
+                        "on-tertiary-container": "#f7fff3",
+                        "surface-tint": "#494bd6",
+                        "surface": "#fcf9f8",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "on-background": "#1c1b1b",
+                        "reading-surface": "#FFF8E7"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter", "Noto Sans SC"],
+                        "body": ["Inter", "Noto Sans SC"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: #fcf9f8;
+        }
+        .reading-canvas {
+            background-color: #FFF8E7;
+        }
+    </style>
+</head>
+<body class="text-on-surface antialiased overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full h-[56px] z-50 bg-[#fcf9f8]/60 dark:bg-slate-900/60 backdrop-blur-xl shadow-[0_10px_30px_rgba(70,72,212,0.06)] flex items-center justify-between px-6">
+<div class="flex items-center gap-4">
+<span class="text-xl font-bold text-[#4648d4] dark:text-[#6063ee] tracking-tighter Inter">ImmerseAI</span>
+<nav class="hidden md:flex items-center gap-6 ml-8">
+<a class="text-[#4648d4] dark:text-[#6063ee] font-semibold transition-colors hover:bg-[#4648d4]/10 p-2 rounded-lg" href="#">Bookshelf</a>
+<a class="text-slate-500 dark:text-slate-400 hover:bg-[#4648d4]/10 p-2 rounded-lg transition-colors" href="#">Reader</a>
+<a class="text-slate-500 dark:text-slate-400 hover:bg-[#4648d4]/10 p-2 rounded-lg transition-colors" href="#">AI Chat</a>
+</nav>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-full hover:bg-[#4648d4]/10 transition-colors scale-95 active:scale-90 duration-150">
+<span class="material-symbols-outlined text-slate-500">search</span>
+</button>
+<button class="p-2 rounded-full hover:bg-[#4648d4]/10 transition-colors scale-95 active:scale-90 duration-150">
+<span class="material-symbols-outlined text-slate-500">contrast</span>
+</button>
+<button class="p-2 rounded-full hover:bg-[#4648d4]/10 transition-colors scale-95 active:scale-90 duration-150">
+<span class="material-symbols-outlined text-slate-500">settings</span>
+</button>
+</div>
+</header>
+<div class="flex pt-[56px] min-h-screen">
+<!-- SideNavBar -->
+<aside class="hidden md:flex h-[calc(100vh-56px)] w-[240px] sticky top-[56px] left-0 bg-[#fcf9f8] dark:bg-slate-950 flex-col py-8 gap-y-4 border-r-0 overflow-y-auto">
+<div class="px-6 mb-6">
+<div class="flex items-center gap-3 mb-4">
+<img alt="User Profile" class="w-8 h-8 rounded-full bg-primary-container" data-alt="minimalist user avatar icon with soft violet background and white silhouette" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxe-_Xw6AsdRHqWOUxsGtsihNUWbS8JJ3Sry73cPBxNRPBqlFCK0tzGv3oq3L63eRWL5LpFpjH29Tia_aZp9BpBiGmHmmSoLi9GSRBucUg4961t6UeowIJ4i-xDBVbg9ysniM6BjMuyRj6G2U6FGsX0ojyPJt2UulUlRqUMxY1kv098UGQXVADhvm_fNoeGbUEZZSC3--9Y7AwNGorvCBYWhIHVZU46mGzF__63MOuHVNacYaomW0_C7MX33qpDLgCu2YDGMiXwcE"/>
+<div>
+<p class="text-sm font-black text-[#4648d4] Inter leading-tight">ImmerseAI</p>
+<p class="text-[10px] text-slate-500 font-mono">The Digital Curator</p>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<p class="px-6 text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">Navigation</p>
+<a class="flex items-center gap-3 px-6 py-2 text-[#4648d4] dark:text-[#6063ee] font-bold border-r-4 border-[#4648d4] hover:pl-8 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">auto_stories</span>
+<span class="text-sm Inter">Bookshelf</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2 text-slate-600 dark:text-slate-400 hover:pl-8 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="text-sm Inter">Reader</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2 text-slate-600 dark:text-slate-400 hover:pl-8 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="text-sm Inter">AI Chat</span>
+</a>
+</div>
+<div class="flex flex-col gap-1 mt-6">
+<p class="px-6 text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">Folders</p>
+<a class="flex items-center gap-3 px-6 py-2 text-slate-600 dark:text-slate-400 hover:pl-8 transition-all duration-300" href="#">
+<span class="material-symbols-outlined text-sm">folder</span>
+<span class="text-sm Inter">Literature</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2 text-slate-600 dark:text-slate-400 hover:pl-8 transition-all duration-300" href="#">
+<span class="material-symbols-outlined text-sm">folder</span>
+<span class="text-sm Inter">Tech</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-2 text-slate-600 dark:text-slate-400 hover:pl-8 transition-all duration-300" href="#">
+<span class="material-symbols-outlined text-sm">folder</span>
+<span class="text-sm Inter">History</span>
+</a>
+</div>
+<div class="mt-auto px-6 py-4">
+<a class="flex items-center gap-3 py-2 text-slate-600 dark:text-slate-400 hover:pl-2 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm Inter">Settings</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 px-8 md:px-12 py-10 bg-surface-container-low min-h-screen">
+<div class="max-w-6xl mx-auto">
+<!-- Header Actions -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+<div>
+<h1 class="text-4xl font-bold tracking-tight text-on-surface mb-2 Inter">My Library</h1>
+<p class="text-slate-500 font-mono text-sm">34 items curated across 3 clusters</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="bg-surface-container-lowest rounded-xl p-1 flex shadow-sm">
+<button class="px-4 py-2 text-xs font-bold Inter text-[#4648d4] bg-[#4648d4]/10 rounded-lg">Grid</button>
+<button class="px-4 py-2 text-xs font-bold Inter text-slate-500 hover:text-on-surface transition-colors">List</button>
+</div>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-surface-container-highest rounded-xl text-sm font-semibold text-on-surface hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-sm">sort</span>
+                            Sort
+                        </button>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-br from-primary to-primary-container text-white rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+                            Add New
+                        </button>
+</div>
+</div>
+<!-- Book Grid -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+<!-- Book Card 1 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden mb-4 shadow-[0_10px_30px_rgba(70,72,212,0.06)] bg-white transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[0_20px_40px_rgba(70,72,212,0.15)]">
+<img alt="The Great Gatsby" class="w-full h-full object-cover" data-alt="vintage book cover of the great gatsby with art deco patterns in gold and dark blue on a textured paper surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEkzGFicF3C7x0DMT3FNGJ7xX32lVg9TmGvpE0IhGR2itIpZamsi9pYQj0MWUzsadKdPJKEoubx9fqRK1FaC7_QWi07cMettC8CASH0okQwB6b8vQJiHA3Oe_9AcKdHin4qd5y-12-XPhGSoF43BBSUMWVbx_EuWBEa34XDrFS9eQsT5Js7m4a_W5iBhBhtAG2cFDevwH79r6jx9z1HQcbGj-33VTVjEgqTPl5R1BXGdH9fSu5N56ZYdyRYqPI8qBvMB6WvG7aWuQ"/>
+<div class="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
+</div>
+<h3 class="font-bold text-on-surface leading-tight mb-1 truncate Inter">The Great Gatsby</h3>
+<p class="text-xs text-slate-500 mb-3 font-medium Inter">F. Scott Fitzgerald</p>
+<div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[65%]"></div>
+</div>
+<p class="text-[10px] mt-1.5 font-mono text-slate-400">65% READ</p>
+</div>
+<!-- Book Card 2 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden mb-4 shadow-[0_10px_30px_rgba(70,72,212,0.06)] bg-white transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[0_20px_40px_rgba(70,72,212,0.15)]">
+<img alt="Foundation" class="w-full h-full object-cover" data-alt="classic science fiction book cover titled foundation with futuristic city illustration and retro typography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyisbpEx9hROeoWk6di2U9eWjtfJq4UY36Xe2YReO2mchHS7NXfahlsJyyQkSU9NRw7CrY-yhQCVy2Pq8Q2FuDbB3rsmtZPy7IsgN51p2lz57B7dkocqk3FyjB-8NnHkBLRrKh937G2Udsb87Ixlgtk20hVau-TOztxT4Ki40pqcjUR4dJwl-uInXTx98XXLUnXUoFHsFf_G6yrgof2GIDLeLQACHEmww_24d8GrYvqNOZdwEcc9US4X2Ycahkh-f2H50dVLlNtxk"/>
+<div class="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
+</div>
+<h3 class="font-bold text-on-surface leading-tight mb-1 truncate Inter">Foundation</h3>
+<p class="text-xs text-slate-500 mb-3 font-medium Inter">Isaac Asimov</p>
+<div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[12%]"></div>
+</div>
+<p class="text-[10px] mt-1.5 font-mono text-slate-400">12% READ</p>
+</div>
+<!-- Book Card 3 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden mb-4 shadow-[0_10px_30px_rgba(70,72,212,0.06)] bg-white transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[0_20px_40px_rgba(70,72,212,0.15)]">
+<img alt="Meditations" class="w-full h-full object-cover" data-alt="ancient philosophy book cover titled meditations with marble bust of marcus aurelius and serif typography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYoDKq_uFHr5l-BJf-B1IG_DCG7pkBYwwcnnM4nkEG-aqbYCdFBHAZSd9W0UeZNVG5TOfFscvJ6xhe8_KxhbtB5rokHZfs_s3HTK_RRn_5oc_LSzFQTuUbdZ_ehyMfDMfODNxmq7uWpXTOsbPy94flfYYJKQQpIvKqdM9ZuPGahU4OU4BQqhUTKAnHlpscsi4rrJRiaP8RU7yLjCMULEwUEzu8q-8JUHqoK9tu-zqucD0LMBXTSh0Es6HvSKiYRNkYD_7bmnTPwqo"/>
+<div class="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
+</div>
+<h3 class="font-bold text-on-surface leading-tight mb-1 truncate Inter">Meditations</h3>
+<p class="text-xs text-slate-500 mb-3 font-medium Inter">Marcus Aurelius</p>
+<div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
+<div class="bg-tertiary-fixed-dim h-full w-[100%]"></div>
+</div>
+<p class="text-[10px] mt-1.5 font-mono text-tertiary">COMPLETED</p>
+</div>
+<!-- Book Card 4 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden mb-4 shadow-[0_10px_30px_rgba(70,72,212,0.06)] bg-white transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[0_20px_40px_rgba(70,72,212,0.15)]">
+<img alt="Brave New World" class="w-full h-full object-cover" data-alt="dystopian novel cover brave new world with bold minimalist graphic design and sharp contrast colors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFA-zA242sZYFB2rl79cerA_b2qNly6TrTs0QBLGZI6p-uGhMQ1o2PQwiKEJ_qIZ0EsUHXVJgQEDvSbuS12UA1IFsZklzd3Us0LqQkzSW4Yd7Wfn0IDkAExxhO6cE0J9AhcRSjoZZOOUnAT1wN8BUSMJkKEdwsxiim6-nKKBAeApWV-z52tgGTQi2bToC6ksVMRVAzUV4Rbgm6W9ibcPTgYyVgpUDcpSQnhpzKuEUzpIbxDgcjhKJ0WuVKl_luwvt5MceRaukvJng"/>
+<div class="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
+</div>
+<h3 class="font-bold text-on-surface leading-tight mb-1 truncate Inter">Brave New World</h3>
+<p class="text-xs text-slate-500 mb-3 font-medium Inter">Aldous Huxley</p>
+<div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[45%]"></div>
+</div>
+<p class="text-[10px] mt-1.5 font-mono text-slate-400">45% READ</p>
+</div>
+<!-- Book Card 5 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden mb-4 shadow-[0_10px_30px_rgba(70,72,212,0.06)] bg-white transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[0_20px_40px_rgba(70,72,212,0.15)]">
+<img alt="Design Systems" class="w-full h-full object-cover" data-alt="modern tech book about design systems with geometric colorful abstract shapes on a clean white cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCmjR5CtT7wkMSCxi6ebHfXxul3oQnmr7MFJZwZ7M6sDVBW7Vqjn88p0tH14YEQnEdnM9WxQOir0WyDKmOM8QxHIS-WI-Y1wxgJqvL_32rypC6xNc-yoROQs5X5NB1YL9sz2IXYa5p7BVs3mWQAOVu2hHnXXGsf8ESQcLLTK3yRbC1InvOcScvE0_GhaQRL66rFLh1cjekxnz4vVnxl6Whq0VwsddMShEC0lgaseUmuHMkVzLOL2nJaDRh7IG5zcVIe_v6g1J8nxs"/>
+<div class="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
+</div>
+<h3 class="font-bold text-on-surface leading-tight mb-1 truncate Inter">Design Systems</h3>
+<p class="text-xs text-slate-500 mb-3 font-medium Inter">Alla Kholmatova</p>
+<div class="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[88%]"></div>
+</div>
+<p class="text-[10px] mt-1.5 font-mono text-slate-400">88% READ</p>
+</div>
+</div>
+<!-- Spacer for Bottom Nav -->
+<div class="h-32"></div>
+</div>
+</main>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md h-[64px] rounded-2xl z-50 bg-[#fcf9f8]/60 dark:bg-slate-900/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(70,72,212,0.12)] border border-slate-200/10 dark:border-slate-800/10 flex items-center px-4 gap-2">
+<button class="p-2 text-slate-500 hover:text-primary transition-colors rounded-xl hover:bg-primary/5">
+<span class="material-symbols-outlined">history</span>
+</button>
+<div class="flex-1 relative flex items-center">
+<input class="w-full bg-surface-container-low border-none rounded-xl px-4 py-2 text-sm Inter focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400" placeholder="Ask AI about your library..." type="text"/>
+</div>
+<button class="p-2 bg-gradient-to-br from-[#4648d4] to-[#6063ee] text-white rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all duration-150 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">send</span>
+</button>
+</nav>
+<!-- Toast Notification -->
+<div class="fixed top-20 right-8 z-[100] flex items-center gap-3 bg-surface-container-lowest px-5 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.08)] border border-primary/5">
+<div class="w-2 h-2 rounded-full bg-tertiary-fixed-dim shadow-[0_0_10px_rgba(74,225,118,0.5)]"></div>
+<span class="text-sm font-semibold text-on-surface Inter">Library synced</span>
+<button class="ml-2 text-slate-400 hover:text-on-surface">
+<span class="material-symbols-outlined text-xs">close</span>
+</button>
+</div>
+</body></html>
