@@ -25,7 +25,7 @@ export function SidebarNew({
   onCreateFolder,
 }: SidebarNewProps) {
   return (
-    <aside className="w-60 shrink-0 bg-card border-r border-border flex flex-col h-full">
+    <aside className="w-48 shrink-0 bg-card border-r border-border flex flex-col h-full">
       {/* 文件夹列表 */}
       <div className="flex-1 overflow-y-auto p-3">
         <div className="space-y-1">

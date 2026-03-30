@@ -183,7 +183,7 @@ html {
 
 /* AI input bar floating style */
 .ai-input-bar {
-  @apply fixed bottom-6 left-1/2 -translate-x-1/2 z-50;
+  @apply fixed bottom-20 left-1/2 -translate-x-1/2 z-40;
   @apply w-full max-w-2xl mx-auto px-4;
   @apply glass rounded-2xl shadow-xl;
   @apply border border-border/50;

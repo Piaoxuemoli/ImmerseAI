@@ -1,13 +1,13 @@
 /**
- * 新版 BookCard 组件 - Stitch 设计风格
+ * BookCard 组件 - 紧凑文字信息卡片
  *
  * 特点：
- * - 更大的圆角 (12px)
- * - 轻微阴影 + hover 上浮效果
- * - 底部进度条显示阅读进度
+ * - 无封面，纯文字信息
+ * - 显示：书名、格式(MD/TXT)、阅读进度、RAG状态、上次阅读时间
+ * - 紧凑高度，内容自适应
  */
 
-import { BookOpen } from 'lucide-react'
+import { CheckCircle2, Circle, FileText } from 'lucide-react'
 import type { Book } from '@/shared/types'
 
 interface BookCardNewProps {
@@ -15,63 +15,83 @@ interface BookCardNewProps {
   onClick: () => void
 }
 
+function formatRelativeTime(timestamp: number): string {
+  const now = Date.now()
+  const diff = now - timestamp
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+
+  if (days === 0) return '今天'
+  if (days === 1) return '昨天'
+  if (days < 7) return `${days}天前`
+  if (days < 30) return `${Math.floor(days / 7)}周前`
+  if (days < 365) return `${Math.floor(days / 30)}月前`
+  return `${Math.floor(days / 365)}年前`
+}
+
+function getFileFormat(path: string): 'MD' | 'TXT' | '' {
+  if (path.endsWith('.md')) return 'MD'
+  if (path.endsWith('.txt')) return 'TXT'
+  return ''
+}
+
 export function BookCardNew({ book, onClick }: BookCardNewProps) {
-  // 计算阅读进度
+  const format = getFileFormat(book.path)
   const hasProgress = book.lastReadAt && book.lastReadParagraphIndex !== undefined
-  const progressPercent = hasProgress ? Math.min(100, (book.lastReadParagraphIndex || 0) / 10) : 0
+  const progressPercent = hasProgress
+    ? Math.min(100, ((book.lastReadParagraphIndex || 0) / Math.max(1, book.chunkCount || 1)) * 100)
+    : 0
   const isComplete = book.isIndexed && !hasProgress
 
   return (
     <button
       onClick={onClick}
-      className="group relative w-full text-left bg-card rounded-xl overflow-hidden shadow-sm card-hover cursor-pointer focus-visible:ring-2 focus-visible:ring-primary"
+      className="group relative w-full text-left bg-card rounded-lg border border-border p-3 shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary"
     >
-      {/* 封面区域 */}
-      <div className="aspect-[2/3] bg-muted relative overflow-hidden">
-        {book.coverUrl ? (
-          <img
-            src={book.coverUrl}
-            alt={book.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-            <BookOpen className="w-12 h-12 text-primary/40" />
-          </div>
-        )}
-
-        {/* 完成后徽章 */}
-        {isComplete && (
-          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-success/90 text-success-foreground text-[10px] font-medium">
-            已完成
-          </div>
-        )}
-      </div>
-
-      {/* 信息区域 */}
-      <div className="p-3">
-        <h3 className="font-semibold text-sm text-foreground line-clamp-2 leading-tight">
+      {/* 头部：书名 + 格式标签 */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <h3 className="font-semibold text-sm text-foreground line-clamp-2 leading-tight flex-1">
           {book.title}
         </h3>
-        {book.author && (
-          <p className="text-xs text-muted-foreground mt-1 truncate">
-            {book.author}
-          </p>
+        {format && (
+          <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+            {format}
+          </span>
         )}
       </div>
 
-      {/* 进度条 */}
+      {/* RAG 状态 */}
+      <div className="flex items-center gap-1.5 mb-2">
+        {book.isIndexed ? (
+          <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
+        ) : (
+          <Circle className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+        )}
+        <span className={`text-xs ${book.isIndexed ? 'text-success' : 'text-muted-foreground/50'}`}>
+          {book.isIndexed ? 'RAG已完成' : '未索引'}
+        </span>
+      </div>
+
+      {/* 阅读进度条 */}
       {hasProgress && (
-        <div className="px-3 pb-3">
-          <div className="progress-reading">
+        <div className="mb-2">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+            <span>阅读中</span>
+            <span>{progressPercent.toFixed(0)}%</span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
             <div
-              className="progress-reading-bar"
+              className="h-full bg-primary rounded-full transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            阅读中 · {progressPercent.toFixed(0)}%
-          </p>
+        </div>
+      )}
+
+      {/* 上次阅读时间 */}
+      {book.lastReadAt && (
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <FileText className="w-3 h-3" />
+          <span>{formatRelativeTime(book.lastReadAt)}</span>
         </div>
       )}
     </button>

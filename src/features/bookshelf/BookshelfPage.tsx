@@ -16,7 +16,7 @@ import { useStore } from '@/shared/store'
 import type { BookFile } from '@/shared/types'
 import { SidebarNew } from './components/SidebarNew'
 import { BookGridNew } from './components/BookGridNew'
-import { AIInputBar } from './components/AIInputBar'
+import { BookList } from './components/BookList'
 import { LibrarianBar } from './components/LibrarianBar'
 import { useBookshelf } from './hooks/useBookshelf'
 
@@ -252,7 +252,7 @@ export function BookshelfPage() {
             <div className="flex items-center justify-between">
               {/* 标题 */}
               <div>
-                <h1 className="text-xl font-semibold text-foreground">我的书架</h1>
+                <h1 className="text-xl font-semibold text-foreground">{activeFolderPath ? baseName(activeFolderPath) : '我的书架'}</h1>
                 <p className="text-sm text-muted-foreground">
                   {activeBooks.length} 本书籍 · {rootFolders.length} 个文件夹
                 </p>
@@ -303,7 +303,11 @@ export function BookshelfPage() {
           {/* 书籍网格 */}
           <div className="flex-1 overflow-y-auto">
             {activeBooks.length > 0 ? (
-              <BookGridNew books={activeBooks} onBookClick={handleBookClick} />
+              viewMode === 'grid' ? (
+                <BookGridNew books={activeBooks} onBookClick={handleBookClick} />
+              ) : (
+                <BookList books={activeBooks} onBookClick={handleBookClick} />
+              )
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -318,14 +322,6 @@ export function BookshelfPage() {
           </div>
         </main>
       </div>
-
-      {/* 浮动 AI 输入栏 */}
-      <AIInputBar
-        onSend={async (msg) => {
-          // AI 指令由 LibrarianBar 处理
-          console.log('AI message:', msg)
-        }}
-      />
 
       {/* LibrarianBar (用于历史记录等) */}
       <LibrarianBar
