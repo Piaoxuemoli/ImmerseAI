@@ -10,7 +10,7 @@
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { BookOpen, LayoutGrid, List, RefreshCw, Loader2 } from 'lucide-react'
+import { BookOpen, LayoutGrid, List, RefreshCw, Loader2, Settings } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { useStore } from '@/shared/store'
 import type { Book, BookFile } from '@/shared/types'
@@ -303,6 +303,16 @@ export function BookshelfPage() {
                   title="刷新"
                 >
                   <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+
+                {/* 设置 */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate('/settings')}
+                  title="设置"
+                >
+                  <Settings className="w-4 h-4" />
                 </Button>
 
                 {/* 视图切换 */}
