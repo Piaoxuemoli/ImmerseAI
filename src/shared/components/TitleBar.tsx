@@ -5,14 +5,17 @@
  * - 磨砂玻璃效果（backdrop-filter: blur）
  * - 可拖拽区域（窗口移动）
  * - 窗口控制按钮（最小化、最大化/还原、关闭）
- * - 平台适配（Windows 风格按钮）
+ * - 主题切换按钮（明/暗）
  */
 
 import { useState, useEffect } from 'react'
-import { Minus, Square, X, Maximize2 } from 'lucide-react'
+import { Minus, Square, X, Maximize2, Sun, Moon } from 'lucide-react'
+import { useStore } from '@/shared/store'
 
 export function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false)
+  const theme = useStore((s) => s.theme)
+  const setTheme = useStore((s) => s.setTheme)
 
   useEffect(() => {
     // 初始化最大化状态
@@ -33,6 +36,10 @@ export function TitleBar() {
 
   const handleClose = () => {
     window.windowControl.close()
+  }
+
+  const handleThemeToggle = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
   }
 
   return (
@@ -65,11 +72,24 @@ export function TitleBar() {
         </div>
       </div>
 
-      {/* 窗口控制按钮 */}
+      {/* 右侧控制按钮 */}
       <div
         className="flex items-center h-full"
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
+        {/* 主题切换 */}
+        <button
+          onClick={handleThemeToggle}
+          className="w-11 h-full flex items-center justify-center hover:bg-white/20 active:bg-white/30 transition-colors"
+          title={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
+        >
+          {theme === 'dark' ? (
+            <Sun className="w-3.5 h-3.5 text-foreground/70" />
+          ) : (
+            <Moon className="w-3.5 h-3.5 text-foreground/70" />
+          )}
+        </button>
+
         {/* 最小化 */}
         <button
           onClick={handleMinimize}

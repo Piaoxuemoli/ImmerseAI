@@ -166,7 +166,7 @@ export function SettingsPage() {
   }, [setBookshelfRootPath])
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-full flex-col bg-background">
       {/* ============================================ */}
       {/* Header */}
       {/* ============================================ */}

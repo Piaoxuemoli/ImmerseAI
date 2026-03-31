@@ -41,6 +41,8 @@ function createWindow(): void {
     // 避免 backgroundMaterial: 'acrylic' 导致的最大化按钮失效问题
     frame: false,
     ...(process.platform === 'win32' && { backgroundMaterial: 'acrylic' as const }),
+    // 窗口圆角（Windows 11 默认圆角）
+    borderRadius: 8,
     webPreferences: {
       // 安全配置：遵循项目宪法
       nodeIntegration: false,

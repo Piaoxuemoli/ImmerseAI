@@ -13,7 +13,7 @@ export function PageTransitionLayout() {
   const outlet = useOutlet()
 
   return (
-    <div className="min-h-screen">
+    <div className="h-screen overflow-hidden">
       <TitleBar />
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
@@ -23,7 +23,7 @@ export function PageTransitionLayout() {
           animate="animate"
           exit="exit"
           transition={{ duration: 0.25, ease: 'easeInOut' }}
-          style={{ paddingTop: '36px' }} // 36px = 9 (titlebar height) + 0 (no extra)
+          style={{ paddingTop: '36px', height: 'calc(100vh - 36px)' }}
         >
           {outlet}
         </motion.div>

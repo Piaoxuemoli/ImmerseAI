@@ -236,7 +236,7 @@ export function BookshelfPage() {
   // 未连接状态
   if (connectionStatus === 'disconnected' || connectionStatus === 'connecting' || connectionStatus === 'error') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-full bg-background flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
             <BookOpen className="w-8 h-8 text-muted-foreground" />
@@ -258,7 +258,7 @@ export function BookshelfPage() {
   // 加载状态
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-full bg-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">加载中...</p>
@@ -268,7 +268,7 @@ export function BookshelfPage() {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-full bg-background flex flex-col overflow-hidden">
       {/* 主内容区 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 左侧边栏 */}
