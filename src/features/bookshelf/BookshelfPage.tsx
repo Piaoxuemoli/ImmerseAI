@@ -13,11 +13,12 @@ import { toast } from 'sonner'
 import { BookOpen, LayoutGrid, List, RefreshCw, Loader2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { useStore } from '@/shared/store'
-import type { BookFile } from '@/shared/types'
+import type { Book, BookFile } from '@/shared/types'
 import { SidebarNew } from './components/SidebarNew'
 import { BookGridNew } from './components/BookGridNew'
 import { BookList } from './components/BookList'
 import { LibrarianBar } from './components/LibrarianBar'
+import { ParticleExplosion } from './components/ParticleExplosion'
 import { useBookshelf } from './hooks/useBookshelf'
 
 function normalizePath(path: string): string {
@@ -62,6 +63,9 @@ export function BookshelfPage() {
   const [isFolderLoading, setIsFolderLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
+  // 删除动画状态
+  const [deletingBook, setDeletingBook] = useState<{ book: Book; x: number; y: number } | null>(null)
 
   // 自动连接
   const didInitRef = useRef(false)
@@ -140,6 +144,44 @@ export function BookshelfPage() {
     [selectBook, navigate],
   )
 
+  const handleLibrarianSuccess = useCallback(async () => {
+    const nextPath = activeFolderPath || defaultFolderPath
+    await Promise.all([
+      refreshBooks(),
+      nextPath ? loadActiveFolderEntries(nextPath) : Promise.resolve(),
+    ])
+  }, [activeFolderPath, defaultFolderPath, loadActiveFolderEntries, refreshBooks])
+
+  // 处理书籍删除（带粒子动画）
+  const handleBookDelete = useCallback(
+    (book: Book, rect: DOMRect) => {
+      if (!window.confirm(`确定要删除《${book.title}》吗？`)) return
+      // 触发粒子动画，动画结束后删除
+      setDeletingBook({
+        book,
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      })
+    },
+    []
+  )
+
+  // 粒子动画完成后的处理
+  const handleParticleComplete = useCallback(async () => {
+    if (!deletingBook) return
+    try {
+      // 调用 MCP 删除文件
+      await window.electronAPI.mcp.deleteFile(deletingBook.book.path)
+      toast.success(`已删除：${deletingBook.book.title}`)
+      // 刷新列表
+      await handleLibrarianSuccess()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '删除失败')
+    } finally {
+      setDeletingBook(null)
+    }
+  }, [deletingBook, handleLibrarianSuccess])
+
   const handleRefreshClick = useCallback(async () => {
     if (isRefreshing || connectionStatus !== 'connected') return
     setIsRefreshing(true)
@@ -190,14 +232,6 @@ export function BookshelfPage() {
     defaultFolderPath,
     loadActiveFolderEntries,
   ])
-
-  const handleLibrarianSuccess = useCallback(async () => {
-    const nextPath = activeFolderPath || defaultFolderPath
-    await Promise.all([
-      refreshBooks(),
-      nextPath ? loadActiveFolderEntries(nextPath) : Promise.resolve(),
-    ])
-  }, [activeFolderPath, defaultFolderPath, loadActiveFolderEntries, refreshBooks])
 
   // 未连接状态
   if (connectionStatus === 'disconnected' || connectionStatus === 'connecting' || connectionStatus === 'error') {
@@ -304,7 +338,7 @@ export function BookshelfPage() {
           <div className="flex-1 overflow-y-auto">
             {activeBooks.length > 0 ? (
               viewMode === 'grid' ? (
-                <BookGridNew books={activeBooks} onBookClick={handleBookClick} />
+                <BookGridNew books={activeBooks} onBookClick={handleBookClick} onBookDelete={handleBookDelete} />
               ) : (
                 <BookList books={activeBooks} onBookClick={handleBookClick} />
               )
@@ -329,6 +363,15 @@ export function BookshelfPage() {
         rootFolders={rootFolders}
         onCommandSuccess={handleLibrarianSuccess}
       />
+
+      {/* 删除粒子动画 */}
+      {deletingBook && (
+        <ParticleExplosion
+          x={deletingBook.x}
+          y={deletingBook.y}
+          onComplete={handleParticleComplete}
+        />
+      )}
     </div>
   )
 }

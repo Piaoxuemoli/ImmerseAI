@@ -4,15 +4,19 @@
  * 特点：
  * - 无封面，纯文字信息
  * - 显示：书名、格式(MD/TXT)、阅读进度、RAG状态、上次阅读时间
- * - 紧凑高度，内容自适应
+ * - framer-motion 动效：hover 高亮、入场弹跳
+ * - 支持删除按钮（hover 显示）
  */
 
-import { CheckCircle2, Circle, FileText } from 'lucide-react'
+import { forwardRef, useCallback, useState } from 'react'
+import { motion } from 'framer-motion'
+import { CheckCircle2, Circle, FileText, Trash2 } from 'lucide-react'
 import type { Book } from '@/shared/types'
 
 interface BookCardNewProps {
   book: Book
   onClick: () => void
+  onDelete?: (book: Book, rect: DOMRect) => void
 }
 
 function formatRelativeTime(timestamp: number): string {
@@ -34,19 +38,71 @@ function getFileFormat(path: string): 'MD' | 'TXT' | '' {
   return ''
 }
 
-export function BookCardNew({ book, onClick }: BookCardNewProps) {
-  const format = getFileFormat(book.path)
-  const hasProgress = book.lastReadAt && book.lastReadParagraphIndex !== undefined
-  const progressPercent = hasProgress
-    ? Math.min(100, ((book.lastReadParagraphIndex || 0) / Math.max(1, book.chunkCount || 1)) * 100)
-    : 0
-  const isComplete = book.isIndexed && !hasProgress
+export const BookCardNew = forwardRef<HTMLButtonElement, BookCardNewProps>(
+  function BookCardNew({ book, onClick, onDelete }, ref) {
+    const [isHovered, setIsHovered] = useState(false)
 
-  return (
-    <button
-      onClick={onClick}
-      className="group relative w-full text-left bg-card rounded-lg border border-border p-3 shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary"
-    >
+    const format = getFileFormat(book.path)
+    const hasProgress = book.lastReadAt && book.lastReadParagraphIndex !== undefined
+    const progressPercent = hasProgress
+      ? Math.min(100, ((book.lastReadParagraphIndex || 0) / Math.max(1, book.chunkCount || 1)) * 100)
+      : 0
+
+    const handleDelete = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!ref || typeof ref === 'function' || !onDelete) return
+        const element = ref as React.RefObject<HTMLButtonElement>
+        const rect = element.getBoundingClientRect()
+        onDelete(book, rect)
+      },
+      [book, onDelete, ref]
+    )
+
+    return (
+      <motion.button
+        ref={ref}
+        onClick={onClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="group relative w-full text-left bg-card rounded-lg border border-border p-3 shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-primary overflow-visible"
+        whileHover={{
+          scale: 1.04,
+          y: -6,
+          boxShadow: "0 0 24px 6px rgba(99, 102, 241, 0.25)",
+          borderColor: "hsl(238, 84%, 67%)",
+          transition: { duration: 0.2, ease: "easeOut" }
+        }}
+        initial={{ x: "100vw", y: -100, opacity: 0, scale: 0.8 }}
+        animate={{
+          x: 0,
+          y: [0, -20, 0, -10, 0],
+          opacity: 1,
+          scale: 1,
+          transition: {
+            duration: 0.8,
+            times: [0, 0.3, 0.5, 0.7, 1],
+            ease: "easeOut"
+          }
+        }}
+      >
+        {/* 删除按钮 - hover 时显示，使用 div 避免嵌套 button */}
+        {onDelete && (
+          <motion.div
+            role="button"
+            tabIndex={0}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: isHovered ? 1 : 0, scale: isHovered ? 1 : 0.8 }}
+            transition={{ duration: 0.15 }}
+            onClick={handleDelete}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDelete(e as unknown as React.MouseEvent) }}
+            className="absolute top-2 left-2 p-1.5 rounded-md bg-destructive/90 text-destructive-foreground hover:bg-destructive transition-colors z-10 cursor-pointer"
+            title="删除书籍"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </motion.div>
+        )}
+
       {/* 头部：书名 + 格式标签 */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <h3 className="font-semibold text-sm text-foreground line-clamp-2 leading-tight flex-1">
@@ -79,9 +135,11 @@ export function BookCardNew({ book, onClick }: BookCardNewProps) {
             <span>{progressPercent.toFixed(0)}%</span>
           </div>
           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
+            <motion.div
+              className="h-full bg-primary rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
             />
           </div>
         </div>
@@ -94,6 +152,7 @@ export function BookCardNew({ book, onClick }: BookCardNewProps) {
           <span>{formatRelativeTime(book.lastReadAt)}</span>
         </div>
       )}
-    </button>
-  )
-}
+    </motion.button>
+    )
+  }
+)

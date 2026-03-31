@@ -10,7 +10,6 @@ import type { Persona } from '@/shared/types'
 import { useReader } from './hooks/useReader'
 import { ReaderHeader } from './components/ReaderHeader'
 import { TextViewer } from './components/TextViewer'
-import { ReadingLoadingSkeleton } from './components/ReadingLoadingSkeleton'
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -55,6 +54,7 @@ export function ReaderPage() {
     content,
     loading,
     error,
+    loadProgress,
     paragraphIndex,
     handleProgressChange,
   } = useReader(bookId)
@@ -185,16 +185,13 @@ export function ReaderPage() {
               >
                 {/* Left: text viewer */}
                 <div className="flex-1 overflow-hidden border-r border-border">
-                  {loading ? (
-                    <ReadingLoadingSkeleton />
-                  ) : (
-                    <TextViewer
-                      content={content}
-                      bookPath={book?.path ?? ''}
-                      initialParagraphIndex={paragraphIndex}
-                      onProgressChange={handleProgressChange}
-                    />
-                  )}
+                  <TextViewer
+                    content={content}
+                    bookPath={book?.path ?? ''}
+                    initialParagraphIndex={paragraphIndex}
+                    onProgressChange={handleProgressChange}
+                    loadProgress={loadProgress}
+                  />
                 </div>
                 {/* Right: chat */}
                 <div className="w-full sm:w-[420px] shrink-0 overflow-hidden">
@@ -211,16 +208,13 @@ export function ReaderPage() {
                 exit="exit"
                 transition={pageTransition}
               >
-                {loading ? (
-                  <ReadingLoadingSkeleton />
-                ) : (
-                  <TextViewer
-                    content={content}
-                    bookPath={book?.path ?? ''}
-                    initialParagraphIndex={paragraphIndex}
-                    onProgressChange={handleProgressChange}
-                  />
-                )}
+                <TextViewer
+                  content={content}
+                  bookPath={book?.path ?? ''}
+                  initialParagraphIndex={paragraphIndex}
+                  onProgressChange={handleProgressChange}
+                  loadProgress={loadProgress}
+                />
               </motion.div>
             ) : (
               <motion.div

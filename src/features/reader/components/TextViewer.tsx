@@ -33,12 +33,13 @@ const MARKDOWN_COMPONENTS: Components = {
 }
 
 interface TextViewerProps {
-  content: string
+  content: string | null
   bookPath: string
   initialParagraphIndex?: number
   _initialOffset?: number
   onProgressChange?: (paragraphIndex: number, offset: number) => void
   _onJumpRequest?: (paragraphIndex: number) => void
+  loadProgress?: number  // 0-100, undefined 表示非渐进加载模式
 }
 
 export const TextViewer: React.FC<TextViewerProps> = ({
@@ -48,22 +49,36 @@ export const TextViewer: React.FC<TextViewerProps> = ({
   _initialOffset,
   onProgressChange,
   _onJumpRequest,
+  loadProgress,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const hasScrolledRef = useRef(false)
   const isMarkdown = bookPath.endsWith('.md')
 
+  // 初始化滚动位置 - 仅首次渲染内容时执行
   useEffect(() => {
-    if (initialParagraphIndex !== undefined && containerRef.current) {
+    if (hasScrolledRef.current || !content || initialParagraphIndex === undefined) return
+    hasScrolledRef.current = true
+
+    // 等待 DOM 更新后再滚动
+    requestAnimationFrame(() => {
+      if (!containerRef.current) return
       const paragraphs = containerRef.current.querySelectorAll(
         'p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, pre, li'
       )
       const targetParagraph = paragraphs[initialParagraphIndex]
       if (targetParagraph) {
-        targetParagraph.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        targetParagraph.scrollIntoView({ behavior: 'auto', block: 'start' })
       }
-    }
-  }, [initialParagraphIndex, content])
+    })
+  }, [content, initialParagraphIndex])
 
+  // 书籍切换时重置滚动标记
+  useEffect(() => {
+    hasScrolledRef.current = false
+  }, [initialParagraphIndex])
+
+  // 滚动监听进度变化
   useEffect(() => {
     const handleScroll = () => {
       if (!containerRef.current || !onProgressChange) return
@@ -88,7 +103,40 @@ export const TextViewer: React.FC<TextViewerProps> = ({
       container.addEventListener('scroll', handleScroll)
       return () => container.removeEventListener('scroll', handleScroll)
     }
-  }, [onProgressChange, content])
+  }, [onProgressChange])
+
+  // 加载状态 - 骨架屏（所有 hooks 调用之后）
+  if (!content) {
+    return (
+      <div className="h-full overflow-hidden px-8 py-6 bg-background">
+        <div className="max-w-3xl mx-auto animate-pulse">
+          {/* 加载进度指示 */}
+          {loadProgress !== undefined && (
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300 rounded-full"
+                  style={{ width: `${loadProgress}%` }}
+                />
+              </div>
+              <span className="text-xs text-muted-foreground shrink-0">
+                {loadProgress < 100 ? `加载中 ${loadProgress}%` : '加载完成'}
+              </span>
+            </div>
+          )}
+          {/* 骨架屏 */}
+          <div className="h-7 bg-border rounded-md w-3/5 mb-8" />
+          {Array.from({ length: 3 }).map((_, gi) => (
+            <div key={gi} className="mb-8 space-y-3">
+              <div className="h-4 bg-border rounded w-full" />
+              <div className="h-4 bg-border rounded w-full" />
+              <div className="h-4 bg-border rounded w-5/6" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   if (isMarkdown) {
     return (
