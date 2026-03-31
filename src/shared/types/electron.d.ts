@@ -9,6 +9,7 @@ import type { BookFile, Message, LlmConfig, RagParagraph, RagSearchResult } from
 declare global {
   interface Window {
     electronAPI: ElectronAPI
+    windowControl: WindowControl
   }
 }
 
@@ -90,4 +91,15 @@ export interface ElectronAPI {
     /** 写入 skill 文件（自动创建目录） */
     write: (filePath: string, content: string) => Promise<void>
   }
+}
+
+/**
+ * 窗口控制 API（无边框窗口自定义标题栏使用）
+ */
+export interface WindowControl {
+  minimize: () => void
+  maximize: () => void
+  close: () => void
+  isMaximized: () => Promise<boolean>
+  onMaximizeChange: (callback: (isMaximized: boolean) => void) => () => void
 }

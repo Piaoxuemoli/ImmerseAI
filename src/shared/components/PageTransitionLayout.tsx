@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useLocation, useOutlet } from 'react-router-dom'
+import { TitleBar } from './TitleBar'
 
 const variants = {
   initial: { opacity: 0, y: 8, scale: 0.98 },
@@ -12,18 +13,21 @@ export function PageTransitionLayout() {
   const outlet = useOutlet()
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={location.key}
-        variants={variants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        transition={{ duration: 0.25, ease: 'easeInOut' }}
-        style={{ minHeight: '100vh' }}
-      >
-        {outlet}
-      </motion.div>
-    </AnimatePresence>
+    <div className="min-h-screen">
+      <TitleBar />
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={location.key}
+          variants={variants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
+          style={{ paddingTop: '36px' }} // 36px = 9 (titlebar height) + 0 (no extra)
+        >
+          {outlet}
+        </motion.div>
+      </AnimatePresence>
+    </div>
   )
 }

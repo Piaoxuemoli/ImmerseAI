@@ -8,6 +8,19 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron'
+
+// 窗口控制 API
+const windowAPI = {
+  minimize: (): void => ipcRenderer.send('window:minimize'),
+  maximize: (): void => ipcRenderer.send('window:maximize'),
+  close: (): void => ipcRenderer.send('window:close'),
+  isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
+  onMaximizeChange: (callback: (isMaximized: boolean) => void): (() => void) => {
+    const listener = (_: unknown, isMaximized: boolean) => callback(isMaximized)
+    ipcRenderer.on('window:maximize-change', listener)
+    return () => ipcRenderer.removeListener('window:maximize-change', listener)
+  },
+}
 import type { BookFile, Message, LlmConfig, RagParagraph, RagSearchResult } from '@/shared/types'
 import type { ElectronAPI } from '@/shared/types/electron'
 
@@ -144,3 +157,4 @@ const electronAPI: ElectronAPI = {
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)
+contextBridge.exposeInMainWorld('windowControl', windowAPI)
