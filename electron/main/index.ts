@@ -73,9 +73,13 @@ function createWindow(): void {
   // 监听窗口最大化状态变化，通知渲染进程
   mainWindow.on('maximize', () => {
     mainWindow?.webContents.send('window:maximize-change', true)
+    // 最大化时移除圆角，避免内容被裁剪
+    mainWindow?.setBounds({ cornerRadius: 0 })
   })
   mainWindow.on('unmaximize', () => {
     mainWindow?.webContents.send('window:maximize-change', false)
+    // 还原时恢复圆角
+    mainWindow?.setBounds({ cornerRadius: 8 })
   })
 
   // 注入 Cross-Origin headers 以支持 Transformers.js Web Worker 中的 SharedArrayBuffer

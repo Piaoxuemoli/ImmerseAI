@@ -46,11 +46,15 @@ export function TitleBar() {
     <div
       className="fixed top-0 left-0 right-0 z-50 h-9 flex items-center justify-between px-3 select-none"
       style={{
-        // 磨砂玻璃效果
-        backgroundColor: 'rgba(255, 255, 255, 0.72)',
+        // 磨砂玻璃效果 - 根据主题变化
+        backgroundColor: theme === 'dark'
+          ? 'rgba(30, 30, 30, 0.75)'
+          : 'rgba(255, 255, 255, 0.75)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+        borderBottom: theme === 'dark'
+          ? '1px solid rgba(255, 255, 255, 0.1)'
+          : '1px solid rgba(0, 0, 0, 0.1)',
       }}
     >
       {/* 可拖拽区域 */}

@@ -270,7 +270,7 @@ export function BookshelfPage() {
   return (
     <div className="h-full bg-background flex flex-col overflow-hidden">
       {/* 主内容区 */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden pb-[88px]">
         {/* 左侧边栏 */}
         <SidebarNew
           folders={rootFolders}
