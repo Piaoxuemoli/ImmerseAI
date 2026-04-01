@@ -35,7 +35,7 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        "portable"
       ],
       "icon": "build/icon.png"
     },
