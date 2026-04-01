@@ -123,21 +123,53 @@ function classifyError(error: unknown): LlmChatError {
     if (status === 429) {
       return { code: 'rate_limited', message: ERROR_CODE_MESSAGES.rate_limited }
     }
-    return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
+    // 400/404/409/422 等客户端错误
+    if (status !== undefined) {
+      // BadRequestError (400)
+      if (error instanceof OpenAI.BadRequestError || status === 400) {
+        const msg = (error as { error?: { message?: string } }).error?.message ?? ''
+        if (msg.toLowerCase().includes('key') || msg.toLowerCase().includes('auth')) {
+          return { code: 'invalid_key', message: ERROR_CODE_MESSAGES.invalid_key }
+        }
+        return { code: `http_${status}`, message: `[${status}] ${msg || ERROR_CODE_MESSAGES.unknown}` }
+      }
+      // 其他 HTTP 错误：404/409/422 等
+      // 404 常见原因：Base URL 路径不对（如缺少 /v1）
+      if (status === 404) {
+        return { code: 'not_found', message: `[404] 接口地址错误，请检查 Base URL 是否正确（需包含完整路径，如 /v1/chat/completions）` }
+      }
+      return { code: `http_${status}`, message: `[${status}] ${(error as { message?: string }).message || ERROR_CODE_MESSAGES.unknown}` }
+    }
+    // status 为 undefined 但仍是 APIError 子类 → 检查嵌套 error.code
+    const nestedCode = (error as { error?: { code?: string } }).error?.code
+    if (nestedCode === 'invalid_api_key' || nestedCode === 'incorrect_api_key') {
+      return { code: 'invalid_key', message: ERROR_CODE_MESSAGES.invalid_key }
+    }
+    // APIError 但无法识别
+    return { code: 'api_error', message: (error as { message?: string }).message || ERROR_CODE_MESSAGES.unknown }
   }
 
-  // 其他 Error 类型
+  // 其他 Error 类型（包括 AbortError、网络错误等）
   if (error instanceof Error) {
-    // 尝试识别网络错误
+    const msg = error.message.toLowerCase()
     if (
-      error.message.includes('ECONNREFUSED') ||
-      error.message.includes('ETIMEDOUT') ||
-      error.message.includes('ENOTFOUND') ||
-      error.message.includes('network')
+      msg.includes('econnrefused') ||
+      msg.includes('etimedout') ||
+      msg.includes('enotfound') ||
+      msg.includes('network') ||
+      msg.includes('fetch') ||
+      msg.includes('socket') ||
+      msg.includes('connection') ||
+      msg.includes('timeout') ||
+      msg.includes('refused') ||
+      msg.includes('aborted') ||
+      msg.includes('canceled') ||
+      msg.includes('request')
     ) {
       return { code: 'network_error', message: ERROR_CODE_MESSAGES.network_error }
     }
-    return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
+    // 其他未知 Error
+    return { code: 'unknown', message: `${ERROR_CODE_MESSAGES.unknown}: ${error.message}` }
   }
 
   return { code: 'unknown', message: ERROR_CODE_MESSAGES.unknown }
@@ -157,6 +189,9 @@ export async function handleLlmChat(
   messages: Message[],
   config: LlmConfig
 ): Promise<void> {
+  // Capture start time for duration tracking
+  ;(event as unknown as { _startTime: number })._startTime = Date.now()
+
   const mergedConfig = {
     ...DEFAULT_LLM_CONFIG,
     ...config,
@@ -174,7 +209,7 @@ export async function handleLlmChat(
         code: 'not_configured',
         message: ERROR_CODE_MESSAGES.not_configured,
       })
-      event.sender.send('llm:chat-chunk', '[DONE]')
+      event.sender.send('llm:chat-complete', { totalDuration: Date.now() - (event as unknown as { _startTime: number })._startTime })
     }
     return
   }
@@ -213,14 +248,16 @@ export async function handleLlmChat(
 
     // 流正常结束，发送完成信号
     if (!event.sender.isDestroyed()) {
-      event.sender.send('llm:chat-chunk', '[DONE]')
+      event.sender.send('llm:chat-complete', { totalDuration: Date.now() - (event as unknown as { _startTime: number })._startTime })
     }
   } catch (error: unknown) {
-    // 流中错误：发送结构化错误事件 + [DONE] 关闭流
+    // 流中错误：发送结构化错误事件 + llm:chat-complete 关闭流
+    console.error('[LlmHandler] chat error:', error)
     if (!event.sender.isDestroyed()) {
       const llmError = classifyError(error)
+      console.error('[LlmHandler] classified error:', llmError)
       event.sender.send('llm:chat-error', llmError)
-      event.sender.send('llm:chat-chunk', '[DONE]')
+      event.sender.send('llm:chat-complete', { totalDuration: Date.now() - (event as unknown as { _startTime: number })._startTime })
     }
   }
 }

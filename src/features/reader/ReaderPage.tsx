@@ -10,7 +10,6 @@ import type { Persona } from '@/shared/types'
 import { useReader } from './hooks/useReader'
 import { ReaderHeader } from './components/ReaderHeader'
 import { TextViewer } from './components/TextViewer'
-import { ReadingLoadingSkeleton } from './components/ReadingLoadingSkeleton'
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -18,7 +17,7 @@ const pageVariants = {
   exit: { opacity: 0, y: -8 },
 }
 
-const pageTransition = { duration: 0.15, ease: 'easeInOut' }
+const pageTransition = { duration: 0.2, ease: 'easeOut' }
 
 export function ReaderPage() {
   const { id } = useParams<{ id: string }>()
@@ -55,6 +54,7 @@ export function ReaderPage() {
     content,
     loading,
     error,
+    loadProgress,
     paragraphIndex,
     handleProgressChange,
   } = useReader(bookId)
@@ -153,7 +153,7 @@ export function ReaderPage() {
   }, [bookId, content, ingest, loading, setBooks])
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div id="main-content" className="flex h-screen flex-col bg-background">
       <ReaderHeader
         bookId={bookId}
         onCreatePersonaClick={handleCreatePersona}
@@ -185,19 +185,16 @@ export function ReaderPage() {
               >
                 {/* Left: text viewer */}
                 <div className="flex-1 overflow-hidden border-r border-border">
-                  {loading ? (
-                    <ReadingLoadingSkeleton />
-                  ) : (
-                    <TextViewer
-                      content={content}
-                      bookPath={book?.path ?? ''}
-                      initialParagraphIndex={paragraphIndex}
-                      onProgressChange={handleProgressChange}
-                    />
-                  )}
+                  <TextViewer
+                    content={content}
+                    bookPath={book?.path ?? ''}
+                    initialParagraphIndex={paragraphIndex}
+                    onProgressChange={handleProgressChange}
+                    loadProgress={loadProgress}
+                  />
                 </div>
                 {/* Right: chat */}
-                <div className="w-[420px] shrink-0 overflow-hidden">
+                <div className="w-full sm:w-[420px] shrink-0 overflow-hidden">
                   <ChatInterface />
                 </div>
               </motion.div>
@@ -211,16 +208,13 @@ export function ReaderPage() {
                 exit="exit"
                 transition={pageTransition}
               >
-                {loading ? (
-                  <ReadingLoadingSkeleton />
-                ) : (
-                  <TextViewer
-                    content={content}
-                    bookPath={book?.path ?? ''}
-                    initialParagraphIndex={paragraphIndex}
-                    onProgressChange={handleProgressChange}
-                  />
-                )}
+                <TextViewer
+                  content={content}
+                  bookPath={book?.path ?? ''}
+                  initialParagraphIndex={paragraphIndex}
+                  onProgressChange={handleProgressChange}
+                  loadProgress={loadProgress}
+                />
               </motion.div>
             ) : (
               <motion.div

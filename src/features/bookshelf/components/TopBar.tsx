@@ -26,6 +26,7 @@ export function TopBar({ onSettingsClick, onImportClick, onRefreshClick, isRefre
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
           title={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
         >
           {theme === 'dark' ? (
@@ -40,14 +41,15 @@ export function TopBar({ onSettingsClick, onImportClick, onRefreshClick, isRefre
           size="icon"
           onClick={onRefreshClick}
           disabled={isRefreshing}
+          aria-label="刷新书架"
           title="刷新书架"
         >
           <RefreshCw className={cn('h-5 w-5 text-muted-foreground', isRefreshing && 'animate-spin')} />
         </Button>
-        <Button variant="ghost" size="icon" onClick={onSettingsClick}>
+        <Button variant="ghost" size="icon" onClick={onSettingsClick} aria-label="打开设置" title="设置">
           <Settings className="h-5 w-5 text-muted-foreground" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={onImportClick} disabled={!onImportClick} title="导入书籍到当前文件夹">
+        <Button variant="ghost" size="icon" onClick={onImportClick} disabled={!onImportClick} aria-label="导入书籍到当前文件夹" title="导入书籍">
           <FilePlus className="h-5 w-5 text-muted-foreground" />
         </Button>
       </div>

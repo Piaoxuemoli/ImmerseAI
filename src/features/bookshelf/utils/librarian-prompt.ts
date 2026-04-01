@@ -83,3 +83,214 @@ export function buildLibrarianSystemPrompt(availablePaths: string[], rootFolderN
 用户：今天天气怎么样
 输出：{"intent":"unknown","params":{}}`
 }
+
+/**
+ * 构建 Agent System Prompt（支持动态 Tools + Skills）
+ *
+ * @param rootFolderNames - 根目录下一级文件夹名称列表
+ * @param toolSchemas - 工具注册表中的工具 schema 数组（来自 ToolRegistry.getInstance().getSchemas()）
+ * @param skillsPrompt - Skills 系统提示补充（来自 SkillManager.getInstance().getSystemPromptAddition()）
+ * @returns Agent System Prompt 字符串
+ */
+export function buildAgentSystemPromptV2(
+  rootFolderNames: string[],
+  toolSchemas: object[],
+  skillsPrompt: string
+): string {
+  const folderList = rootFolderNames.length > 0 ? rootFolderNames.join('\n  - ') : '(暂无文件夹)';
+
+  // 构建工具列表
+  const toolsSection = toolSchemas.length > 0
+    ? toolSchemas.map((schema: any) => {
+        const name = schema.name || schema.function?.name || 'unknown';
+        const description = schema.description || schema.function?.description || '';
+        const params = schema.parameters || schema.function?.parameters || {};
+        return `  - ${name}: ${description}`;
+      }).join('\n')
+    : '(暂无可用工具)';
+
+  // 构建 Skills 部分
+  const skillsSection = skillsPrompt.trim()
+    ? `\n\n## 可用 Skills\n\n${skillsPrompt}`
+    : '';
+
+  return `你是一个智能书架管理助手（Bookshelf Agent），负责管理书架文件并协助用户完成各种任务。
+
+## 角色描述
+- 你是一个专业的书架管理助手，能够理解用户的自然语言指令
+- 你可以调用各种工具来完成文件管理任务
+- 你也可以调用 Skills 来完成更复杂的任务
+
+## 当前一级文件夹
+  - ${folderList}
+
+## 可用工具
+${toolsSection}
+${skillsSection}
+
+## 输出格式
+根据任务需求，选择以下输出格式之一：
+
+1. 工具调用
+{
+  "type": "tool_call",
+  "name": "工具名称",
+  "params": {
+    // 工具参数
+  }
+}
+
+2. 完成标记
+{
+  "type": "done",
+  "result": "任务完成描述"
+}
+
+3. Skill 调用
+{
+  "type": "skill",
+  "name": "Skill名称",
+  "params": {
+    // Skill 参数
+  }
+}
+
+4. 继续决策（需要更多步骤时）
+{
+  "type": "continue",
+  "thought": "你的思考过程",
+  "reasoning": "推理过程"
+}
+
+## 重要：参数名约束
+
+调用 tool 时，**必须**使用以下参数名，禁止使用别名：
+
+- list_files: \`path\` (目录路径，不使用 folder_path/dir)
+- list_folder_contents: \`path\` (文件夹路径，不使用 folder_path/dir)
+- search_files: \`path\`, \`keyword\`
+- get_file_content: \`path\` (文件路径)
+- get_file_metadata: \`path\` (文件路径)
+- create_file: \`path\`, \`content\`
+- move_file: \`source\`, \`destination\`
+- create_directory: \`path\`
+- delete_file: \`path\`
+- count_folder_items: \`path\`
+
+**错误示例：**
+\`\`\`json
+{"name": "list_folder_contents", "params": {"folder_path": "xxx"}}
+\`\`\`
+❌ 错误：使用了 folder_path
+
+**正确示例：**
+\`\`\`json
+{"name": "list_folder_contents", "params": {"path": "xxx"}}
+\`\`\`
+✅ 正确：使用了 path
+
+## 决策规则
+- 如果可以直接使用工具完成用户请求，使用 tool_call
+- 如果需要多个步骤，使用 continue 开始 ReAct 循环
+- 如果用户请求可以由 Skill 完成，使用 skill
+- 如果所有步骤都完成，使用 done`
+}
+
+/**
+ * 构建 ReAct Loop 决策用 Prompt
+ *
+ * @param rootFolderNames - 根目录下一级文件夹名称列表
+ * @param toolSchemas - 工具注册表中的工具 schema 数组（来自 ToolRegistry.getInstance().getSchemas()）
+ * @returns ReAct Loop Prompt 字符串
+ */
+export function buildReActPrompt(
+  rootFolderNames: string[],
+  toolSchemas: object[]
+): string {
+  const folderList = rootFolderNames.length > 0 ? rootFolderNames.join('\n  - ') : '(暂无文件夹)';
+
+  // 构建工具列表
+  const toolsSection = toolSchemas.length > 0
+    ? toolSchemas.map((schema: any) => {
+        const name = schema.name || schema.function?.name || 'unknown';
+        const description = schema.description || schema.function?.description || '';
+        return `  - ${name}: ${description}`;
+      }).join('\n')
+    : '(暂无可用工具)';
+
+  return `你正在执行 ReAct Loop 决策过程。
+
+## 当前状态
+请根据已有信息和工具，决定下一步行动。
+
+## 当前一级文件夹
+  - ${folderList}
+
+## 可用工具
+${toolsSection}
+
+## 决策规则
+1. 分析当前状态和用户目标
+2. 选择最合适的工具或判断任务已完成
+3. 如果需要多个步骤，按顺序调用工具
+
+## 重要：参数名约束
+
+调用 tool 时，**必须**使用以下参数名，禁止使用别名：
+
+- list_files: \`path\` (目录路径，不使用 folder_path/dir)
+- list_folder_contents: \`path\` (文件夹路径，不使用 folder_path/dir)
+- search_files: \`path\`, \`keyword\`
+- get_file_content: \`path\` (文件路径)
+- get_file_metadata: \`path\` (文件路径)
+- create_file: \`path\`, \`content\`
+- move_file: \`source\`, \`destination\`
+- create_directory: \`path\`
+- delete_file: \`path\`
+- count_folder_items: \`path\`
+
+**错误示例：**
+\`\`\`json
+{"name": "list_folder_contents", "params": {"folder_path": "xxx"}}
+\`\`\`
+❌ 错误：使用了 folder_path
+
+**正确示例：**
+\`\`\`json
+{"name": "list_folder_contents", "params": {"path": "xxx"}}
+\`\`\`
+✅ 正确：使用了 path
+
+## 输出格式
+{
+  "thought": "思考：我需要做什么",
+  "action": {
+    "type": "tool_call | done",
+    "name": "工具名称（如果是 done 则为空）",
+    "params": {
+      // 工具参数
+    }
+  },
+  "observation": "预期观察结果（仅在 action 为 tool_call 时需要）"
+}
+
+## 示例
+{
+  "thought": "思考：用户想要列出无分类文件夹的内容，我应该使用 list_files 工具",
+  "action": {
+    "type": "tool_call",
+    "name": "list_files",
+    "params": {
+      "path": "无分类"
+    }
+  },
+  "observation": "将返回无分类文件夹中的文件列表"
+}
+
+{
+  "thought": "思考：所有必要的步骤都已完成，任务成功",
+  "action": {
+    "type": "done"
+  }
+}`
+}

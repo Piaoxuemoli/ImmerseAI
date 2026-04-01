@@ -9,6 +9,7 @@ import type { BookFile, Message, LlmConfig, RagParagraph, RagSearchResult } from
 declare global {
   interface Window {
     electronAPI: ElectronAPI
+    windowControl: WindowControl
   }
 }
 
@@ -45,6 +46,7 @@ export interface ElectronAPI {
     readFileText: (filePath: string) => Promise<string>
     getSafeStorage: (key: string) => Promise<string>
     setSafeStorage: (key: string, value: string) => Promise<boolean>
+    getUserDataPath: () => Promise<string>
   }
 
   // RAG 检索（主进程实现，无 file:// 限制）
@@ -79,4 +81,25 @@ export interface ElectronAPI {
       callback: (data: { bookId: string; chunkCount: number }) => void,
     ) => () => void
   }
+
+  // Skill 文件操作
+  skills: {
+    /** 列出目录下所有 .md 文件 */
+    list: (dirPath: string) => Promise<string[]>
+    /** 读取 skill 文件内容 */
+    read: (filePath: string) => Promise<string>
+    /** 写入 skill 文件（自动创建目录） */
+    write: (filePath: string, content: string) => Promise<void>
+  }
+}
+
+/**
+ * 窗口控制 API（无边框窗口自定义标题栏使用）
+ */
+export interface WindowControl {
+  minimize: () => void
+  maximize: () => void
+  close: () => void
+  isMaximized: () => Promise<boolean>
+  onMaximizeChange: (callback: (isMaximized: boolean) => void) => () => void
 }

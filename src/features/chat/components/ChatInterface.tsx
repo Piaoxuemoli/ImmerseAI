@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
-import { UserRound, X, Trash2 } from 'lucide-react'
+import { UserRound, X, Trash2, Loader2 } from 'lucide-react'
 import { ScrollArea } from '@/shared/components/ui/scroll-area'
 import { Button } from '@/shared/components/ui/button'
 import { useStore } from '@/shared/store'
@@ -10,7 +10,7 @@ import { CitationPopup } from './CitationPopup'
 import type { Citation } from '@/shared/types'
 
 export function ChatInterface() {
-  const { messages, streamingContent, isGenerating, sendMessage } = useChat()
+  const { messages, streamingContent, isGenerating, sendMessage, retryLastMessage } = useChat()
 
   const activePersonaId = useStore((s) => s.activePersonaId)
   const selectedBookId = useStore((s) => s.selectedBookId)
@@ -113,7 +113,7 @@ export function ChatInterface() {
 
       {/* 消息列表区域 */}
       <ScrollArea className="flex-1" onScrollCapture={handleScroll}>
-        <div ref={scrollContainerRef}>
+        <div ref={scrollContainerRef} aria-live="polite">
           {isEmpty ? (
             <div className="flex h-full items-center justify-center">
               <p className="text-sm text-muted-foreground">开始与角色对话...</p>
@@ -127,6 +127,7 @@ export function ChatInterface() {
                   message={msg}
                   personaName={personaName}
                   onCitationClick={handleCitationClick}
+                  onRetry={retryLastMessage}
                 />
               ))}
 
@@ -141,6 +142,14 @@ export function ChatInterface() {
                   }}
                   personaName={personaName}
                 />
+              )}
+
+              {/* 等待指示器：AI 正在思考但尚未输出 */}
+              {isGenerating && !streamingContent && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">正在思考...</span>
+                </div>
               )}
 
               {/* 底部锚点 */}

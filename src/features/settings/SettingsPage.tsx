@@ -133,8 +133,21 @@ export function SettingsPage() {
       }
     } catch (err) {
       clearTimeout(timeoutId)
+      console.error('[Settings] Test connection error:', err)
+      // 增强错误信息：显示原始错误消息 + 错误对象详情
+      let errorMessage = '连接失败'
+      if (err instanceof Error) {
+        const msg = err.message
+        // 如果是 "发生未知错误" 分类错误，展开显示 code 以便调试
+        if (msg === '发生未知错误，请重试') {
+          const extra = (err as unknown as { code?: string }).code
+          errorMessage = extra ? `未知错误 (${extra})，请重试` : '未知错误，请重试'
+        } else {
+          errorMessage = msg || '连接失败'
+        }
+      }
       setTestStatus('error')
-      setTestError(err instanceof Error ? err.message : '连接失败')
+      setTestError(errorMessage)
     }
   }, [canTestConnection, llmConfig])
 
@@ -153,7 +166,7 @@ export function SettingsPage() {
   }, [setBookshelfRootPath])
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-full flex-col bg-background">
       {/* ============================================ */}
       {/* Header */}
       {/* ============================================ */}

@@ -1,12 +1,12 @@
 import type { Book } from '@/shared/types'
 
 const COVER_COLORS = [
-  'bg-slate-700',
-  'bg-red-900',
-  'bg-emerald-800',
-  'bg-amber-800',
-  'bg-sky-900',
-  'bg-violet-900',
+  { bg: 'bg-slate-700', text: 'text-white', border: 'border-slate-600' },
+  { bg: 'bg-red-900', text: 'text-red-100', border: 'border-red-800' },
+  { bg: 'bg-emerald-800', text: 'text-emerald-100', border: 'border-emerald-700' },
+  { bg: 'bg-amber-800', text: 'text-amber-100', border: 'border-amber-700' },
+  { bg: 'bg-sky-900', text: 'text-sky-100', border: 'border-sky-800' },
+  { bg: 'bg-violet-900', text: 'text-violet-100', border: 'border-violet-800' },
 ]
 
 interface BookCardProps {
@@ -16,7 +16,7 @@ interface BookCardProps {
 }
 
 export function BookCard({ book, index, onClick }: BookCardProps) {
-  const coverColor = COVER_COLORS[index % COVER_COLORS.length]
+  const cover = COVER_COLORS[index % COVER_COLORS.length]
 
   return (
     <div
@@ -25,9 +25,9 @@ export function BookCard({ book, index, onClick }: BookCardProps) {
     >
       {/* 封面 */}
       <div
-        className={`${coverColor} flex aspect-[3/4] items-center justify-center rounded-t-lg px-2`}
+        className={`${cover.bg} ${cover.border} flex aspect-[3/4] items-center justify-center rounded-t-lg border-b px-2`}
       >
-        <span className="text-center text-xs font-semibold leading-tight text-white line-clamp-4">
+        <span className={`text-center text-xs font-semibold leading-tight ${cover.text} line-clamp-4`}>
           {book.title}
         </span>
       </div>

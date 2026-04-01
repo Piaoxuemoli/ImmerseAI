@@ -1,7 +1,8 @@
-import { app, BrowserWindow, Menu, session } from 'electron'
+import { app, BrowserWindow, Menu, session, ipcMain } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers } from './ipc-handlers'
+import { prewarm } from './rag-handler'
 import { McpManager } from './mcp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -32,15 +33,16 @@ function createWindow(): void {
     maximizable: true,
     resizable: true,
     // autoHideMenuBar prevents menu-bar space from being reserved (we already
-    // remove the menu via Menu.setApplicationMenu(null)), and also fixes a
-    // known Windows + backgroundMaterial issue where the maximize button stops
-    // responding.
+    // remove the menu via Menu.setApplicationMenu(null)).
     autoHideMenuBar: true,
     show: false, // 等待 ready-to-show 事件
     title: '',
-    // Windows 11 毛玻璃标题栏材质。Mica 比 Acrylic 更稳定（Acrylic 在部分
-    // Windows 版本上会导致最大化按钮失效）。
-    ...(process.platform === 'win32' && { backgroundMaterial: 'mica' as const }),
+    // 使用无边框窗口 + 自定义标题栏实现磨砂玻璃效果
+    // 避免 backgroundMaterial: 'acrylic' 导致的最大化按钮失效问题
+    frame: false,
+    ...(process.platform === 'win32' && { backgroundMaterial: 'acrylic' as const }),
+    // 窗口圆角（Windows 11 默认圆角）
+    borderRadius: 8,
     webPreferences: {
       // 安全配置：遵循项目宪法
       nodeIntegration: false,
@@ -48,6 +50,36 @@ function createWindow(): void {
       sandbox: false, // Electron 的沙箱在 Windows 上可能有兼容性问题
       preload: path.join(__dirname, '../preload/index.mjs')
     }
+  })
+
+  // 注册窗口控制 IPC（供自定义标题栏调用）
+  ipcMain.on('window:minimize', () => {
+    mainWindow?.minimize()
+  })
+  ipcMain.on('window:maximize', () => {
+    if (mainWindow?.isMaximized()) {
+      mainWindow.unmaximize()
+    } else {
+      mainWindow?.maximize()
+    }
+  })
+  ipcMain.on('window:close', () => {
+    mainWindow?.close()
+  })
+  ipcMain.handle('window:isMaximized', () => {
+    return mainWindow?.isMaximized() ?? false
+  })
+
+  // 监听窗口最大化状态变化，通知渲染进程
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window:maximize-change', true)
+    // 最大化时移除圆角，避免内容被裁剪
+    mainWindow?.setBounds({ cornerRadius: 0 })
+  })
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window:maximize-change', false)
+    // 还原时恢复圆角
+    mainWindow?.setBounds({ cornerRadius: 8 })
   })
 
   // 注入 Cross-Origin headers 以支持 Transformers.js Web Worker 中的 SharedArrayBuffer
@@ -92,6 +124,10 @@ app.whenReady().then(() => {
   registerIpcHandlers()
 
   createWindow()
+
+  setTimeout(() => {
+    prewarm().catch((err) => console.warn('[RAG] Prewarm failed:', err))
+  }, 5000)
 
   // macOS 特殊处理：点击 Dock 图标时重新创建窗口
   app.on('activate', () => {

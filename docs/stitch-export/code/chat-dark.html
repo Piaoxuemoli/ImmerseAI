@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ImmerseAI Chat</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-bright": "#fcf9f8",
+                        "surface-container-highest": "#e5e2e1",
+                        "primary": "#4648d4",
+                        "tertiary-fixed-dim": "#4ae176",
+                        "secondary": "#6b38d4",
+                        "inverse-on-surface": "#f3f0ef",
+                        "on-tertiary-fixed": "#002109",
+                        "primary-fixed": "#e1e0ff",
+                        "primary-container": "#6063ee",
+                        "secondary-container": "#8455ef",
+                        "surface-container-low": "#f6f3f2",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#07006c",
+                        "on-secondary-container": "#fffbff",
+                        "outline-variant": "#c7c4d7",
+                        "error": "#ba1a1a",
+                        "on-primary-container": "#fffbff",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "surface-container": "#f0eded",
+                        "outline": "#767586",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#23005c",
+                        "background": "#0F0F0F",
+                        "on-surface": "#F5F5F5",
+                        "secondary-fixed": "#e9ddff",
+                        "tertiary-fixed": "#6bff8f",
+                        "surface-variant": "#1A1A1A",
+                        "inverse-primary": "#c0c1ff",
+                        "surface-container-lowest": "#000000",
+                        "tertiary": "#006b2d",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#242424",
+                        "inverse-surface": "#f3f0ef",
+                        "surface-dim": "#111111",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "on-surface-variant": "#c7c4d7",
+                        "tertiary-container": "#00873b",
+                        "on-tertiary-fixed-variant": "#005321",
+                        "on-tertiary-container": "#f7fff3",
+                        "surface-tint": "#494bd6",
+                        "surface": "#0F0F0F",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "on-background": "#F5F5F5"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #0F0F0F;
+            color: #F5F5F5;
+            font-family: 'Inter', sans-serif;
+        }
+        .reading-surface {
+            background-color: #0F0F0F;
+        }
+        .ai-message-gradient {
+            background: linear-gradient(135deg, #2D1B69 0%, #1A1A1A 100%);
+            border-left: 4px solid #8B5CF6;
+        }
+        .user-message-gradient {
+            background: linear-gradient(135deg, #1E293B 0%, #0F0F0F 100%);
+            border-right: 4px solid #6366F1;
+        }
+        .glass-nav {
+            background: rgba(15, 15, 15, 0.8);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full h-[56px] z-50 glass-nav shadow-[0_10px_30px_rgba(70,72,212,0.06)] flex items-center justify-between px-6 border-b border-[#333333]">
+<div class="flex items-center gap-4">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-on-surface">arrow_back</span>
+</button>
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg overflow-hidden border border-primary/30">
+<img alt="AI Avatar" class="w-full h-full object-cover" data-alt="minimalist AI digital avatar with glowing purple circuit patterns on a deep black background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLLjbeVIyJBARc0ITnaW5jjoAUnqHdvvlX2gndNor0QYWGazKoBCbwA_g8FiShJjvHS471uiHXCAsreUOjj9eUlZ8mEvE1sKp59ITkg3UwArv3EEGPbd8iN-h7cyUZoCoalaRv_mn6O0T5MTodPLVEVLJBO73wTa8UwoB69A56KjpK-v5MvQRweiOBP2rNFQ5PDMPuZX8RTgiBbf0Hxv4y3z-fyjxfUzXiru0Xw_hhwsLVOrfbaEhCYRBAmqrn2NB1FkA__vKVga4"/>
+</div>
+<div>
+<h1 class="font-bold tracking-tight text-sm leading-tight">Aristotle AI</h1>
+<p class="text-[10px] font-mono text-primary uppercase tracking-widest">Digital Curator</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="hidden md:flex items-center bg-surface-variant px-3 py-1 rounded-full border border-[#333333] mr-4">
+<span class="text-[10px] font-mono text-on-surface-variant mr-2">ROLE:</span>
+<span class="text-[10px] font-bold text-primary">PHILOSOPHER</span>
+<span class="material-symbols-outlined text-[14px] ml-1 text-on-surface-variant">expand_more</span>
+</div>
+<button class="material-symbols-outlined p-2 text-on-surface-variant hover:text-on-surface transition-colors" data-icon="search">search</button>
+<button class="material-symbols-outlined p-2 text-on-surface-variant hover:text-on-surface transition-colors" data-icon="contrast">contrast</button>
+<button class="material-symbols-outlined p-2 text-on-surface-variant hover:text-on-surface transition-colors" data-icon="settings">settings</button>
+</div>
+</header>
+<!-- SideNavBar (Hidden on Mobile) -->
+<aside class="hidden md:flex flex-col h-screen w-[240px] fixed left-0 top-0 pt-[56px] bg-background border-r border-[#333333] z-40">
+<nav class="flex flex-col h-full py-8 gap-y-2 px-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-slate-400 hover:text-primary hover:pl-6 group" href="#">
+<span class="material-symbols-outlined">auto_stories</span>
+<span class="font-medium">Bookshelf</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-slate-400 hover:text-primary hover:pl-6 group" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="font-medium">Reader</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 bg-primary/10 text-primary font-bold border-r-4 border-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+<span class="font-medium">AI Chat</span>
+</a>
+<div class="mt-auto">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-slate-400 hover:text-primary hover:pl-6 group" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-medium">Settings</span>
+</a>
+</div>
+</nav>
+</aside>
+<!-- Main Message Feed -->
+<main class="flex-1 mt-[56px] mb-[80px] md:ml-[240px] overflow-y-auto px-6 py-8 flex flex-col gap-8 scroll-smooth">
+<div class="max-w-3xl mx-auto w-full flex flex-col gap-10">
+<!-- System Timestamp -->
+<div class="flex justify-center">
+<span class="font-mono text-[10px] text-on-surface-variant bg-surface-variant px-3 py-1 rounded-full uppercase tracking-widest border border-[#333333]">Session Started — 14:02 GMT</span>
+</div>
+<!-- AI Message -->
+<div class="flex flex-col items-start gap-3 max-w-[85%] group">
+<div class="flex items-center gap-3 ml-1">
+<span class="text-[10px] font-mono text-primary font-bold uppercase tracking-tighter">Aristotle AI</span>
+<span class="text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">Just now</span>
+</div>
+<div class="ai-message-gradient p-5 rounded-2xl rounded-tl-none shadow-xl border border-white/5">
+<p class="text-on-surface leading-relaxed text-[15px]">
+                        Welcome to your curated workspace. I have analyzed your recent readings on <span class="text-primary-fixed-dim font-semibold italic">Stoicism and Modern Productivity</span>. 
+                        How shall we explore these intersections today? I can synthesize a summary or provide critical inquiries.
+                    </p>
+</div>
+<div class="flex gap-2 mt-1">
+<span class="bg-secondary/20 text-secondary-fixed-dim text-[10px] px-3 py-1 rounded-full border border-secondary/30 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">psychology</span> Synthesis Ready
+                    </span>
+<span class="bg-tertiary/20 text-tertiary-fixed-dim text-[10px] px-3 py-1 rounded-full border border-tertiary/30 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">verified</span> Source Verified
+                    </span>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex flex-col items-end gap-3 max-w-[85%] ml-auto group">
+<div class="flex items-center gap-3 mr-1">
+<span class="text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">14:05</span>
+<span class="text-[10px] font-mono text-secondary font-bold uppercase tracking-tighter">Researcher</span>
+</div>
+<div class="user-message-gradient p-5 rounded-2xl rounded-tr-none shadow-xl border border-white/5 text-right">
+<p class="text-on-surface leading-relaxed text-[15px]">
+                        Can you find the specific quote about "the inner citadel" and compare it to our notes on deep work focus blocks?
+                    </p>
+</div>
+</div>
+<!-- AI Message with Citations -->
+<div class="flex flex-col items-start gap-3 max-w-[85%] group">
+<div class="flex items-center gap-3 ml-1">
+<span class="text-[10px] font-mono text-primary font-bold uppercase tracking-tighter">Aristotle AI</span>
+<span class="text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">14:06</span>
+</div>
+<div class="ai-message-gradient p-5 rounded-2xl rounded-tl-none shadow-xl border border-white/5">
+<p class="text-on-surface leading-relaxed text-[15px] mb-4">
+                        Marcus Aurelius refers to the mind as an <span class="italic text-primary-fixed-dim">"invulnerable citadel"</span> in Meditations, Book VIII. 
+                        This aligns conceptually with Cal Newport's "Deep Work" as both require a structural defense against external distractions to preserve cognitive integrity.
+                    </p>
+<div class="space-y-2 mt-4 pt-4 border-t border-white/10">
+<p class="text-[10px] font-mono text-on-surface-variant uppercase tracking-widest mb-2">Reference Citations:</p>
+<div class="flex flex-col gap-2">
+<div class="bg-white/5 p-2 rounded-lg flex items-center justify-between group/cite cursor-pointer hover:bg-white/10 transition-colors border border-white/5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-sm">menu_book</span>
+<span class="text-[11px] font-medium text-on-surface">Meditations, Book VIII, 48</span>
+</div>
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant group-hover/cite:translate-x-1 transition-transform">arrow_forward</span>
+</div>
+<div class="bg-white/5 p-2 rounded-lg flex items-center justify-between group/cite cursor-pointer hover:bg-white/10 transition-colors border border-white/5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-sm">description</span>
+<span class="text-[11px] font-medium text-on-surface">Notebook: Deep Work Implementation</span>
+</div>
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant group-hover/cite:translate-x-1 transition-transform">arrow_forward</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Empty space for breathing room -->
+<div class="h-12"></div>
+</div>
+</main>
+<!-- Floating Bottom Bar -->
+<footer class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl h-[64px] rounded-2xl z-50 glass-nav border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center px-4 md:ml-[120px] md:left-[calc(50%+120px)]">
+<button class="material-symbols-outlined p-2 text-on-surface-variant hover:text-primary transition-colors">attach_file</button>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-on-surface text-sm px-4 placeholder:text-on-surface-variant placeholder:font-mono placeholder:text-xs" placeholder="Ask Aristotle AI..." type="text"/>
+<div class="flex items-center gap-2">
+<button class="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-primary to-primary-container text-white rounded-xl shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</footer>
+<!-- Reference Sidebar (Peek) -->
+<div class="hidden xl:flex fixed right-8 top-[80px] w-64 flex-col gap-6">
+<div class="bg-surface-variant/50 border border-white/5 p-4 rounded-2xl backdrop-blur-sm">
+<h3 class="font-mono text-[10px] text-primary uppercase tracking-widest mb-4">Current Context</h3>
+<div class="space-y-4">
+<div class="flex gap-3">
+<div class="w-1 h-10 bg-primary rounded-full"></div>
+<div>
+<p class="text-[12px] font-bold text-on-surface">Meditations</p>
+<p class="text-[10px] text-on-surface-variant">Marcus Aurelius</p>
+</div>
+</div>
+<div class="flex gap-3">
+<div class="w-1 h-10 bg-secondary rounded-full"></div>
+<div>
+<p class="text-[12px] font-bold text-on-surface">Deep Work</p>
+<p class="text-[10px] text-on-surface-variant">Cal Newport</p>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-variant/50 border border-white/5 p-4 rounded-2xl backdrop-blur-sm">
+<h3 class="font-mono text-[10px] text-tertiary-fixed-dim uppercase tracking-widest mb-4">AI Insight Chips</h3>
+<div class="flex flex-wrap gap-2">
+<span class="bg-primary/10 text-primary-fixed-dim text-[9px] px-2 py-1 rounded-full border border-primary/20">#stoicism</span>
+<span class="bg-secondary/10 text-secondary-fixed-dim text-[9px] px-2 py-1 rounded-full border border-secondary/20">#focus</span>
+<span class="bg-tertiary/10 text-tertiary-fixed-dim text-[9px] px-2 py-1 rounded-full border border-tertiary/20">#synthesis</span>
+</div>
+</div>
+</div>
+</body></html>

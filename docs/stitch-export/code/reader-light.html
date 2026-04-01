@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ImmerseAI Reader</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-bright": "#fcf9f8",
+              "surface-container-highest": "#e5e2e1",
+              "primary": "#4648d4",
+              "tertiary-fixed-dim": "#4ae176",
+              "secondary": "#6b38d4",
+              "inverse-on-surface": "#f3f0ef",
+              "on-tertiary-fixed": "#002109",
+              "primary-fixed": "#e1e0ff",
+              "primary-container": "#6063ee",
+              "secondary-container": "#8455ef",
+              "surface-container-low": "#f6f3f2",
+              "on-secondary-fixed-variant": "#5516be",
+              "on-error": "#ffffff",
+              "on-secondary": "#ffffff",
+              "on-primary-fixed": "#07006c",
+              "on-secondary-container": "#fffbff",
+              "outline-variant": "#c7c4d7",
+              "error": "#ba1a1a",
+              "on-primary-container": "#fffbff",
+              "error-container": "#ffdad6",
+              "primary-fixed-dim": "#c0c1ff",
+              "surface-container": "#f0eded",
+              "outline": "#767586",
+              "on-primary": "#ffffff",
+              "on-tertiary": "#ffffff",
+              "on-secondary-fixed": "#23005c",
+              "background": "#fcf9f8",
+              "on-surface": "#1c1b1b",
+              "secondary-fixed": "#e9ddff",
+              "tertiary-fixed": "#6bff8f",
+              "surface-variant": "#e5e2e1",
+              "inverse-primary": "#c0c1ff",
+              "surface-container-lowest": "#ffffff",
+              "tertiary": "#006b2d",
+              "on-error-container": "#93000a",
+              "surface-container-high": "#eae7e7",
+              "inverse-surface": "#313030",
+              "surface-dim": "#dcd9d9",
+              "secondary-fixed-dim": "#d0bcff",
+              "on-surface-variant": "#464554",
+              "tertiary-container": "#00873b",
+              "on-tertiary-fixed-variant": "#005321",
+              "on-tertiary-container": "#f7fff3",
+              "surface-tint": "#494bd6",
+              "surface": "#fcf9f8",
+              "on-primary-fixed-variant": "#2f2ebe",
+              "on-background": "#1c1b1b"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"],
+              "reading": ["Noto Sans SC"],
+              "mono": ["JetBrains Mono"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1.5rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fcf9f8;
+            color: #1c1b1b;
+        }
+        .reading-area {
+            background-color: #FFF8E7;
+            font-family: 'Noto Sans SC', sans-serif;
+            line-height: 1.8;
+            font-size: 18px;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .custom-shadow {
+            box-shadow: 0 10px 30px rgba(70, 72, 212, 0.06);
+        }
+    </style>
+</head>
+<body class="selection:bg-primary/20">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full h-[56px] z-50 bg-[#fcf9f8]/60 backdrop-blur-xl shadow-[0_10px_30px_rgba(70,72,212,0.06)] flex items-center justify-between px-6">
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-primary/10 text-slate-500 transition-all active:scale-90">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<div class="flex flex-col">
+<h1 class="font-bold tracking-tight text-primary text-sm uppercase tracking-widest">Reader</h1>
+<span class="text-xs font-mono text-slate-500">The Alchemy of Design</span>
+</div>
+</div>
+<div class="hidden md:flex items-center gap-2">
+<!-- Role Switcher -->
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200/40 bg-white/50 hover:bg-white transition-colors text-xs font-medium">
+<span class="material-symbols-outlined text-secondary text-sm">psychology</span>
+<span>Scholar Mode</span>
+<span class="material-symbols-outlined text-xs">expand_more</span>
+</button>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-primary/10 text-slate-500 transition-colors" title="Table of Contents">
+<span class="material-symbols-outlined">list</span>
+</button>
+<button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-primary/10 text-slate-500 transition-colors" title="Bookmarks">
+<span class="material-symbols-outlined">bookmark</span>
+</button>
+<button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-primary/10 text-slate-500 transition-colors" title="Settings">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-[56px] pb-[120px] min-h-screen flex justify-center px-4 md:px-0">
+<!-- Asymmetrical layout: wide left margin implies editorial quality -->
+<article class="max-w-[720px] w-full mt-12 md:mt-20 reading-area p-8 md:p-16 rounded-2xl custom-shadow text-on-surface">
+<header class="mb-12 border-b border-on-surface/5 pb-8">
+<div class="font-mono text-[10px] text-primary font-bold uppercase tracking-[0.2em] mb-4">Chapter 04</div>
+<h2 class="font-headline text-4xl font-extrabold tracking-tight mb-4">The Convergence of Neural Networks and Aesthetic Intuition</h2>
+<div class="flex items-center gap-4 text-xs font-mono text-slate-400">
+<span>12 MIN READ</span>
+<span class="w-1 h-1 rounded-full bg-slate-300"></span>
+<span>AI CURATED INSIGHTS AVAILABLE</span>
+</div>
+</header>
+<div class="space-y-8 font-reading text-lg leading-[1.8]">
+<p>
+<span class="float-left text-6xl font-bold font-headline mr-3 mt-1 text-primary">I</span>n the landscape of modern digital architecture, the boundary between human creativity and machine intelligence is no longer a rigid divide but a fluid, interlocking dance. As we explore the depths of <strong>ImmerseAI</strong>, we find that the true potential of reading lies not just in the consumption of text, but in the synthesis of context.
+                </p>
+<p>
+                    Imagine a reading surface that breathes. This concept, often referred to as "Living Typography," suggests that the medium should respond to the reader's cognitive load. When the text becomes dense, the margins expand—asymmetry as a tool for focus. The warm-white surface of our current viewport (#FFF8E7) isn't an accident; it is a calibrated response to the harsh blue light of our digital age, a callback to the ivory pages of a physical journal.
+                </p>
+<!-- AI Insight Component -->
+<div class="my-12 p-6 rounded-xl bg-secondary/5 border-l-4 border-secondary flex gap-6 items-start">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</div>
+<div>
+<div class="font-mono text-[10px] text-secondary font-bold uppercase tracking-widest mb-1">AI Context Note</div>
+<p class="text-sm font-reading italic text-on-surface-variant">
+                            "The mentioned 'Living Typography' relates to the 1923 manifesto by Laszlo Moholy-Nagy, who argued that typography must be a communication in its most intense form."
+                        </p>
+</div>
+</div>
+<p>
+                    As you navigate these lines, the AI observes the cadence of your scrolling. It understands when a paragraph requires reflection and when the narrative flow is brisk. The traditional "standard list" of digital interfaces fails here because it treats information as a commodity rather than an experience. Here, every visual gap is intentional.
+                </p>
+<p>
+                    We must consider the role of the Digital Curator. This is the intelligence that filters the noise, leaving only the signal. It is the invisible hand that selects the font—Noto Sans SC—for its elegant balance of stroke weight and legibility, ensuring that even in long-form sessions, the eye does not tire.
+                </p>
+<!-- Decorative Image -->
+<figure class="my-12">
+<img class="w-full h-[400px] object-cover rounded-xl shadow-lg" data-alt="abstract digital waves in soft indigo and cream colors with a grainy film texture and soft cinematic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBY2Rj80uPZfSPTs8VLOEToZ_L4AgldwCdw7xqo-jwFaie7dPhXQbzgWiuCbQ1skv_vr8aBkttNmnFJSYuqr310OaPL9UPqWTXhCv-asJvHo73t6IkYBWQ8oaxq5vNGEU2Mxi8TRnxCOJ6LAdWYL_cmQZM8DmUYBW4rOysu5J12uLV3_e-WY2z7obNLsxeQ3N5DXnQUtYASbwDuQQ_JFgADGG_u7GBGdFgNBYFjkD3DekopieIn1uWI1Ox1aVRtoHzdMpbJaAtJSj8"/>
+<figcaption class="mt-4 font-mono text-[10px] text-center text-slate-400 uppercase tracking-widest">Visual Metaphor: Neural Flow</figcaption>
+</figure>
+<p>
+                    The future of reading is conversational. The BottomNavBar isn't just a navigation tool; it's a bridge to the AI. As you formulate a thought, the input field waits below, ready to transform a fleeting reflection into a permanent note or a query for deeper exploration.
+                </p>
+</div>
+</article>
+</main>
+<!-- BottomNavBar (Floating AI Input) -->
+<nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl h-[64px] bg-[#fcf9f8]/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl z-50 border border-slate-200/20 shadow-[0_20px_40px_rgba(70,72,212,0.12)] flex items-center px-4 gap-3">
+<!-- Contextual Controls -->
+<div class="flex items-center gap-1 border-r border-slate-200 pr-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-primary/10 text-slate-500 transition-transform active:scale-90" title="Previous Paragraph">
+<span class="material-symbols-outlined">keyboard_arrow_up</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-primary/10 text-slate-500 transition-transform active:scale-90" title="Next Paragraph">
+<span class="material-symbols-outlined">keyboard_arrow_down</span>
+</button>
+</div>
+<!-- Input Box -->
+<div class="flex-1 relative group">
+<input class="w-full bg-transparent border-none focus:ring-0 text-sm font-reading py-2 placeholder:text-slate-400" placeholder="Share a thought with ImmerseAI..." type="text"/>
+<div class="absolute bottom-0 left-0 w-0 h-[1px] bg-primary transition-all duration-300 group-focus-within:w-full"></div>
+</div>
+<!-- Action Button -->
+<button class="flex items-center gap-2 bg-gradient-to-br from-primary to-primary-container text-white px-5 py-2.5 rounded-xl font-mono text-xs font-bold tracking-tight shadow-md hover:scale-105 active:scale-95 transition-all">
+<span>ASK AI</span>
+<span class="material-symbols-outlined text-sm">send</span>
+</button>
+</nav>
+<!-- Progress Indicator (Editorial Detail) -->
+<div class="fixed right-8 top-1/2 -translate-y-1/2 hidden lg:flex flex-col items-center gap-4">
+<div class="font-mono text-[10px] text-slate-400 rotate-90 mb-4">SCROLL</div>
+<div class="w-[1px] h-32 bg-slate-200 relative">
+<div class="absolute top-0 left-0 w-full h-[35%] bg-primary"></div>
+</div>
+<div class="font-mono text-[10px] text-primary font-bold">35%</div>
+</div>
+</body></html>

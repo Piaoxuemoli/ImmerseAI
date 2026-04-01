@@ -16,6 +16,29 @@ import { McpManager, McpConnectionError, type FileEntry, type McpStatus } from '
 import { ragIngest, ragSearch, ragStatus, ragClearCache } from './rag-handler'
 import type { RagParagraph } from './rag-handler'
 
+const abortControllers = new Map<string, AbortController>()
+
+/**
+ * 获取目录下所有 .md 文件
+ */
+async function getSkillMarkdownFiles(dirPath: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true })
+    return entries
+      .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+      .map(entry => entry.name)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 确保目录存在（递归创建）
+ */
+async function ensureDir(dirPath: string): Promise<void> {
+  await fs.mkdir(dirPath, { recursive: true })
+}
+
 /**
  * 将 MCP 错误包装为可读信息
  */
@@ -158,7 +181,17 @@ export function registerIpcHandlers(): void {
   // ========================================
 
   ipcMain.handle('llm:chat', async (event, messages: Message[], config: LlmConfig): Promise<void> => {
-    await handleLlmChat(event, messages, config)
+    try {
+      await handleLlmChat(event, messages, config)
+    } catch (error) {
+      console.error('[IPC] llm:chat handler exception:', error)
+      const code = error instanceof Error ? error.constructor.name : 'unknown'
+      const message = error instanceof Error ? error.message : String(error)
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('llm:chat-error', { code, message })
+        event.sender.send('llm:chat-complete', { totalDuration: 0 })
+      }
+    }
   })
 
   // ========================================
@@ -231,6 +264,12 @@ export function registerIpcHandlers(): void {
     }
   })
 
+  // 获取 userData 目录路径
+  ipcMain.handle('app:get-user-data-path', async (): Promise<string> => {
+    const { app } = await import('electron')
+    return app.getPath('userData')
+  })
+
   // ========================================
   // RAG handlers (主进程 RAG — 彻底规避 file:// 限制)
   // ========================================
@@ -239,13 +278,33 @@ export function registerIpcHandlers(): void {
   ipcMain.on('rag:ingest', (event, data: { bookId: string; paragraphs: RagParagraph[] }) => {
     const { bookId, paragraphs } = data
     console.log(`[IPC] rag:ingest called for book: ${bookId}, paragraphs: ${paragraphs.length}`)
-    ragIngest(bookId, paragraphs, event.sender).catch((error) => {
+    // Cancel any existing ingest for this book
+    const existing = abortControllers.get(bookId)
+    if (existing) existing.abort()
+    const controller = new AbortController()
+    abortControllers.set(bookId, controller)
+
+    ragIngest(bookId, paragraphs, event.sender, controller.signal).then(() => {
+      abortControllers.delete(bookId)
+    }).catch((error) => {
+      abortControllers.delete(bookId)
+      if (error.message === 'Cancelled') return
       console.error('[IPC] rag:ingest error:', error)
       event.sender.send('rag:ingest-error', {
         bookId,
         error: error instanceof Error ? error.message : String(error),
       })
     })
+  })
+
+  // 取消正在进行的索引
+  ipcMain.on('rag:cancel', (_, bookId: string) => {
+    const controller = abortControllers.get(bookId)
+    if (controller) {
+      controller.abort()
+      abortControllers.delete(bookId)
+      console.log(`[IPC] rag:cancel for book: ${bookId}`)
+    }
   })
 
   // 检索（返回结果）
@@ -277,6 +336,44 @@ export function registerIpcHandlers(): void {
       await ragClearCache(contentHash)
     } catch (error) {
       console.error('[IPC] rag:clear-cache error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
+  })
+
+  // ========================================
+  // Skill 文件操作 handlers
+  // ========================================
+
+  // 列出目录下所有 .md 文件
+  ipcMain.handle('skills:list', async (_, dirPath: string) => {
+    console.log(`[IPC] skills:list called with path: ${dirPath}`)
+    try {
+      return await getSkillMarkdownFiles(dirPath)
+    } catch (error) {
+      console.error('[IPC] skills:list error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
+  })
+
+  // 读取 skill 文件内容
+  ipcMain.handle('skills:read', async (_, filePath: string) => {
+    console.log(`[IPC] skills:read called with path: ${filePath}`)
+    try {
+      return await fs.readFile(filePath, 'utf-8')
+    } catch (error) {
+      console.error('[IPC] skills:read error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
+    }
+  })
+
+  // 写入 skill 文件（自动创建目录）
+  ipcMain.handle('skills:write', async (_, filePath: string, content: string) => {
+    console.log(`[IPC] skills:write called with path: ${filePath}, content length: ${content.length}`)
+    try {
+      await ensureDir(path.dirname(filePath))
+      await fs.writeFile(filePath, content, 'utf-8')
+    } catch (error) {
+      console.error('[IPC] skills:write error:', error)
       throw error instanceof Error ? error : new Error(String(error))
     }
   })

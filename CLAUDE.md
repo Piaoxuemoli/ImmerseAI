@@ -342,10 +342,10 @@ ImmerseAI/
 
 | 资料类型 | 放置位置 |
 |---------|---------|
-| 调试记录 | `test_book/Bug调试记录.md` |
-| 架构优化 | `docs/架构优化方案.md` |
+| 调试记录 | `test_book/无分类/Bug调试记录.md` |
+| 架构优化 | `docs/superpowers/plans/`（已实现，文档归档） |
 | 功能构想 | `docs/未来功能实现构想.md` |
-| UI 优化 | `docs/界面优化方案.md` |
+| UI 优化 | `docs/superpowers/specs/`（已实现，文档归档） |
 | 已知坑位 | `docs/known-issues.md` |
 | OpenSpec 变更 | `openspec/` |
 | BMAD 工作流 | `_BMAD/` |
@@ -355,6 +355,8 @@ ImmerseAI/
 - `docs/spikes/` — 实验代码片段已删除
 - `docs/api-reference.md` — 以 `package.json` 为准
 - `docs/screenshots/` — 空目录已删除
+- `docs/架构优化方案.md` — 已实现并删除
+- `docs/界面优化方案.md` — 已实现并删除
 - `tests/` 以外任何位置的测试代码 — 测试必须隔离到 `tests/` 目录
 
 ---

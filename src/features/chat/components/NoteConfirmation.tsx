@@ -23,7 +23,7 @@ export function NoteConfirmation({ success, noteTitle, filePath, error }: NoteCo
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.08 }}
-        className="rounded-lg border border-green-200 bg-green-50 p-3"
+        className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/50"
       >
         <div className="flex items-start gap-2">
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
@@ -52,7 +52,7 @@ export function NoteConfirmation({ success, noteTitle, filePath, error }: NoteCo
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.08 }}
-      className="rounded-lg border border-red-200 bg-red-50 p-3"
+      className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/50"
     >
       <div className="flex items-start gap-2">
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />

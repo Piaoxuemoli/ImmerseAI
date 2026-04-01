@@ -287,6 +287,22 @@ export class McpManager {
   }
 
   /**
+   * 使用超时包装 MCP 连接
+   *
+   * @param timeoutMs - 超时毫秒数,默认 10000 (10秒)
+   * @throws {Error} 连接超时或传输层未初始化时抛出
+   */
+  private async connectWithTimeout(timeoutMs = 10000): Promise<void> {
+    if (!this.transport) throw new Error('Transport not initialized');
+    return Promise.race([
+      this.client!.connect(this.transport),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('MCP connection timeout')), timeoutMs)
+      )
+    ]) as Promise<never>;
+  }
+
+  /**
    * 尝试建立 MCP 连接,支持自动重试(私有方法)
    * 
    * @param localPath - 本地目录路径
@@ -309,8 +325,8 @@ export class McpManager {
         { capabilities: {} }
       );
 
-      // 6.3: 建立连接
-      await this.client.connect(this.transport);
+      // 6.3: 建立连接 (带 10 秒超时)
+      await this.connectWithTimeout();
 
       // 6.4: 连接成功,更新状态
       this.status = 'connected';

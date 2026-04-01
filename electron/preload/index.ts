@@ -8,6 +8,19 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron'
+
+// 窗口控制 API
+const windowAPI = {
+  minimize: (): void => ipcRenderer.send('window:minimize'),
+  maximize: (): void => ipcRenderer.send('window:maximize'),
+  close: (): void => ipcRenderer.send('window:close'),
+  isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
+  onMaximizeChange: (callback: (isMaximized: boolean) => void): (() => void) => {
+    const listener = (_: unknown, isMaximized: boolean) => callback(isMaximized)
+    ipcRenderer.on('window:maximize-change', listener)
+    return () => ipcRenderer.removeListener('window:maximize-change', listener)
+  },
+}
 import type { BookFile, Message, LlmConfig, RagParagraph, RagSearchResult } from '@/shared/types'
 import type { ElectronAPI } from '@/shared/types/electron'
 
@@ -46,9 +59,15 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.on('llm:chat-error', listener)
       return () => ipcRenderer.removeListener('llm:chat-error', listener)
     },
+    onChatComplete: (callback: (data: { totalDuration: number }) => void): (() => void) => {
+      const listener = (_: unknown, data: { totalDuration: number }): void => callback(data)
+      ipcRenderer.on('llm:chat-complete', listener)
+      return () => ipcRenderer.removeListener('llm:chat-complete', listener)
+    },
     cancelChat: (): void => {
       ipcRenderer.removeAllListeners('llm:chat-chunk')
       ipcRenderer.removeAllListeners('llm:chat-error')
+      ipcRenderer.removeAllListeners('llm:chat-complete')
     },
   },
 
@@ -63,11 +82,16 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('app:get-safe-storage', key),
     setSafeStorage: (key: string, value: string): Promise<boolean> =>
       ipcRenderer.invoke('app:set-safe-storage', key, value),
+    getUserDataPath: (): Promise<string> =>
+      ipcRenderer.invoke('app:get-user-data-path'),
   },
 
   rag: {
     ingest: (bookId: string, paragraphs: RagParagraph[]): void =>
       ipcRenderer.send('rag:ingest', { bookId, paragraphs }),
+
+    cancel: (bookId: string): void =>
+      ipcRenderer.send('rag:cancel', bookId),
 
     search: (contentHash: string, query: string, topK = 5): Promise<RagSearchResult[]> =>
       ipcRenderer.invoke('rag:search', { contentHash, query, topK }),
@@ -121,6 +145,16 @@ const electronAPI: ElectronAPI = {
       return () => ipcRenderer.removeListener('rag:upgrade-complete', listener)
     },
   },
+
+  skills: {
+    list: (dirPath: string): Promise<string[]> =>
+      ipcRenderer.invoke('skills:list', dirPath),
+    read: (filePath: string): Promise<string> =>
+      ipcRenderer.invoke('skills:read', filePath),
+    write: (filePath: string, content: string): Promise<void> =>
+      ipcRenderer.invoke('skills:write', filePath, content),
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)
+contextBridge.exposeInMainWorld('windowControl', windowAPI)

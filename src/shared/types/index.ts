@@ -177,6 +177,60 @@ export interface IntentRecognitionResult {
 }
 
 // ============================================
+// Agent 执行计划类型
+// ============================================
+import type { SkillStep } from '../../features/bookshelf/types/skill'
+
+/**
+ * Agent 执行计划类型
+ */
+export type PlanType = 'skill' | 'tools' | 'done'
+
+/**
+ * 工具调用
+ */
+export interface ToolCall {
+  tool: string
+  args: Record<string, unknown>
+}
+
+/**
+ * 工具调用结果
+ */
+export interface ToolCallResult {
+  tool: string
+  args: Record<string, unknown>
+  result: unknown
+  success: boolean
+  isFinal: boolean               // 是否为最终步骤
+  error?: string
+}
+
+/**
+ * 执行计划
+ */
+export interface ExecutionPlan {
+  type: PlanType
+  skillName?: string
+  skillParams?: Record<string, unknown>
+  thought?: string               // Agent 推理过程
+  toolCalls?: ToolCall[]        // 要调用的工具
+  maxSteps?: number
+}
+
+/**
+ * 固化判断结果
+ */
+export interface SolidificationResult {
+  shouldSolidify: boolean
+  reason: string
+  skillName?: string
+  generalizedDescription?: string
+  paramTemplate?: Record<string, { type: string; description: string }>
+  steps?: SkillStep[]
+}
+
+// ============================================
 // 全局状态接口 (Zustand Store)
 // ============================================
 export interface ImmerseStore {
